@@ -158,15 +158,17 @@ export default function PropertyInvestmentAgent() {
 
   return (
     <div className="flex h-screen w-full bg-gray-50">
-      {/* Custom Sidebar - No shadcn components */}
-      <AppSidebar
-        activeView={viewMode}
-        onViewChange={(view) => setViewMode(view as ViewMode)}
-        onNewChat={handleNewChat}
-      />
+      {/* Custom Sidebar - Fixed width, no shadcn components */}
+      <div className="w-20 flex-shrink-0">
+        <AppSidebar
+          activeView={viewMode}
+          onViewChange={(view) => setViewMode(view as ViewMode)}
+          onNewChat={handleNewChat}
+        />
+      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="flex-shrink-0 flex h-16 items-center gap-2 border-b px-4 bg-white">
           <div className="flex items-center gap-2">
@@ -177,6 +179,7 @@ export default function PropertyInvestmentAgent() {
           </div>
         </header>
 
+        {/* Main Content */}
         <main className="flex-1 overflow-hidden">
           {viewMode === "home" && <EnhancedChat onToolSelect={handleToolSelect} />}
 
