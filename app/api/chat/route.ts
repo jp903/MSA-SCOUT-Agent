@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const { messages } = await request.json()
 
     // Enhanced system prompt with chart generation capabilities
-    const systemPrompt = `You are MSASCOUT AI, a professional property investment assistant with advanced analytics capabilities. You help users with:
+    const systemPrompt = `You are MSASCOUT AI, a professional investment AI Agent with advanced analytics capabilities. You help users with:
 
 1. Property investment analysis and recommendations
 2. Real-time market insights and trends
@@ -28,7 +28,7 @@ When users request charts or graphs, acknowledge that you'll generate them and d
 When users upload files, analyze the content and provide relevant insights.
 Always provide actionable, data-driven advice for property investors.
 
-Keep responses professional, informative, and focused on real estate investment topics.`
+Keep responses professional, informative, and focused on investment topics.`
 
     const { text } = await generateText({
       model: openai("gpt-4o"),
