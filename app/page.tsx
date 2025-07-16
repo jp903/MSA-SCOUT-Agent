@@ -7,8 +7,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { Separator } from "@/components/ui/separator"
 import { Loader2, TrendingUp, MapPin, Sparkles } from "lucide-react"
 import PortfolioDashboard from "@/components/portfolio-dashboard"
 import PropertyForm from "@/components/property-form"
@@ -21,56 +19,22 @@ import MarketInsights from "@/components/market-insights"
 import ChatHistory from "@/components/chat-history"
 
 const US_STATES = [
-  "Alabama",
-  "Alaska",
-  "Arizona",
+  "Texas",
+  "Nevada",
   "Arkansas",
-  "California",
-  "Colorado",
-  "Connecticut",
-  "Delaware",
+  "Alabama",
   "Florida",
   "Georgia",
-  "Hawaii",
-  "Idaho",
-  "Illinois",
-  "Indiana",
-  "Iowa",
-  "Kansas",
-  "Kentucky",
-  "Louisiana",
-  "Maine",
-  "Maryland",
-  "Massachusetts",
-  "Michigan",
-  "Minnesota",
-  "Mississippi",
-  "Missouri",
   "Montana",
-  "Nebraska",
-  "Nevada",
-  "New Hampshire",
-  "New Jersey",
-  "New Mexico",
-  "New York",
-  "North Carolina",
-  "North Dakota",
   "Ohio",
-  "Oklahoma",
-  "Oregon",
-  "Pennsylvania",
-  "Rhode Island",
-  "South Carolina",
-  "South Dakota",
+  "Indiana",
+  "North Carolina",
   "Tennessee",
-  "Texas",
-  "Utah",
-  "Vermont",
-  "Virginia",
-  "Washington",
-  "West Virginia",
-  "Wisconsin",
-  "Wyoming",
+  "Arizona",
+  "Missouri",
+  "Michigan",
+  "South Carolina",
+  "Kentucky",
 ]
 
 type ViewMode =
@@ -102,16 +66,6 @@ export default function PropertyInvestmentAgent() {
       id: "3",
       title: "Market Insights for California",
       timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "4",
-      title: "ROI Analysis for Multi-Family Properties",
-      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "5",
-      title: "Florida Real Estate Opportunities",
-      timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     },
   ])
 
@@ -184,7 +138,6 @@ export default function PropertyInvestmentAgent() {
       timestamp: new Date().toISOString(),
     }
     setChatHistory([newChat, ...chatHistory])
-    setViewMode("chat")
   }
 
   const handleToolSelect = (tool: string) => {
@@ -196,7 +149,7 @@ export default function PropertyInvestmentAgent() {
         setViewMode("insights")
         break
       case "ai-chat":
-        setViewMode("chat")
+        setViewMode("home")
         break
       default:
         setViewMode("home")
@@ -204,27 +157,31 @@ export default function PropertyInvestmentAgent() {
   }
 
   return (
-    <>
+    <div className="flex h-screen w-full bg-gray-50">
+      {/* Custom Sidebar - No shadcn components */}
       <AppSidebar
         activeView={viewMode}
         onViewChange={(view) => setViewMode(view as ViewMode)}
         onNewChat={handleNewChat}
       />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-white/80 backdrop-blur-sm">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="flex-shrink-0 flex h-16 items-center gap-2 border-b px-4 bg-white">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+              <Sparkles className="h-4 w-4 text-white" />
+            </div>
+            <span className="font-semibold text-gray-900">MSASCOUT AI</span>
+          </div>
         </header>
 
-        <div className="flex-1 bg-gradient-to-br from-gray-50 to-blue-50">
-          {viewMode === "home" && (
-            <div className="h-[calc(100vh-4rem)] overflow-auto">
-              <EnhancedChat onToolSelect={handleToolSelect} />
-            </div>
-          )}
+        <main className="flex-1 overflow-hidden">
+          {viewMode === "home" && <EnhancedChat onToolSelect={handleToolSelect} />}
 
           {viewMode === "chat" && (
-            <div className="h-[calc(100vh-4rem)] p-4">
+            <div className="h-full p-4 overflow-auto">
               <ChatHistory
                 chatHistory={chatHistory}
                 onChatSelect={(chatId) => {
@@ -238,7 +195,7 @@ export default function PropertyInvestmentAgent() {
           )}
 
           {viewMode === "calculator" && (
-            <div className="p-4">
+            <div className="h-full p-4 overflow-auto">
               <div className="max-w-4xl mx-auto">
                 <PropertyCalculator />
               </div>
@@ -246,7 +203,7 @@ export default function PropertyInvestmentAgent() {
           )}
 
           {viewMode === "insights" && (
-            <div className="p-4">
+            <div className="h-full p-4 overflow-auto">
               <div className="max-w-6xl mx-auto">
                 <MarketInsights />
               </div>
@@ -254,7 +211,7 @@ export default function PropertyInvestmentAgent() {
           )}
 
           {viewMode === "portfolio" && (
-            <div className="min-h-[calc(100vh-4rem)] bg-muted/50 p-6">
+            <div className="h-full bg-gray-50 p-6 overflow-auto">
               <PortfolioDashboard
                 onAddProperty={handleAddProperty}
                 onEditProperty={handleEditProperty}
@@ -264,8 +221,8 @@ export default function PropertyInvestmentAgent() {
           )}
 
           {viewMode === "ai analysis" && (
-            <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-blue-50 to-purple-50 p-6">
-              <div className="space-y-8">
+            <div className="h-full bg-gradient-to-br from-blue-50 to-purple-50 p-6 overflow-auto">
+              <div className="space-y-8 max-w-6xl mx-auto">
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-2 mb-4">
                     <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl">
@@ -385,7 +342,7 @@ export default function PropertyInvestmentAgent() {
               </div>
             </div>
           )}
-        </div>
+        </main>
 
         {/* Property Form Modal */}
         {(viewMode === "add-property" || viewMode === "edit-property") && (
@@ -412,7 +369,7 @@ export default function PropertyInvestmentAgent() {
             </div>
           </div>
         )}
-      </SidebarInset>
-    </>
+      </div>
+    </div>
   )
 }

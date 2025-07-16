@@ -6,188 +6,88 @@ import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Building2,
-  Send,
-  User,
-  Mic,
-  MicOff,
-  Volume2,
-  VolumeX,
-  BarChart3,
-  TrendingUp,
-  MapPin,
-  Calculator,
-  Sparkles,
-  MessageSquare,
-} from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Send, Mic, Calculator, TrendingUp, Search, MapPin, Sparkles, Bot, User } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
 
 interface Message {
   id: string
+  role: "user" | "assistant"
   content: string
-  sender: "user" | "ai"
-  timestamp: string
-  type?: "text" | "analysis" | "visualization"
-  data?: any
+  timestamp: Date
 }
 
 interface EnhancedChatProps {
   onToolSelect?: (tool: string) => void
 }
 
-export function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
+export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
+      role: "assistant",
       content:
-        "Hello! I'm MSASCOUT AI Agent, your advanced property investment assistant. I can analyze market data, create visualizations, and provide comprehensive investment insights. How can I help you today?",
-      sender: "ai",
-      timestamp: new Date().toISOString(),
+        "Hello! I'm MSASCOUT AI, your advanced property investment assistant. I can help you analyze markets, calculate ROI, find investment opportunities, and provide data-driven insights. What would you like to explore today?",
+      timestamp: new Date(),
     },
   ])
-  const [inputMessage, setInputMessage] = useState("")
+  const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [isListening, setIsListening] = useState(false)
-  const [isSpeaking, setIsSpeaking] = useState(false)
-  const [activeTab, setActiveTab] = useState("chat")
-
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const recognitionRef = useRef<any>(null)
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
 
-  // Initialize speech recognition
   useEffect(() => {
-    if (typeof window !== "undefined" && "webkitSpeechRecognition" in window) {
-      const recognition = new (window as any).webkitSpeechRecognition()
-      recognition.continuous = false
-      recognition.interimResults = false
-      recognition.lang = "en-US"
+    scrollToBottom()
+  }, [messages])
 
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript
-        setInputMessage(transcript)
-        setIsListening(false)
-      }
-
-      recognition.onerror = () => {
-        setIsListening(false)
-      }
-
-      recognition.onend = () => {
-        setIsListening(false)
-      }
-
-      recognitionRef.current = recognition
-    }
-  }, [])
-
-  const startListening = () => {
-    if (recognitionRef.current) {
-      setIsListening(true)
-      recognitionRef.current.start()
-    }
-  }
-
-  const stopListening = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop()
-      setIsListening(false)
-    }
-  }
-
-  const speakText = (text: string) => {
-    if ("speechSynthesis" in window) {
-      const utterance = new SpeechSynthesisUtterance(text)
-      utterance.rate = 0.9
-      utterance.pitch = 1
-      utterance.volume = 0.8
-
-      utterance.onstart = () => setIsSpeaking(true)
-      utterance.onend = () => setIsSpeaking(false)
-
-      speechSynthesis.speak(utterance)
-    }
-  }
-
-  const stopSpeaking = () => {
-    if ("speechSynthesis" in window) {
-      speechSynthesis.cancel()
-      setIsSpeaking(false)
-    }
-  }
-
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return
+  const handleSend = async () => {
+    if (!input.trim()) return
 
     const userMessage: Message = {
-      id: crypto.randomUUID(),
-      content: inputMessage,
-      sender: "user",
-      timestamp: new Date().toISOString(),
+      id: Date.now().toString(),
+      role: "user",
+      content: input,
+      timestamp: new Date(),
     }
 
     setMessages((prev) => [...prev, userMessage])
-    setInputMessage("")
+    setInput("")
     setIsLoading(true)
 
     try {
-      // Check if message is asking for specific tools
-      const lowerMessage = inputMessage.toLowerCase()
-      if (lowerMessage.includes("calculator") || lowerMessage.includes("calculate")) {
-        onToolSelect?.("investment-calculator")
-        return
-      }
-      if (lowerMessage.includes("market") || lowerMessage.includes("insight")) {
-        onToolSelect?.("market-insights")
-        return
-      }
-
-      // Call the enhanced analysis API
-      const response = await fetch("/api/analyze-market", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          query: inputMessage,
-          includeVisuals: true,
+          message: input,
+          history: messages,
         }),
       })
 
       const data = await response.json()
 
-      const aiMessage: Message = {
-        id: crypto.randomUUID(),
-        content: data.analysis || "I've analyzed your request. Here are my insights based on current market data.",
-        sender: "ai",
-        timestamp: new Date().toISOString(),
-        type: data.visualizations ? "analysis" : "text",
-        data: data.visualizations,
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: data.response,
+        timestamp: new Date(),
       }
 
-      setMessages((prev) => [...prev, aiMessage])
-
-      // Speak the response
-      speakText(aiMessage.content)
+      setMessages((prev) => [...prev, assistantMessage])
     } catch (error) {
       console.error("Error sending message:", error)
-      const errorMessage: Message = {
-        id: crypto.randomUUID(),
-        content: "I apologize, but I encountered an error processing your request. Please try again.",
-        sender: "ai",
-        timestamp: new Date().toISOString(),
-      }
-      setMessages((prev) => [...prev, errorMessage])
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
@@ -196,228 +96,226 @@ export function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
-      handleSendMessage()
+      handleSend()
     }
+  }
+
+  const handleVoiceInput = () => {
+    toast({
+      title: "Voice Input",
+      description: "🎙️ Voice input feature launching soon!",
+    })
   }
 
   const quickActions = [
     {
       label: "Analyze Market",
-      icon: BarChart3,
-      action: () => setInputMessage("Analyze the current real estate market trends"),
+      icon: TrendingUp,
+      action: () => onToolSelect?.("market-insights"),
     },
-    { label: "Calculate ROI", icon: Calculator, action: () => onToolSelect?.("investment-calculator") },
-    { label: "Market Insights", icon: TrendingUp, action: () => onToolSelect?.("market-insights") },
     {
-      label: "Compare Cities",
+      label: "Calculate ROI",
+      icon: Calculator,
+      action: () => onToolSelect?.("investment-calculator"),
+    },
+    {
+      label: "Find Properties",
+      icon: Search,
+      action: () => setInput("Help me find investment properties in Texas"),
+    },
+    {
+      label: "Market Trends",
       icon: MapPin,
-      action: () => setInputMessage("Compare real estate markets between different cities"),
+      action: () => setInput("What are the current market trends?"),
     },
   ]
 
   return (
-    <div className="flex flex-col h-full max-w-6xl mx-auto bg-gradient-to-br from-blue-50 to-purple-50">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <div className="border-b bg-white/80 backdrop-blur-sm p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Building2 className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  MSASCOUT AI Agent
-                </h1>
-                <p className="text-sm text-gray-600">Advanced Property Investment Assistant</p>
-              </div>
-            </div>
-            <Badge variant="secondary" className="bg-green-100 text-green-700">
-              <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" />
+    <div className="h-full flex flex-col bg-white">
+      {/* Header */}
+      <div className="border-b bg-gradient-to-r from-blue-50 to-purple-50 p-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+            <Sparkles className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">MSASCOUT AI Agent</h2>
+            <p className="text-sm text-gray-600">Advanced Property Investment Assistant</p>
+          </div>
+          <div className="ml-auto">
+            <Badge variant="secondary" className="bg-green-100 text-green-800">
+              <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
               Online
             </Badge>
           </div>
-
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="chat" className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              Chat
-            </TabsTrigger>
-            <TabsTrigger value="analysis" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Analysis
-            </TabsTrigger>
-            <TabsTrigger value="tools" className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4" />
-              Tools
-            </TabsTrigger>
-          </TabsList>
         </div>
+      </div>
 
-        <TabsContent value="chat" className="flex-1 flex flex-col">
+      {/* Tabs */}
+      <Tabs defaultValue="chat" className="flex-1 flex flex-col">
+        <TabsList className="grid w-full grid-cols-3 bg-gray-50 m-4 mb-0">
+          <TabsTrigger value="chat" className="flex items-center gap-2">
+            <Bot className="h-4 w-4" />
+            Chat
+          </TabsTrigger>
+          <TabsTrigger value="analysis" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Analysis
+          </TabsTrigger>
+          <TabsTrigger value="tools" className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            Tools
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="chat" className="flex-1 flex flex-col m-4 mt-0">
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.map((message) => (
-              <div key={message.id} className={`flex gap-3 ${message.sender === "user" ? "justify-end" : ""}`}>
-                {message.sender === "ai" && (
-                  <Avatar className="w-10 h-10 rounded-xl shadow-md">
-                    <AvatarFallback className="rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 text-white text-sm font-semibold">
-                      AI
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-                <Card
-                  className={`max-w-[70%] shadow-md ${
-                    message.sender === "user"
-                      ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0"
-                      : "bg-white/90 backdrop-blur-sm"
-                  }`}
+          <ScrollArea className="flex-1 pr-4">
+            <div className="space-y-4 py-4">
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
-                  <CardContent className="p-4">
+                  {message.role === "assistant" && (
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Bot className="h-4 w-4 text-white" />
+                    </div>
+                  )}
+                  <div
+                    className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                      message.role === "user"
+                        ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                        : "bg-gray-100 text-gray-900"
+                    }`}
+                  >
                     <p className="text-sm leading-relaxed">{message.content}</p>
-                    {message.data && (
-                      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                        <p className="text-xs text-gray-600 mb-2">📊 Analysis Data Available</p>
-                        <Button size="sm" variant="outline" onClick={() => setActiveTab("analysis")}>
-                          View Visualization
-                        </Button>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between mt-2">
-                      <p className={`text-xs ${message.sender === "user" ? "text-blue-100" : "text-gray-500"}`}>
-                        {new Date(message.timestamp).toLocaleTimeString()}
-                      </p>
-                      {message.sender === "ai" && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => speakText(message.content)}
-                          className="h-6 w-6 p-0"
-                        >
-                          {isSpeaking ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
-                        </Button>
-                      )}
+                    <p className={`text-xs mt-2 ${message.role === "user" ? "text-blue-100" : "text-gray-500"}`}>
+                      {message.timestamp.toLocaleTimeString()}
+                    </p>
+                  </div>
+                  {message.role === "user" && (
+                    <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <User className="h-4 w-4 text-gray-600" />
                     </div>
-                  </CardContent>
-                </Card>
-                {message.sender === "user" && (
-                  <Avatar className="w-10 h-10 rounded-xl shadow-md">
-                    <AvatarFallback className="rounded-xl bg-gray-600 text-white text-sm">
-                      <User className="h-5 w-5" />
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-              </div>
-            ))}
-            {isLoading && (
-              <div className="flex gap-3">
-                <Avatar className="w-10 h-10 rounded-xl">
-                  <AvatarFallback className="rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 text-white text-sm">
-                    AI
-                  </AvatarFallback>
-                </Avatar>
-                <Card className="bg-white/90 backdrop-blur-sm shadow-md">
-                  <CardContent className="p-4">
-                    <div className="flex space-x-2">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" />
+                  )}
+                </div>
+              ))}
+              {isLoading && (
+                <div className="flex gap-3 justify-start">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                    <Bot className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="bg-gray-100 rounded-2xl px-4 py-3">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                       <div
-                        className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"
+                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
                         style={{ animationDelay: "0.1s" }}
-                      />
+                      ></div>
                       <div
-                        className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
                         style={{ animationDelay: "0.2s" }}
-                      />
+                      ></div>
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          </ScrollArea>
 
           {/* Quick Actions */}
-          <div className="p-4 bg-white/80 backdrop-blur-sm border-t">
-            <div className="flex gap-2 mb-4 overflow-x-auto">
-              {quickActions.map((action, index) => (
-                <Button
-                  key={index}
-                  variant="outline"
-                  size="sm"
-                  onClick={action.action}
-                  className="flex items-center gap-2 whitespace-nowrap bg-white/80 hover:bg-white"
-                >
-                  <action.icon className="h-4 w-4" />
-                  {action.label}
-                </Button>
-              ))}
-            </div>
-
-            {/* Input */}
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <Input
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Ask about property investments, market analysis, or calculations..."
-                  className="pr-12 bg-white/90 backdrop-blur-sm border-gray-200"
-                  disabled={isLoading}
-                />
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className={`absolute right-1 top-1 h-8 w-8 p-0 ${isListening ? "text-red-500" : "text-gray-500"}`}
-                  onClick={isListening ? stopListening : startListening}
-                >
-                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                </Button>
-              </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+            {quickActions.map((action, index) => (
               <Button
-                onClick={handleSendMessage}
-                disabled={isLoading || !inputMessage.trim()}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                key={index}
+                variant="outline"
+                size="sm"
+                onClick={action.action}
+                className="flex items-center gap-2 h-10 bg-transparent"
               >
-                <Send className="h-4 w-4" />
+                <action.icon className="h-4 w-4" />
+                <span className="text-xs">{action.label}</span>
+              </Button>
+            ))}
+          </div>
+
+          {/* Input */}
+          <div className="flex gap-2">
+            <div className="flex-1 relative">
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Ask me about property investments, market analysis, or calculations..."
+                className="pr-12 h-12"
+                disabled={isLoading}
+              />
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleVoiceInput}
+                className="absolute right-1 top-1 h-10 w-10 p-0"
+                title="Voice input launching soon!"
+              >
+                <Mic className="h-4 w-4 text-gray-400" />
               </Button>
             </div>
+            <Button
+              onClick={handleSend}
+              disabled={!input.trim() || isLoading}
+              className="h-12 px-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
           </div>
         </TabsContent>
 
-        <TabsContent value="analysis" className="flex-1 p-4">
-          <Card className="h-full">
+        <TabsContent value="analysis" className="flex-1 m-4 mt-0">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Market Analysis Dashboard
-              </CardTitle>
+              <CardTitle>Market Analysis</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-center text-gray-500 py-12">
-                <BarChart3 className="h-16 w-16 mx-auto mb-4 opacity-30" />
-                <p>Analysis visualizations will appear here when you request market data analysis.</p>
-              </div>
+              <p className="text-gray-600">Advanced market analysis tools and insights will be displayed here.</p>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="tools" className="flex-1 p-4">
+        <TabsContent value="tools" className="flex-1 m-4 mt-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {quickActions.map((tool, index) => (
-              <Card key={index} className="cursor-pointer hover:shadow-lg transition-shadow">
-                <CardContent className="p-6 text-center">
-                  <tool.icon className="h-12 w-12 mx-auto mb-4 text-blue-600" />
-                  <h3 className="font-semibold mb-2">{tool.label}</h3>
-                  <Button onClick={tool.action} variant="outline" size="sm">
-                    Launch Tool
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => onToolSelect?.("investment-calculator")}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calculator className="h-5 w-5" />
+                  Investment Calculator
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-600">Calculate ROI, cash flow, and investment metrics</p>
+              </CardContent>
+            </Card>
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => onToolSelect?.("market-insights")}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Market Insights
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-600">Real-time market data and trends analysis</p>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
       </Tabs>
     </div>
   )
 }
-
-export default EnhancedChat

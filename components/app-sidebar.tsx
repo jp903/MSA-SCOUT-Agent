@@ -1,134 +1,129 @@
 "use client"
 
-import type * as React from "react"
 import {
   Building2,
   Calculator,
-  MessageSquarePlus,
   Plus,
   Settings,
   TrendingUp,
   User,
   HelpCircle,
   LogIn,
+  Home,
+  BarChart3,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarRail,
-} from "@/components/ui/sidebar"
 
-interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+interface AppSidebarProps {
   activeView?: string
   onViewChange?: (view: string) => void
   onNewChat?: () => void
 }
 
-export function AppSidebar({ activeView = "home", onViewChange, onNewChat, ...props }: AppSidebarProps) {
+export function AppSidebar({ activeView = "home", onViewChange, onNewChat }: AppSidebarProps) {
+  const handleNewChat = () => {
+    onViewChange?.("home")
+    onNewChat?.()
+  }
+
   return (
-    <Sidebar collapsible="icon" className="border-r-0 bg-gray-50" {...props}>
-      <SidebarHeader className="border-b-0">
-        <div className="flex items-center justify-center p-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black">
-            <Building2 className="h-5 w-5 text-white" />
-          </div>
+    <div className="h-full w-20 bg-white border-r flex flex-col shadow-sm">
+      {/* Header */}
+      <div className="flex items-center justify-center p-4 border-b">
+        <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+          <Building2 className="h-5 w-5 text-white" />
         </div>
-      </SidebarHeader>
+      </div>
 
-      <SidebarContent className="px-2">
-        <SidebarMenu className="space-y-2">
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={onNewChat}
-              className="h-12 w-12 rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow flex-col gap-1 p-2"
-              tooltip="New Chat"
-            >
-              <Plus className="h-5 w-5" />
-              <span className="text-xs">New</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+      {/* Navigation */}
+      <div className="flex-1 p-2 space-y-2">
+        <Button
+          onClick={handleNewChat}
+          className="w-full h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white flex-col gap-1 p-2"
+        >
+          <Plus className="h-4 w-4" />
+          <span className="text-xs">New</span>
+        </Button>
 
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={() => onViewChange?.("chat")}
-              isActive={activeView === "chat"}
-              className="h-12 w-12 rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow flex-col gap-1 p-2"
-              tooltip="AI Chat"
-            >
-              <MessageSquarePlus className="h-5 w-5" />
-              <span className="text-xs">Chat</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+        <Button
+          onClick={() => onViewChange?.("home")}
+          variant={activeView === "home" ? "default" : "ghost"}
+          className={`w-full h-12 rounded-xl flex-col gap-1 p-2 ${
+            activeView === "home"
+              ? "bg-gradient-to-br from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
+              : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+          }`}
+        >
+          <Home className="h-4 w-4" />
+          <span className="text-xs">Chat</span>
+        </Button>
 
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={() => onViewChange?.("calculator")}
-              isActive={activeView === "calculator"}
-              className="h-12 w-12 rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow flex-col gap-1 p-2"
-              tooltip="Calculator"
-            >
-              <Calculator className="h-5 w-5" />
-              <span className="text-xs">Calc</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+        <Button
+          onClick={() => onViewChange?.("calculator")}
+          variant={activeView === "calculator" ? "default" : "ghost"}
+          className={`w-full h-12 rounded-xl flex-col gap-1 p-2 ${
+            activeView === "calculator"
+              ? "bg-gradient-to-br from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
+              : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+          }`}
+        >
+          <Calculator className="h-4 w-4" />
+          <span className="text-xs">Calc</span>
+        </Button>
 
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={() => onViewChange?.("insights")}
-              isActive={activeView === "insights"}
-              className="h-12 w-12 rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow flex-col gap-1 p-2"
-              tooltip="Market Insights"
-            >
-              <TrendingUp className="h-5 w-5" />
-              <span className="text-xs">Market</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarContent>
+        <Button
+          onClick={() => onViewChange?.("insights")}
+          variant={activeView === "insights" ? "default" : "ghost"}
+          className={`w-full h-12 rounded-xl flex-col gap-1 p-2 ${
+            activeView === "insights"
+              ? "bg-gradient-to-br from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
+              : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+          }`}
+        >
+          <TrendingUp className="h-4 w-4" />
+          <span className="text-xs">Market</span>
+        </Button>
 
-      <SidebarFooter className="border-t-0 px-2 pb-2">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <div className="flex items-center justify-center">
-              {/* User Menu Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-10 w-10 rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow p-0"
-                  >
-                    <User className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent side="right" align="end" className="w-48">
-                  <DropdownMenuItem>
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <HelpCircle className="mr-2 h-4 w-4" />
-                    Support
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <LogIn className="mr-2 h-4 w-4" />
-                    Login
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
-      <SidebarRail />
-    </Sidebar>
+        <Button
+          onClick={() => onViewChange?.("portfolio")}
+          variant={activeView === "portfolio" ? "default" : "ghost"}
+          className={`w-full h-12 rounded-xl flex-col gap-1 p-2 ${
+            activeView === "portfolio"
+              ? "bg-gradient-to-br from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
+              : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+          }`}
+        >
+          <BarChart3 className="h-4 w-4" />
+          <span className="text-xs">Portfolio</span>
+        </Button>
+      </div>
+
+      {/* Footer */}
+      <div className="p-2 border-t">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="w-full h-10 rounded-xl bg-gray-100 hover:bg-gray-200 p-0">
+              <User className="h-4 w-4 text-gray-700" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="end" className="w-48">
+            <DropdownMenuItem>
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <HelpCircle className="mr-2 h-4 w-4" />
+              Support
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <LogIn className="mr-2 h-4 w-4" />
+              Login
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
   )
 }

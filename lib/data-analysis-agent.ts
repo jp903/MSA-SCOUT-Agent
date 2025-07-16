@@ -1,187 +1,123 @@
-import { generateText, tool } from "ai"
-import { openai } from "@ai-sdk/openai"
-import { z } from "zod"
+interface MarketData {
+  population_growth: number
+  job_growth: number
+  vacancy_rate: number
+  house_price_growth: number
+  net_migration: number
+  intl_inflows: number
+  single_family_permits: number
+  multi_family_permits: number
+}
 
-// Census API integration
-const fetchCensusData = tool({
-  description: "Fetch demographic and economic data from US Census API",
-  parameters: z.object({
-    location: z.string().describe("Location (state or MSA)"),
-    dataType: z.enum(["population", "housing", "migration", "permits"]).describe("Type of data to fetch"),
-    year: z.number().optional().describe("Year for data (default: 2023)"),
-  }),
-  execute: async ({ location, dataType, year = 2023 }) => {
-    const apiKey = "8604e58aa912128774be16143f2493884bd840cb"
+interface MarketAnalysis {
+  location: string
+  score: number
+  rank: number
+  strengths: string[]
+  weaknesses: string[]
+  recommendation: string
+}
 
-    try {
-      let url = ""
+export async function analyzeMarketData(location: string, budget: number): Promise<MarketAnalysis> {
+  // Simulate market data analysis
+  const mockData: MarketData = {
+    population_growth: Math.random() * 5,
+    job_growth: Math.random() * 4,
+    vacancy_rate: Math.random() * 10,
+    house_price_growth: Math.random() * 8,
+    net_migration: Math.random() * 3,
+    intl_inflows: Math.random() * 2,
+    single_family_permits: Math.random() * 1000,
+    multi_family_permits: Math.random() * 500,
+  }
 
-      switch (dataType) {
-        case "population":
-          url = `https://api.census.gov/data/${year}/acs/acs5?get=NAME,B01003_001E&for=state:*&key=${apiKey}`
-          break
-        case "housing":
-          url = `https://api.census.gov/data/${year}/acs/acs5?get=NAME,B25002_001E,B25002_003E&for=state:*&key=${apiKey}`
-          break
-        case "migration":
-          url = `https://api.census.gov/data/2020/acs/flows?get=GEOID1,FULL1_NAME,GEOID2,FULL2_NAME,MOVEDNET&for=metropolitan%20statistical%20area/micropolitan%20statistical%20area:*&key=${apiKey}`
-          break
-        case "permits":
-          // Simulated data for permits
-          return {
-            location,
-            singleFamilyPermits: Math.floor(Math.random() * 5000) + 1000,
-            multiFamilyPermits: Math.floor(Math.random() * 2000) + 500,
-            totalPermits: Math.floor(Math.random() * 7000) + 1500,
-          }
-      }
+  // Calculate weighted score
+  const score = calculateMarketScore(mockData)
 
-      // Simulated response for demo (replace with actual fetch in production)
-      return {
-        location,
-        dataType,
-        year,
-        data: {
-          population: Math.floor(Math.random() * 1000000) + 500000,
-          populationGrowth: (Math.random() * 4 - 1).toFixed(2) + "%",
-          housingUnits: Math.floor(Math.random() * 500000) + 200000,
-          vacancyRate: (Math.random() * 10 + 2).toFixed(1) + "%",
-          medianIncome: Math.floor(Math.random() * 50000) + 50000,
-        },
-      }
-    } catch (error) {
-      return { error: "Failed to fetch census data", location, dataType }
-    }
-  },
-})
+  return {
+    location,
+    score,
+    rank: Math.floor(Math.random() * 100) + 1,
+    strengths: generateStrengths(mockData),
+    weaknesses: generateWeaknesses(mockData),
+    recommendation: generateRecommendation(score, budget),
+  }
+}
 
-// BLS API integration for job data
-const fetchJobData = tool({
-  description: "Fetch employment and job growth data from Bureau of Labor Statistics",
-  parameters: z.object({
-    location: z.string().describe("Location (state or metro area)"),
-    year: z.number().optional().describe("Year for data (default: 2023)"),
-  }),
-  execute: async ({ location, year = 2023 }) => {
-    const apiKey = "158ccac1071b4598a8c1e79402c54255"
+function calculateMarketScore(data: MarketData): number {
+  const weights = {
+    population_growth: 0.2,
+    job_growth: 0.25,
+    vacancy_rate: -0.15, // Lower is better
+    house_price_growth: 0.15,
+    net_migration: 0.1,
+    intl_inflows: 0.05,
+    single_family_permits: 0.1,
+    multi_family_permits: 0.1,
+  }
 
-    // Simulated BLS data (replace with actual API call)
-    return {
-      location,
-      year,
-      unemploymentRate: (Math.random() * 5 + 2).toFixed(1) + "%",
-      jobGrowth: (Math.random() * 3).toFixed(1) + "%",
-      averageWage: Math.floor(Math.random() * 20000) + 50000,
-      majorIndustries: ["Technology", "Healthcare", "Manufacturing", "Finance"],
-      employmentTrend: Math.random() > 0.5 ? "Growing" : "Stable",
-    }
-  },
-})
+  let score = 0
+  score += data.population_growth * weights.population_growth
+  score += data.job_growth * weights.job_growth
+  score += (10 - data.vacancy_rate) * Math.abs(weights.vacancy_rate) // Invert vacancy rate
+  score += data.house_price_growth * weights.house_price_growth
+  score += data.net_migration * weights.net_migration
+  score += data.intl_inflows * weights.intl_inflows
+  score += (data.single_family_permits / 100) * weights.single_family_permits
+  score += (data.multi_family_permits / 100) * weights.multi_family_permits
 
-// Market ranking system
-const calculateMarketRanking = tool({
-  description: "Calculate comprehensive market ranking based on multiple factors",
-  parameters: z.object({
-    locations: z.array(z.string()).describe("Array of locations to rank"),
-    investmentGoals: z.string().describe("Investment goals and preferences"),
-  }),
-  execute: async ({ locations, investmentGoals }) => {
-    const rankings = locations.map((location) => {
-      // Simulated scoring based on key factors
-      const scores = {
-        populationGrowth: Math.random() * 100,
-        jobGrowth: Math.random() * 100,
-        housingAffordability: Math.random() * 100,
-        vacancyRate: Math.random() * 100,
-        priceAppreciation: Math.random() * 100,
-        rentYield: Math.random() * 100,
-        economicDiversity: Math.random() * 100,
-        infrastructure: Math.random() * 100,
-      }
+  return Math.min(Math.max(score * 10, 0), 100) // Scale to 0-100
+}
 
-      const totalScore = Object.values(scores).reduce((sum, score) => sum + score, 0) / 8
+function generateStrengths(data: MarketData): string[] {
+  const strengths: string[] = []
 
-      return {
-        location,
-        totalScore: Math.round(totalScore),
-        grade: totalScore >= 80 ? "A" : totalScore >= 70 ? "B" : totalScore >= 60 ? "C" : "D",
-        scores,
-        strengths: ["Strong job growth", "Low vacancy rates", "Growing population"],
-        weaknesses: ["High property prices", "Limited inventory"],
-        recommendation: totalScore >= 70 ? "Recommended" : "Consider with caution",
-      }
-    })
+  if (data.population_growth > 2) strengths.push("Strong population growth")
+  if (data.job_growth > 2) strengths.push("Robust job market expansion")
+  if (data.vacancy_rate < 5) strengths.push("Low vacancy rates")
+  if (data.house_price_growth > 4) strengths.push("Appreciating property values")
+  if (data.net_migration > 1.5) strengths.push("Positive net migration")
 
-    return rankings.sort((a, b) => b.totalScore - a.totalScore)
-  },
-})
+  return strengths.length > 0 ? strengths : ["Stable market conditions"]
+}
 
-// Visual data generation
-const generateVisualizationData = tool({
-  description: "Generate data for charts and visualizations",
-  parameters: z.object({
-    chartType: z.enum(["bar", "line", "pie", "scatter"]).describe("Type of chart to generate"),
-    dataCategory: z.string().describe("Category of data (e.g., 'price trends', 'market comparison')"),
-    locations: z.array(z.string()).describe("Locations to include in visualization"),
-  }),
-  execute: async ({ chartType, dataCategory, locations }) => {
-    const generateDataPoints = (count: number) =>
-      Array.from({ length: count }, (_, i) => ({
-        x: i + 1,
-        y: Math.floor(Math.random() * 100) + 20,
-        label: `Point ${i + 1}`,
-      }))
+function generateWeaknesses(data: MarketData): string[] {
+  const weaknesses: string[] = []
 
-    return {
-      chartType,
-      dataCategory,
-      data: {
-        labels: locations,
-        datasets: [
-          {
-            label: dataCategory,
-            data: locations.map(() => Math.floor(Math.random() * 100) + 20),
-            backgroundColor: ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"],
-          },
-        ],
-        trends: generateDataPoints(12), // Monthly data
-      },
-      insights: ["Market shows strong upward trend", "Seasonal variations observed", "Location A outperforms others"],
-    }
-  },
-})
+  if (data.population_growth < 1) weaknesses.push("Slow population growth")
+  if (data.job_growth < 1) weaknesses.push("Limited job growth")
+  if (data.vacancy_rate > 8) weaknesses.push("High vacancy rates")
+  if (data.house_price_growth < 2) weaknesses.push("Slow price appreciation")
 
-export async function analyzeMarketData(query: string, locations: string[] = []) {
-  const result = await generateText({
-    model: openai("gpt-4o"),
-    system: `You are an advanced real estate data analyst with access to comprehensive market data.
-    You analyze demographic, economic, and housing market data to provide investment insights.
-    
-    Use the available tools to:
-    1. Fetch relevant census and economic data
-    2. Calculate market rankings based on multiple factors
-    3. Generate visualization data for charts
-    4. Provide actionable investment recommendations
-    
-    Always provide specific, data-driven insights with clear rankings and recommendations.`,
-    prompt: `Analyze the following market data request: ${query}
-    
-    ${locations.length > 0 ? `Focus on these locations: ${locations.join(", ")}` : ""}
-    
-    Provide:
-    1. Comprehensive market analysis
-    2. Ranking of locations (if multiple)
-    3. Key investment factors and scores
-    4. Visualization recommendations
-    5. Specific investment advice`,
-    tools: {
-      fetchCensusData,
-      fetchJobData,
-      calculateMarketRanking,
-      generateVisualizationData,
-    },
-    maxSteps: 8,
-  })
+  return weaknesses.length > 0 ? weaknesses : ["Minor market volatility"]
+}
 
-  return result
+function generateRecommendation(score: number, budget: number): string {
+  if (score > 80) {
+    return `Excellent investment opportunity! With a score of ${score.toFixed(1)}, this market shows strong fundamentals across multiple indicators.`
+  } else if (score > 60) {
+    return `Good investment potential. Score of ${score.toFixed(1)} indicates solid market conditions with room for growth.`
+  } else if (score > 40) {
+    return `Moderate investment opportunity. Score of ${score.toFixed(1)} suggests careful analysis of specific neighborhoods is recommended.`
+  } else {
+    return `Proceed with caution. Score of ${score.toFixed(1)} indicates challenging market conditions that require thorough due diligence.`
+  }
+}
+
+export async function fetchCensusData(location: string): Promise<any> {
+  // Mock census data fetch
+  return {
+    population: Math.floor(Math.random() * 1000000) + 100000,
+    households: Math.floor(Math.random() * 400000) + 40000,
+    median_income: Math.floor(Math.random() * 50000) + 40000,
+  }
+}
+
+export async function fetchBLSData(location: string): Promise<any> {
+  // Mock BLS data fetch
+  return {
+    unemployment_rate: Math.random() * 8,
+    employment_growth: Math.random() * 5,
+    average_wage: Math.floor(Math.random() * 30000) + 35000,
+  }
 }
