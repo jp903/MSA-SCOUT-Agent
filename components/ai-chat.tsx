@@ -20,7 +20,7 @@ export default function AIChat() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
-      content: "Hello! I'm MSASCOUT AI Agent, your property investment assistant. How can I help you today?",
+      content: "Hello! I'm MSASCOUT AI Agent, your investment agent How can I help you today?",
       sender: "ai",
       timestamp: new Date().toISOString(),
     },

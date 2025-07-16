@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "MSASCOUT AI - Property Investment Agent",
-  description: "AI-powered real estate investment analysis and portfolio management",
+  description: "AI-powered investment analysis and portfolio management",
   generator: "v0.dev",
 }
 
