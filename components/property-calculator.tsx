@@ -16,7 +16,7 @@ interface CalculationResults {
   totalCashNeeded: number
 }
 
-export default function PropertyCalculator() {
+function PropertyCalculator() {
   const [inputs, setInputs] = useState({
     purchasePrice: "",
     monthlyRent: "",
@@ -236,3 +236,6 @@ export default function PropertyCalculator() {
     </div>
   )
 }
+
+export default PropertyCalculator
+export { PropertyCalculator }

@@ -12,7 +12,7 @@ interface ImageGalleryProps {
   className?: string
 }
 
-export default function ImageGallery({ images, className = "" }: ImageGalleryProps) {
+function ImageGallery({ images, className = "" }: ImageGalleryProps) {
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null)
 
   if (images.length === 0) {
@@ -157,3 +157,6 @@ export default function ImageGallery({ images, className = "" }: ImageGalleryPro
     </>
   )
 }
+
+export { ImageGallery } // named export
+export default ImageGallery // default export (unchanged behaviour)

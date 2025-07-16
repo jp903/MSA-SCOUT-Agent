@@ -16,7 +16,7 @@ import PropertyDetails from "@/components/property-details"
 import PropertyCalculator from "@/components/property-calculator"
 import type { Property } from "@/lib/portfolio-types"
 import { AppSidebar } from "@/components/app-sidebar"
-import ChatInterface from "@/components/chat-interface"
+import EnhancedChat from "@/components/enhanced-chat"
 import MarketInsights from "@/components/market-insights"
 import ChatHistory from "@/components/chat-history"
 
@@ -211,15 +211,15 @@ export default function PropertyInvestmentAgent() {
         onNewChat={handleNewChat}
       />
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-white/80 backdrop-blur-sm">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
         </header>
 
-        <div className="flex-1">
+        <div className="flex-1 bg-gradient-to-br from-gray-50 to-blue-50">
           {viewMode === "home" && (
             <div className="h-[calc(100vh-4rem)] overflow-auto">
-              <ChatInterface onToolSelect={handleToolSelect} />
+              <EnhancedChat onToolSelect={handleToolSelect} />
             </div>
           )}
 
@@ -228,7 +228,6 @@ export default function PropertyInvestmentAgent() {
               <ChatHistory
                 chatHistory={chatHistory}
                 onChatSelect={(chatId) => {
-                  // Handle chat selection
                   console.log("Selected chat:", chatId)
                 }}
                 onDeleteChat={(chatId) => {
@@ -265,26 +264,27 @@ export default function PropertyInvestmentAgent() {
           )}
 
           {viewMode === "ai analysis" && (
-            <div className="min-h-[calc(100vh-4rem)] bg-muted/50 p-6">
+            <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-blue-50 to-purple-50 p-6">
               <div className="space-y-8">
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-2 mb-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-                      <Sparkles className="h-6 w-6 text-white" />
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl">
+                      <Sparkles className="h-8 w-8 text-white" />
                     </div>
                   </div>
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2">AI Investment Analysis</h2>
-                  <p className="text-lg text-gray-600">
-                    Get personalized property investment recommendations powered by AI
+                  <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
+                    AI Investment Analysis
+                  </h2>
+                  <p className="text-xl text-gray-600">
+                    Get personalized property investment recommendations powered by advanced AI
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Input Form */}
-                  <Card className="shadow-sm">
+                  <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <MapPin className="h-5 w-5 text-blue-600" />
+                      <CardTitle className="flex items-center gap-2 text-xl">
+                        <MapPin className="h-6 w-6 text-blue-600" />
                         Investment Parameters
                       </CardTitle>
                     </CardHeader>
@@ -338,7 +338,7 @@ export default function PropertyInvestmentAgent() {
                       <Button
                         onClick={handleAnalyze}
                         disabled={isLoading}
-                        className="w-full bg-blue-600 hover:bg-blue-700"
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg"
                       >
                         {isLoading ? (
                           <>
@@ -355,27 +355,26 @@ export default function PropertyInvestmentAgent() {
                     </CardContent>
                   </Card>
 
-                  {/* Analysis Results */}
-                  <Card className="shadow-sm">
+                  <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <TrendingUp className="h-5 w-5 text-blue-600" />
+                      <CardTitle className="flex items-center gap-2 text-xl">
+                        <TrendingUp className="h-6 w-6 text-blue-600" />
                         AI Analysis Results
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       {analysis ? (
                         <div className="prose prose-sm max-w-none">
-                          <div className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700 bg-gradient-to-br from-blue-50 to-purple-50 p-4 rounded-lg border">
+                          <div className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700 bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-xl border shadow-inner">
                             {analysis}
                           </div>
                         </div>
                       ) : (
                         <div className="text-center text-gray-500 py-12">
-                          <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Sparkles className="h-8 w-8 text-blue-600" />
+                          <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <Sparkles className="h-10 w-10 text-blue-600" />
                           </div>
-                          <p className="text-sm">
+                          <p className="text-lg">
                             Enter your investment parameters and let MSASCOUT AI analyze the market for you
                           </p>
                         </div>
@@ -390,8 +389,8 @@ export default function PropertyInvestmentAgent() {
 
         {/* Property Form Modal */}
         {(viewMode === "add-property" || viewMode === "edit-property") && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
               <PropertyForm
                 property={selectedProperty || undefined}
                 onSave={handleSaveProperty}
@@ -403,8 +402,8 @@ export default function PropertyInvestmentAgent() {
 
         {/* Property Details Modal */}
         {viewMode === "view-property" && selectedProperty && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto p-6">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl">
               <PropertyDetails
                 property={selectedProperty}
                 onBack={() => setViewMode("portfolio")}

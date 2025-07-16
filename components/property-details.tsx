@@ -15,7 +15,7 @@ interface PropertyDetailsProps {
   onEdit: () => void
 }
 
-export default function PropertyDetails({ property, onBack, onEdit }: PropertyDetailsProps) {
+function PropertyDetails({ property, onBack, onEdit }: PropertyDetailsProps) {
   const performance = PortfolioManager.calculatePropertyPerformance(property)
   const images = ImageManager.getPropertyImages(property.id)
 
@@ -218,3 +218,6 @@ export default function PropertyDetails({ property, onBack, onEdit }: PropertyDe
     </div>
   )
 }
+
+export default PropertyDetails
+export { PropertyDetails }
