@@ -34,6 +34,7 @@ import {
   ArrowDown,
   Minus,
 } from "lucide-react"
+import type { ChatHistoryItem } from "@/lib/portfolio-types"
 
 interface Message {
   id: string
@@ -86,9 +87,11 @@ interface MarketData {
 
 interface EnhancedChatProps {
   onToolSelect?: (tool: string) => void
+  currentChat?: ChatHistoryItem | null
+  onChatUpdate?: (messages: any[], title?: string) => void
 }
 
-export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
+export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }: EnhancedChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -97,6 +100,51 @@ export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
   const [topStates, setTopStates] = useState<MarketData[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Load current chat messages when currentChat changes
+  useEffect(() => {
+    if (currentChat && currentChat.messages) {
+      const loadedMessages: Message[] = currentChat.messages.map((msg: any) => ({
+        id: msg.id || crypto.randomUUID(),
+        role: msg.role,
+        content: msg.content,
+        timestamp: new Date(msg.timestamp || Date.now()),
+        attachments: msg.attachments,
+        chartData: msg.chartData,
+      }))
+      setMessages(loadedMessages)
+    } else {
+      setMessages([])
+    }
+  }, [currentChat])
+
+  // Update chat in database when messages change
+  useEffect(() => {
+    if (messages.length > 0 && currentChat) {
+      const messagesToSave = messages.map((msg) => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp.toISOString(),
+        attachments: msg.attachments,
+        chartData: msg.chartData,
+      }))
+
+      // Generate title from first user message if chat title is "New Chat"
+      let title = currentChat.title
+      if (title === "New Chat" && messages.length > 0) {
+        const firstUserMessage = messages.find((msg) => msg.role === "user")
+        if (firstUserMessage) {
+          title =
+            firstUserMessage.content.length > 50
+              ? firstUserMessage.content.substring(0, 50) + "..."
+              : firstUserMessage.content
+        }
+      }
+
+      onChatUpdate?.(messagesToSave, title)
+    }
+  }, [messages, currentChat, onChatUpdate])
 
   // Mock data for 16 states with the 8 variables
   const mockMarketData: Omit<MarketData, "trends" | "reasons">[] = [
@@ -651,7 +699,7 @@ export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+    <div className="h-full bg-gradient-to-br from-blue-50 to-purple-50 overflow-y-auto">
       <div className="max-w-6xl mx-auto w-full space-y-8 p-6">
         {/* Header */}
         <div className="text-center">
