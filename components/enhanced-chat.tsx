@@ -30,6 +30,9 @@ import {
   Download,
   Edit3,
   RotateCcw,
+  ArrowUp,
+  ArrowDown,
+  Minus,
 } from "lucide-react"
 
 interface Message {
@@ -68,6 +71,17 @@ interface MarketData {
   single_family_permits: number
   multi_family_permits: number
   lastUpdated: Date
+  trends: {
+    population_growth: "up" | "down" | "stable"
+    job_growth: "up" | "down" | "stable"
+    house_price_index_growth: "up" | "down" | "stable"
+    net_migration: "up" | "down" | "stable"
+    vacancy_rate: "up" | "down" | "stable"
+    international_inflows: "up" | "down" | "stable"
+    single_family_permits: "up" | "down" | "stable"
+    multi_family_permits: "up" | "down" | "stable"
+  }
+  reasons: string[]
 }
 
 interface EnhancedChatProps {
@@ -80,12 +94,12 @@ export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [attachments, setAttachments] = useState<FileAttachment[]>([])
   const [marketData, setMarketData] = useState<MarketData[]>([])
-  const [topStates, setTopStates] = useState<string[]>([])
+  const [topStates, setTopStates] = useState<MarketData[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Mock data for 16 states with the 8 variables
-  const mockMarketData: MarketData[] = [
+  const mockMarketData: Omit<MarketData, "trends" | "reasons">[] = [
     {
       state: "Texas",
       population_growth: 1.8,
@@ -288,23 +302,91 @@ export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
     scrollToBottom()
   }, [messages])
 
+  const generateTrends = (current: number, base: number) => {
+    const change = ((current - base) / base) * 100
+    if (change > 2) return "up"
+    if (change < -2) return "down"
+    return "stable"
+  }
+
+  const generateReasons = (state: string, trends: MarketData["trends"]) => {
+    const reasons: string[] = []
+
+    if (trends.population_growth === "up") {
+      reasons.push("Strong job market attracting new residents")
+    }
+    if (trends.job_growth === "up") {
+      reasons.push("Tech and healthcare sectors expanding rapidly")
+    }
+    if (trends.house_price_index_growth === "up") {
+      reasons.push("High demand and limited inventory driving prices")
+    }
+    if (trends.net_migration === "up") {
+      reasons.push("Lower cost of living compared to coastal states")
+    }
+    if (trends.vacancy_rate === "down") {
+      reasons.push("Tight rental market with high occupancy rates")
+    }
+    if (trends.international_inflows === "up") {
+      reasons.push("Business-friendly policies attracting foreign investment")
+    }
+    if (trends.single_family_permits === "up") {
+      reasons.push("Suburban development meeting housing demand")
+    }
+    if (trends.multi_family_permits === "up") {
+      reasons.push("Urban densification and rental demand growth")
+    }
+
+    // Add some negative trend reasons
+    if (trends.vacancy_rate === "up") {
+      reasons.push("Economic uncertainty affecting rental demand")
+    }
+    if (trends.net_migration === "down") {
+      reasons.push("Competition from neighboring states")
+    }
+
+    return reasons.slice(0, 3) // Limit to 3 reasons
+  }
+
   useEffect(() => {
     // Load market data and calculate top states
     const loadMarketData = () => {
-      const data = mockMarketData.map((state) => ({
-        ...state,
-        population_growth: Number((state.population_growth + (Math.random() - 0.5) * 0.1).toFixed(1)),
-        job_growth: Number((state.job_growth + (Math.random() - 0.5) * 0.2).toFixed(1)),
-        house_price_index_growth: Number((state.house_price_index_growth + (Math.random() - 0.5) * 0.5).toFixed(1)),
-        net_migration: Math.round(state.net_migration + (Math.random() - 0.5) * 1000),
-        vacancy_rate: Number((state.vacancy_rate + (Math.random() - 0.5) * 0.3).toFixed(1)),
-        international_inflows: Math.round(state.international_inflows + (Math.random() - 0.5) * 200),
-        single_family_permits: Math.round(state.single_family_permits + (Math.random() - 0.5) * 2000),
-        multi_family_permits: Math.round(state.multi_family_permits + (Math.random() - 0.5) * 1000),
-        lastUpdated: new Date(),
-      }))
+      const data: MarketData[] = mockMarketData.map((state) => {
+        const newData = {
+          ...state,
+          population_growth: Number((state.population_growth + (Math.random() - 0.5) * 0.1).toFixed(1)),
+          job_growth: Number((state.job_growth + (Math.random() - 0.5) * 0.2).toFixed(1)),
+          house_price_index_growth: Number((state.house_price_index_growth + (Math.random() - 0.5) * 0.5).toFixed(1)),
+          net_migration: Math.round(state.net_migration + (Math.random() - 0.5) * 1000),
+          vacancy_rate: Number((state.vacancy_rate + (Math.random() - 0.5) * 0.3).toFixed(1)),
+          international_inflows: Math.round(state.international_inflows + (Math.random() - 0.5) * 200),
+          single_family_permits: Math.round(state.single_family_permits + (Math.random() - 0.5) * 2000),
+          multi_family_permits: Math.round(state.multi_family_permits + (Math.random() - 0.5) * 1000),
+          lastUpdated: new Date(),
+        }
 
-      // Calculate composite scores and get top 3
+        // Generate trends
+        const trends: MarketData["trends"] = {
+          population_growth: generateTrends(newData.population_growth, state.population_growth),
+          job_growth: generateTrends(newData.job_growth, state.job_growth),
+          house_price_index_growth: generateTrends(newData.house_price_index_growth, state.house_price_index_growth),
+          net_migration: generateTrends(newData.net_migration, state.net_migration),
+          vacancy_rate: generateTrends(state.vacancy_rate, newData.vacancy_rate), // Inverted for vacancy
+          international_inflows: generateTrends(newData.international_inflows, state.international_inflows),
+          single_family_permits: generateTrends(newData.single_family_permits, state.single_family_permits),
+          multi_family_permits: generateTrends(newData.multi_family_permits, state.multi_family_permits),
+        }
+
+        const reasons = generateReasons(state.state, trends)
+
+        return {
+          ...newData,
+          trends,
+          reasons,
+        }
+      })
+
+      // Calculate composite scores and get top 6
       const scoredStates = data.map((state) => ({
         ...state,
         score:
@@ -319,10 +401,10 @@ export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
       }))
 
       const sortedStates = scoredStates.sort((a, b) => b.score - a.score)
-      const top3 = sortedStates.slice(0, 3).map((state) => state.state)
+      const top6 = sortedStates.slice(0, 6)
 
       setMarketData(data)
-      setTopStates(top3)
+      setTopStates(top6)
     }
 
     loadMarketData()
@@ -534,9 +616,43 @@ export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
     return num.toString()
   }
 
+  const getTrendIcon = (trend: "up" | "down" | "stable") => {
+    switch (trend) {
+      case "up":
+        return <ArrowUp className="h-3 w-3 text-green-600" />
+      case "down":
+        return <ArrowDown className="h-3 w-3 text-red-600" />
+      case "stable":
+        return <Minus className="h-3 w-3 text-gray-600" />
+    }
+  }
+
+  const getTrendColor = (trend: "up" | "down" | "stable", isVacancy = false) => {
+    if (isVacancy) {
+      // For vacancy rate, down is good (green), up is bad (red)
+      switch (trend) {
+        case "up":
+          return "text-red-600"
+        case "down":
+          return "text-green-600"
+        case "stable":
+          return "text-gray-600"
+      }
+    } else {
+      switch (trend) {
+        case "up":
+          return "text-green-600"
+        case "down":
+          return "text-red-600"
+        case "stable":
+          return "text-gray-600"
+      }
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6 overflow-y-auto">
-      <div className="max-w-6xl mx-auto w-full space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+      <div className="max-w-6xl mx-auto w-full space-y-8 p-6">
         {/* Header */}
         <div className="text-center">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">MSASCOUT Super Agent</h1>
@@ -757,93 +873,208 @@ export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">For You</h2>
             <p className="text-gray-600">
-              Which 3 states are best performing in population growth, job growth, house price index growth, net
-              migration, vacancy rate, international inflows, single family permits, and multi family permits?
+              Top 6 performing states with live market trends and analysis across 8 key investment variables
             </p>
-            <div className="flex justify-center gap-4 mt-4">
-              {topStates.map((state, index) => (
-                <Badge
-                  key={state}
-                  variant="secondary"
-                  className={`px-4 py-2 text-sm ${
-                    index === 0
-                      ? "bg-yellow-100 text-yellow-800 border-yellow-300"
-                      : index === 1
-                        ? "bg-gray-100 text-gray-800 border-gray-300"
-                        : "bg-orange-100 text-orange-800 border-orange-300"
-                  }`}
-                >
-                  #{index + 1} {state}
-                </Badge>
-              ))}
-            </div>
           </div>
 
-          {/* Live Market Data */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {marketData.map((state) => (
+          {/* Top 6 States with Detailed Analysis */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {topStates.map((state, index) => (
               <Card key={state.state} className="border-0 bg-white/80 backdrop-blur-sm">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg font-bold">{state.state}</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="secondary"
+                        className={`px-2 py-1 text-xs ${
+                          index === 0
+                            ? "bg-yellow-100 text-yellow-800 border-yellow-300"
+                            : index === 1
+                              ? "bg-gray-100 text-gray-800 border-gray-300"
+                              : index === 2
+                                ? "bg-orange-100 text-orange-800 border-orange-300"
+                                : "bg-blue-100 text-blue-800 border-blue-300"
+                        }`}
+                      >
+                        #{index + 1}
+                      </Badge>
+                      <CardTitle className="text-lg font-bold">{state.state}</CardTitle>
+                    </div>
                     <Badge variant="secondary" className="bg-green-100 text-green-800">
                       <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
                       Live
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-600">Population Growth</span>
-                    <span className="font-semibold text-sm">{state.population_growth}%</span>
+                <CardContent className="space-y-3">
+                  {/* Variables with trends */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">Population Growth</span>
+                      <div className="flex items-center gap-1">
+                        {getTrendIcon(state.trends.population_growth)}
+                        <span className={`font-semibold text-sm ${getTrendColor(state.trends.population_growth)}`}>
+                          {state.population_growth}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">Job Growth</span>
+                      <div className="flex items-center gap-1">
+                        {getTrendIcon(state.trends.job_growth)}
+                        <span className={`font-semibold text-sm ${getTrendColor(state.trends.job_growth)}`}>
+                          {state.job_growth}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">House Price Growth</span>
+                      <div className="flex items-center gap-1">
+                        {getTrendIcon(state.trends.house_price_index_growth)}
+                        <span
+                          className={`font-semibold text-sm ${getTrendColor(state.trends.house_price_index_growth)}`}
+                        >
+                          {state.house_price_index_growth}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">Net Migration</span>
+                      <div className="flex items-center gap-1">
+                        {getTrendIcon(state.trends.net_migration)}
+                        <span className={`font-semibold text-sm ${getTrendColor(state.trends.net_migration)}`}>
+                          {state.net_migration > 0 ? "+" : ""}
+                          {formatNumber(state.net_migration)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">Vacancy Rate</span>
+                      <div className="flex items-center gap-1">
+                        {getTrendIcon(state.trends.vacancy_rate)}
+                        <span className={`font-semibold text-sm ${getTrendColor(state.trends.vacancy_rate, true)}`}>
+                          {state.vacancy_rate}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">International Inflows</span>
+                      <div className="flex items-center gap-1">
+                        {getTrendIcon(state.trends.international_inflows)}
+                        <span className={`font-semibold text-sm ${getTrendColor(state.trends.international_inflows)}`}>
+                          {formatNumber(state.international_inflows)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">Single Family Permits</span>
+                      <div className="flex items-center gap-1">
+                        {getTrendIcon(state.trends.single_family_permits)}
+                        <span className={`font-semibold text-sm ${getTrendColor(state.trends.single_family_permits)}`}>
+                          {formatNumber(state.single_family_permits)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">Multi Family Permits</span>
+                      <div className="flex items-center gap-1">
+                        {getTrendIcon(state.trends.multi_family_permits)}
+                        <span className={`font-semibold text-sm ${getTrendColor(state.trends.multi_family_permits)}`}>
+                          {formatNumber(state.multi_family_permits)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-600">Job Growth</span>
-                    <span
-                      className={`font-semibold text-sm ${state.job_growth > 2.5 ? "text-green-600" : "text-gray-900"}`}
-                    >
-                      {state.job_growth}%
-                    </span>
+
+                  {/* Reasons */}
+                  <div className="pt-3 border-t">
+                    <h4 className="text-xs font-semibold text-gray-700 mb-2">Key Drivers:</h4>
+                    <div className="space-y-1">
+                      {state.reasons.map((reason, idx) => (
+                        <div key={idx} className="flex items-start gap-1">
+                          <div className="w-1 h-1 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
+                          <span className="text-xs text-gray-600 leading-relaxed">{reason}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-600">House Price Growth</span>
-                    <span className="font-semibold text-sm">{state.house_price_index_growth}%</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-600">Net Migration</span>
-                    <span
-                      className={`font-semibold text-sm ${state.net_migration > 0 ? "text-green-600" : "text-red-600"}`}
-                    >
-                      {state.net_migration > 0 ? "+" : ""}
-                      {formatNumber(state.net_migration)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-600">Vacancy Rate</span>
-                    <span
-                      className={`font-semibold text-sm ${state.vacancy_rate < 4 ? "text-green-600" : "text-gray-900"}`}
-                    >
-                      {state.vacancy_rate}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-600">International Inflows</span>
-                    <span className="font-semibold text-sm">{formatNumber(state.international_inflows)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-600">Single Family Permits</span>
-                    <span className="font-semibold text-sm">{formatNumber(state.single_family_permits)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-600">Multi Family Permits</span>
-                    <span className="font-semibold text-sm">{formatNumber(state.multi_family_permits)}</span>
-                  </div>
+
                   <div className="text-xs text-gray-500 text-center pt-2 border-t">
                     Updated: {state.lastUpdated.toLocaleTimeString()}
                   </div>
                 </CardContent>
               </Card>
             ))}
+          </div>
+
+          {/* All States Market Data */}
+          <div className="space-y-4">
+            <h3 className="text-xl font-bold text-gray-900 text-center">All States Market Data</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {marketData.map((state) => (
+                <Card key={state.state} className="border-0 bg-white/80 backdrop-blur-sm">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg font-bold">{state.state}</CardTitle>
+                      <Badge variant="secondary" className="bg-green-100 text-green-800">
+                        <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
+                        Live
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">Population Growth</span>
+                      <span className="font-semibold text-sm">{state.population_growth}%</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">Job Growth</span>
+                      <span
+                        className={`font-semibold text-sm ${state.job_growth > 2.5 ? "text-green-600" : "text-gray-900"}`}
+                      >
+                        {state.job_growth}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">House Price Growth</span>
+                      <span className="font-semibold text-sm">{state.house_price_index_growth}%</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">Net Migration</span>
+                      <span
+                        className={`font-semibold text-sm ${state.net_migration > 0 ? "text-green-600" : "text-red-600"}`}
+                      >
+                        {state.net_migration > 0 ? "+" : ""}
+                        {formatNumber(state.net_migration)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">Vacancy Rate</span>
+                      <span
+                        className={`font-semibold text-sm ${state.vacancy_rate < 4 ? "text-green-600" : "text-gray-900"}`}
+                      >
+                        {state.vacancy_rate}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">International Inflows</span>
+                      <span className="font-semibold text-sm">{formatNumber(state.international_inflows)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">Single Family Permits</span>
+                      <span className="font-semibold text-sm">{formatNumber(state.single_family_permits)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">Multi Family Permits</span>
+                      <span className="font-semibold text-sm">{formatNumber(state.multi_family_permits)}</span>
+                    </div>
+                    <div className="text-xs text-gray-500 text-center pt-2 border-t">
+                      Updated: {state.lastUpdated.toLocaleTimeString()}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         </div>
       </div>
