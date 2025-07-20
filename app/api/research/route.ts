@@ -9,23 +9,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "State parameter is required" }, { status: 400 })
     }
 
-    console.log("🔍 Research request for state:", state)
+    console.log(`🔍 Analyzing market data for ${state}...`)
 
-    const analysis = await researchAgent.analyzeMarketData(state)
+    const result = await researchAgent.analyzeMarket(state)
+
+    console.log(`✅ Market analysis completed for ${state}`)
 
     return NextResponse.json({
       success: true,
-      data: analysis,
+      data: result,
     })
   } catch (error) {
-    console.error("❌ Error in research API:", error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to analyze market data",
-        details: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 },
-    )
+    console.error("❌ Research API error:", error)
+    return NextResponse.json({ error: "Failed to analyze market data" }, { status: 500 })
   }
 }
