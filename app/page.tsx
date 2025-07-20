@@ -19,31 +19,25 @@ export default function HomePage() {
   const [currentChat, setCurrentChat] = useState<ChatHistoryItem | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Load chat history on component mount
+  // Initialize database and load chat history on component mount
   useEffect(() => {
-    loadChatHistory()
+    initializeApp()
   }, [])
 
-  const loadChatHistory = async () => {
+  const initializeApp = async () => {
     try {
-      console.log("📚 Loading chat history...")
-      setIsLoading(true)
-      const history = await chatManagerDB.getAllChats()
-      console.log("✅ Loaded", history.length, "chats")
-      setChatHistory(history)
+      console.log("🚀 Initializing MSASCOUT...")
 
-      // If we have chats but no current chat selected, select the most recent one
-      if (history.length > 0 && !currentChatId) {
-        const mostRecent = history[0]
-        setCurrentChatId(mostRecent.id)
-        setCurrentChat(mostRecent)
-        console.log("📋 Auto-selected most recent chat:", mostRecent.id)
-      }
+      // Initialize database first
+      await initializeDatabase()
+
+      // Then load chat history
+      await loadChatHistory()
     } catch (error) {
-      console.error("❌ Error loading chat history:", error)
+      console.error("❌ Error initializing app:", error)
       toast({
-        title: "Error",
-        description: "Failed to load chat history",
+        title: "Initialization Error",
+        description: "Failed to initialize the application",
         variant: "destructive",
       })
     } finally {
@@ -51,21 +45,52 @@ export default function HomePage() {
     }
   }
 
+  const initializeDatabase = async () => {
+    try {
+      console.log("🔧 Initializing database...")
+      const response = await fetch("/api/init-db", { method: "POST" })
+      const result = await response.json()
+
+      if (result.success) {
+        console.log("✅ Database initialized successfully")
+      } else {
+        console.error("❌ Database initialization failed:", result.error)
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      console.error("❌ Error initializing database:", error)
+      throw error
+    }
+  }
+
+  const loadChatHistory = async () => {
+    try {
+      console.log("📚 Loading chat history...")
+      const history = await chatManagerDB.getAllChats()
+      console.log("✅ Loaded", history.length, "chats")
+      setChatHistory(history)
+    } catch (error) {
+      console.error("❌ Error loading chat history:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load chat history",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleNewChat = async () => {
     try {
       console.log("🆕 Creating new chat...")
-      const newChat = await chatManagerDB.createChat("New Chat")
-      console.log("✅ New chat created:", newChat.id)
 
-      // Add to history and set as current
-      setChatHistory((prev) => [newChat, ...prev])
-      setCurrentChatId(newChat.id)
-      setCurrentChat(newChat)
+      // Clear current chat state first
+      setCurrentChatId(null)
+      setCurrentChat(null)
 
-      // Switch to home view if not already there
-      if (activeView !== "home") {
-        setActiveView("home")
-      }
+      // Switch to home view
+      setActiveView("home")
+
+      console.log("✅ New chat session started")
 
       toast({
         title: "New Chat",
@@ -88,13 +113,15 @@ export default function HomePage() {
       if (chat) {
         setCurrentChatId(chatId)
         setCurrentChat(chat)
-        setActiveView("home") // Switch to chat view
+        setActiveView("home")
         console.log("✅ Chat selected:", chatId)
       } else {
         console.warn("⚠️ Chat not found:", chatId)
+        // Remove from history if not found
+        setChatHistory((prev) => prev.filter((c) => c.id !== chatId))
         toast({
-          title: "Error",
-          description: "Chat not found",
+          title: "Chat Not Found",
+          description: "This chat may have been deleted",
           variant: "destructive",
         })
       }
@@ -138,36 +165,57 @@ export default function HomePage() {
   }
 
   const handleChatUpdate = async (messages: any[], title?: string) => {
-    if (!currentChatId) {
-      console.warn("⚠️ No current chat ID for update")
-      return
-    }
-
     try {
-      console.log("💾 Updating chat:", currentChatId, "with", messages.length, "messages")
-      await chatManagerDB.updateChat(currentChatId, messages, title)
+      console.log("💾 Updating chat with", messages.length, "messages")
 
-      // Update local state
-      setChatHistory((prev) =>
-        prev.map((chat) =>
-          chat.id === currentChatId ? { ...chat, messages, title: title || chat.title, updatedAt: new Date() } : chat,
-        ),
-      )
+      // If no current chat exists, create one
+      if (!currentChatId && messages.length > 0) {
+        console.log("🆕 Creating new chat for messages...")
+        const newChat = await chatManagerDB.createChat(title || "New Chat")
+        setCurrentChatId(newChat.id)
+        setCurrentChat(newChat)
 
-      if (currentChat) {
-        setCurrentChat((prev) =>
-          prev
-            ? {
-                ...prev,
-                messages,
-                title: title || prev.title,
-                updatedAt: new Date(),
-              }
-            : null,
-        )
+        // Add to history
+        setChatHistory((prev) => [newChat, ...prev])
+
+        // Now update with messages
+        await chatManagerDB.updateChat(newChat.id, messages, title)
+
+        // Update local state
+        const updatedChat = { ...newChat, messages, title: title || newChat.title, updatedAt: new Date() }
+        setCurrentChat(updatedChat)
+        setChatHistory((prev) => prev.map((chat) => (chat.id === newChat.id ? updatedChat : chat)))
+
+        console.log("✅ New chat created and updated:", newChat.id)
+        return
       }
 
-      console.log("✅ Chat updated successfully")
+      // Update existing chat
+      if (currentChatId) {
+        await chatManagerDB.updateChat(currentChatId, messages, title)
+
+        // Update local state
+        setChatHistory((prev) =>
+          prev.map((chat) =>
+            chat.id === currentChatId ? { ...chat, messages, title: title || chat.title, updatedAt: new Date() } : chat,
+          ),
+        )
+
+        if (currentChat) {
+          setCurrentChat((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  messages,
+                  title: title || prev.title,
+                  updatedAt: new Date(),
+                }
+              : null,
+          )
+        }
+
+        console.log("✅ Chat updated successfully:", currentChatId)
+      }
     } catch (error) {
       console.error("❌ Error updating chat:", error)
       toast({
@@ -181,11 +229,11 @@ export default function HomePage() {
   const getPageTitle = () => {
     switch (activeView) {
       case "home":
-        return "AI Assistant Chat"
+        return "Property Investment Agent"
       case "calculator":
         return "Investment Calculator"
       case "insights":
-        return "Market Insights"
+        return "Market Research & Insights"
       default:
         return "MSASCOUT"
     }
@@ -202,7 +250,6 @@ export default function HomePage() {
         setActiveView("insights")
         break
       default:
-        // For other tools, stay in chat and maybe send a message
         setActiveView("home")
         break
     }
@@ -212,10 +259,11 @@ export default function HomePage() {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center mx-auto mb-4">
-            <span className="text-white font-bold text-sm">MS</span>
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <span className="text-white font-bold text-lg">MS</span>
           </div>
-          <p className="text-gray-600">Loading MSASCOUT...</p>
+          <p className="text-gray-600">Initializing MSASCOUT Agent...</p>
+          <p className="text-sm text-gray-500 mt-2">Setting up database and loading data...</p>
         </div>
       </div>
     )

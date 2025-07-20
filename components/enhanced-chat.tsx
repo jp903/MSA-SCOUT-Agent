@@ -97,11 +97,11 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
   const [attachments, setAttachments] = useState<FileAttachment[]>([])
   const [marketData, setMarketData] = useState<MarketData[]>([])
   const [topStates, setTopStates] = useState<MarketData[]>([])
-  const [autoScroll, setAutoScroll] = useState(true)
   const previousDataRef = useRef<Map<string, MarketData>>(new Map())
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [userScrolled, setUserScrolled] = useState(false)
 
   /* ---------------- CHAT HISTORY LOAD / SAVE ---------------- */
 
@@ -117,13 +117,15 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
         chartData: m.chartData,
       }))
       setMessages(loaded)
-      // Don't auto-scroll when loading existing chat
-      setAutoScroll(false)
-      setTimeout(() => setAutoScroll(true), 1000)
+      setUserScrolled(false)
+      // Scroll to bottom after loading
+      setTimeout(() => {
+        scrollToBottom()
+      }, 100)
     } else {
       console.log("🆕 No current chat, starting fresh")
       setMessages([])
-      setAutoScroll(true)
+      setUserScrolled(false)
     }
   }, [currentChat])
 
@@ -145,7 +147,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     const timeoutId = setTimeout(() => {
       console.log("💾 Saving chat to database...")
       onChatUpdate?.(serialised, title)
-    }, 500)
+    }, 1000)
 
     return () => clearTimeout(timeoutId)
   }, [messages, onChatUpdate])
@@ -427,21 +429,23 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
   }, [])
 
   const scrollToBottom = () => {
-    if (autoScroll && messagesEndRef.current) {
+    if (!userScrolled && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
     }
   }
 
   useEffect(() => {
-    scrollToBottom()
-  }, [messages, autoScroll])
+    if (!userScrolled) {
+      scrollToBottom()
+    }
+  }, [messages, userScrolled])
 
-  // Handle scroll events to detect if user is scrolling up
+  // Handle scroll events to detect if user is scrolling
   const handleScroll = () => {
     if (messagesContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current
-      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10
-      setAutoScroll(isAtBottom)
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 50
+      setUserScrolled(!isAtBottom)
     }
   }
 
@@ -481,8 +485,38 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
   }
 
-  const generateSampleChartData = (type: string): ChartData | null => {
-    if (type.includes("price") || type.includes("trend") || type.includes("growth")) {
+  const generateChartData = async (userInput: string): Promise<ChartData | null> => {
+    // Check if user is asking for market analysis
+    const stateMatch = userInput.match(
+      /\b(Texas|Florida|Nevada|Arkansas|Alabama|Georgia|Montana|Ohio|Indiana|North Carolina|Tennessee|Arizona|Missouri|Michigan|South Carolina|Kentucky)\b/i,
+    )
+
+    if (stateMatch && (userInput.includes("market") || userInput.includes("analysis") || userInput.includes("data"))) {
+      const state = stateMatch[1]
+      try {
+        const response = await fetch("/api/research", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ state }),
+        })
+
+        if (response.ok) {
+          const { data } = await response.json()
+          return {
+            type: "line",
+            title: `${state} Market Analysis - Population Trend`,
+            data: data.chartData.populationTrend,
+            xKey: "year",
+            yKey: "population",
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching research data:", error)
+      }
+    }
+
+    // Default chart generation
+    if (userInput.includes("price") || userInput.includes("trend") || userInput.includes("growth")) {
       return {
         type: "line",
         title: "Property Price Trends",
@@ -499,7 +533,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
       }
     }
 
-    if (type.includes("roi") || type.includes("return") || type.includes("investment")) {
+    if (userInput.includes("roi") || userInput.includes("return") || userInput.includes("investment")) {
       return {
         type: "bar",
         title: "ROI by State",
@@ -533,7 +567,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     setInput("")
     setAttachments([])
     setIsLoading(true)
-    setAutoScroll(true) // Enable auto-scroll when sending new message
+    setUserScrolled(false) // Enable auto-scroll when sending new message
 
     try {
       console.log("🔄 Making API call to /api/chat")
@@ -563,7 +597,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
       const data = await response.json()
       console.log("✅ API response received:", data)
 
-      const chartData = generateSampleChartData(currentInput.toLowerCase())
+      const chartData = await generateChartData(currentInput.toLowerCase())
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
@@ -686,8 +720,8 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
       <div className="max-w-6xl mx-auto w-full space-y-8 p-6">
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">MSASCOUT Super Agent</h1>
-          <p className="text-gray-600">Ask anything, create anything</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">MSASCOUT Property Investment Agent</h1>
+          <p className="text-gray-600">Advanced market research and investment analysis powered by real-time data</p>
         </div>
 
         {/* Chat Messages (if any) */}
@@ -758,7 +792,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                     <div className="bg-gray-100 border rounded-2xl px-4 py-3">
                       <div className="flex items-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                        <span className="text-sm text-gray-600">Analyzing...</span>
+                        <span className="text-sm text-gray-600">Analyzing market data...</span>
                       </div>
                     </div>
                   </div>
@@ -768,11 +802,11 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
               </div>
 
               {/* Scroll to bottom button */}
-              {!autoScroll && (
+              {userScrolled && (
                 <div className="flex justify-center mb-4">
                   <Button
                     onClick={() => {
-                      setAutoScroll(true)
+                      setUserScrolled(false)
                       scrollToBottom()
                     }}
                     variant="outline"
@@ -788,7 +822,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
           </Card>
         )}
 
-        {/* Chat Input - Matching the provided image exactly */}
+        {/* Chat Input */}
         <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-2xl rounded-3xl">
           <div className="p-6">
             {/* File Attachments Preview */}
@@ -818,7 +852,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
               </div>
             )}
 
-            {/* Chat Input matching the image design */}
+            {/* Chat Input */}
             <div className="relative">
               <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-3xl border-2 border-gray-200 focus-within:border-blue-500 transition-colors">
                 {/* Left side icons */}
@@ -837,7 +871,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder="Ask anything, create anything"
+                    placeholder="Ask about market trends, property analysis, or investment opportunities..."
                     className="border-0 bg-transparent text-lg placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto"
                     disabled={isLoading}
                   />
@@ -899,7 +933,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
           </div>
         </Card>
 
-        {/* AI Tools - Removed Generate Video and Deep Research */}
+        {/* AI Tools */}
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
             {aiTools.map((tool) => (
@@ -924,9 +958,9 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
         {/* For You Section */}
         <div className="space-y-6">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">For You</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Live Market Intelligence</h2>
             <p className="text-gray-600">
-              Top 6 performing states with live market trends and analysis across 8 key investment variables
+              Real-time data from Census Bureau and Bureau of Labor Statistics with AI-powered analysis
             </p>
           </div>
 
@@ -1045,7 +1079,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
 
                   {/* Key Reasons */}
                   <div className="pt-2 border-t">
-                    <h4 className="text-xs font-medium text-gray-700 mb-2">Key Investment Drivers:</h4>
+                    <h4 className="text-xs font-medium text-gray-700 mb-2">AI Analysis:</h4>
                     <ul className="space-y-1">
                       {state.reasons.slice(0, 2).map((reason, idx) => (
                         <li key={idx} className="text-xs text-gray-600 flex items-start gap-1">
