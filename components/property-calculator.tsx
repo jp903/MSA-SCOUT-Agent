@@ -82,9 +82,11 @@ function PropertyCalculator() {
                 </Label>
                 <Input
                   id="purchasePrice"
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*"
                   value={inputs.purchasePrice}
-                  onChange={(e) => setInputs({ ...inputs, purchasePrice: e.target.value })}
+                  onChange={(e) => setInputs({ ...inputs, purchasePrice: e.target.value.replace(/[^0-9.]/g, "") })}
                   className="mt-1"
                 />
               </div>
@@ -94,9 +96,11 @@ function PropertyCalculator() {
                 </Label>
                 <Input
                   id="downPayment"
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*"
                   value={inputs.downPayment}
-                  onChange={(e) => setInputs({ ...inputs, downPayment: e.target.value })}
+                  onChange={(e) => setInputs({ ...inputs, downPayment: e.target.value.replace(/[^0-9.]/g, "") })}
                   className="mt-1"
                 />
               </div>
@@ -106,9 +110,11 @@ function PropertyCalculator() {
                 </Label>
                 <Input
                   id="monthlyRent"
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*"
                   value={inputs.monthlyRent}
-                  onChange={(e) => setInputs({ ...inputs, monthlyRent: e.target.value })}
+                  onChange={(e) => setInputs({ ...inputs, monthlyRent: e.target.value.replace(/[^0-9.]/g, "") })}
                   className="mt-1"
                 />
               </div>
@@ -118,9 +124,11 @@ function PropertyCalculator() {
                 </Label>
                 <Input
                   id="monthlyExpenses"
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*"
                   value={inputs.monthlyExpenses}
-                  onChange={(e) => setInputs({ ...inputs, monthlyExpenses: e.target.value })}
+                  onChange={(e) => setInputs({ ...inputs, monthlyExpenses: e.target.value.replace(/[^0-9.]/g, "") })}
                   className="mt-1"
                 />
               </div>
@@ -130,10 +138,11 @@ function PropertyCalculator() {
                 </Label>
                 <Input
                   id="interestRate"
-                  type="number"
-                  step="0.1"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*"
                   value={inputs.interestRate}
-                  onChange={(e) => setInputs({ ...inputs, interestRate: e.target.value })}
+                  onChange={(e) => setInputs({ ...inputs, interestRate: e.target.value.replace(/[^0-9.]/g, "") })}
                   className="mt-1"
                 />
               </div>
@@ -143,9 +152,11 @@ function PropertyCalculator() {
                 </Label>
                 <Input
                   id="loanTerm"
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*"
                   value={inputs.loanTerm}
-                  onChange={(e) => setInputs({ ...inputs, loanTerm: e.target.value })}
+                  onChange={(e) => setInputs({ ...inputs, loanTerm: e.target.value.replace(/[^0-9.]/g, "") })}
                   className="mt-1"
                 />
               </div>

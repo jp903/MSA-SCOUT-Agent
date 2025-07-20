@@ -521,6 +521,23 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading) return
 
+    // Auto-create chat if this is the first message and no current chat exists
+    if (!currentChat && messages.length === 0) {
+      try {
+        const title = input.trim().slice(0, 50) + (input.trim().length > 50 ? "..." : "")
+        const newChat = {
+          id: crypto.randomUUID(),
+          title: title,
+          messages: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+        onChatUpdate?.([], title) // This will trigger the parent to create the chat
+      } catch (error) {
+        console.error("Error auto-creating chat:", error)
+      }
+    }
+
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: "user",
@@ -624,13 +641,13 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
   }
 
   const aiTools = [
-    { id: "ai-slides", label: "AI Slides", icon: PresentationChart, color: "from-orange-500 to-orange-600" },
-    { id: "ai-sheets", label: "AI Sheets", icon: FileSpreadsheet, color: "from-green-500 to-green-600" },
-    { id: "ai-docs", label: "AI Docs", icon: FileText, color: "from-blue-500 to-blue-600" },
-    { id: "ai-image", label: "AI Image", icon: FileImage, color: "from-pink-500 to-pink-600" },
-    { id: "ai-video", label: "AI Video", icon: Video, color: "from-red-500 to-red-600" },
+    { id: "ai-slides", label: "Generate Slides", icon: PresentationChart, color: "from-orange-500 to-orange-600" },
+    { id: "ai-sheets", label: "Generate Sheets", icon: FileSpreadsheet, color: "from-green-500 to-green-600" },
+    { id: "ai-docs", label: "Generate Docs", icon: FileText, color: "from-blue-500 to-blue-600" },
+    { id: "ai-image", label: "Generate Image", icon: FileImage, color: "from-pink-500 to-pink-600" },
+    { id: "ai-video", label: "Generate Video", icon: Video, color: "from-red-500 to-red-600" },
     { id: "deep-research", label: "Deep Research", icon: Search, color: "from-teal-500 to-teal-600" },
-    { id: "download-for-me", label: "Download For Me", icon: Download, color: "from-cyan-500 to-cyan-600" },
+    { id: "download-for-me", label: "Generate Reports", icon: Download, color: "from-cyan-500 to-cyan-600" },
     {
       id: "investment-calculator",
       label: "Investment Calculator",

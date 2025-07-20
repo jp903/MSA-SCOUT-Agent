@@ -34,10 +34,12 @@ export default function HomePage() {
   /* ─────────────────────────────  CHAT CRUD  ────────────────────────────── */
   async function handleNewChat() {
     try {
-      const newChat = await chatManagerDB.createChat("New Chat")
-      setCurrentChatId(newChat.id)
-      setCurrentChat(newChat)
-      await loadChatHistory()
+      // Clear current chat first
+      setCurrentChatId(null)
+      setCurrentChat(null)
+      setActiveView("home") // Return to home view
+
+      // The new chat will be created automatically when user sends first message
     } catch (err) {
       console.error("Error creating new chat:", err)
     }
@@ -56,12 +58,26 @@ export default function HomePage() {
   }
 
   async function handleChatUpdate(messages: any[], title?: string) {
-    if (!currentChatId) return
     try {
-      await chatManagerDB.updateChat(currentChatId, messages, title)
-      const updatedChat = await chatManagerDB.getChat(currentChatId)
-      setCurrentChat(updatedChat)
-      await loadChatHistory()
+      // If no current chat exists, create one automatically
+      if (!currentChatId && messages.length > 0) {
+        const newChat = await chatManagerDB.createChat(title || "New Chat")
+        setCurrentChatId(newChat.id)
+        setCurrentChat(newChat)
+        await chatManagerDB.updateChat(newChat.id, messages, title)
+        const updatedChat = await chatManagerDB.getChat(newChat.id)
+        setCurrentChat(updatedChat)
+        await loadChatHistory()
+        return
+      }
+
+      // Update existing chat
+      if (currentChatId) {
+        await chatManagerDB.updateChat(currentChatId, messages, title)
+        const updatedChat = await chatManagerDB.getChat(currentChatId)
+        setCurrentChat(updatedChat)
+        await loadChatHistory()
+      }
     } catch (err) {
       console.error("Error updating chat:", err)
     }
