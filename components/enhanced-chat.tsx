@@ -29,10 +29,10 @@ import {
   Search,
   Download,
   Edit3,
-  RotateCcw,
   ArrowUp,
   ArrowDown,
   Minus,
+  Send,
 } from "lucide-react"
 import type { ChatHistoryItem } from "@/lib/portfolio-types"
 
@@ -122,7 +122,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
   }, [currentChat])
 
   useEffect(() => {
-    if (!messages.length) return
+    if (messages.length === 0) return
 
     const serialised = messages.map((m) => ({
       ...m,
@@ -135,7 +135,12 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
       if (first) title = first.content.slice(0, 50) + (first.content.length > 50 ? "…" : "")
     }
 
-    onChatUpdate?.(serialised, title)
+    // Debounce the chat update to avoid too many database calls
+    const timeoutId = setTimeout(() => {
+      onChatUpdate?.(serialised, title)
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
   }, [messages, onChatUpdate])
 
   /* ---------------- MARKET DATA (LIVE) ---------------- */
@@ -495,6 +500,8 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading) return
 
+    console.log("📤 Sending message:", input.trim())
+
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: "user",
@@ -510,6 +517,8 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     setIsLoading(true)
 
     try {
+      console.log("🔄 Making API call to /api/chat")
+
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -524,24 +533,31 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
         }),
       })
 
+      console.log("📡 API response status:", response.status)
+
       if (!response.ok) {
-        throw new Error("Failed to get response")
+        const errorText = await response.text()
+        console.error("❌ API error response:", errorText)
+        throw new Error(`API request failed: ${response.status} ${errorText}`)
       }
 
       const data = await response.json()
+      console.log("✅ API response received:", data)
+
       const chartData = generateSampleChartData(currentInput.toLowerCase())
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: data.message,
+        content: data.message || "I'm here to help with your property investment questions!",
         timestamp: new Date(),
         chartData: chartData || undefined,
       }
 
       setMessages((prev) => [...prev, assistantMessage])
+      console.log("✅ Message added to chat")
     } catch (error) {
-      console.error("Error sending message:", error)
+      console.error("❌ Error sending message:", error)
       const errorMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -819,13 +835,13 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                   <Button
                     onClick={handleSendMessage}
                     disabled={!input.trim() || isLoading}
-                    className="h-8 w-8 p-0 bg-gray-300 hover:bg-gray-400 rounded-full"
+                    className="h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700 rounded-full"
                     variant="ghost"
                   >
                     {isLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-gray-600" />
+                      <Loader2 className="h-4 w-4 animate-spin text-white" />
                     ) : (
-                      <RotateCcw className="h-4 w-4 text-gray-600" />
+                      <Send className="h-4 w-4 text-white" />
                     )}
                   </Button>
                 </div>

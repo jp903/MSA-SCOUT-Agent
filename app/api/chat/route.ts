@@ -6,6 +6,12 @@ export async function POST(request: NextRequest) {
   try {
     const { messages } = await request.json()
 
+    console.log("📨 Chat API received messages:", messages?.length || 0)
+
+    if (!messages || !Array.isArray(messages)) {
+      return NextResponse.json({ error: "Invalid messages format" }, { status: 400 })
+    }
+
     const { text } = await generateText({
       model: openai("gpt-4o"),
       messages: messages.map((msg: any) => ({
@@ -25,9 +31,17 @@ Key capabilities:
 Always provide actionable, data-driven advice for property investment decisions. Be concise but thorough in your responses.`,
     })
 
+    console.log("✅ Chat API generated response")
+
     return NextResponse.json({ message: text })
   } catch (error) {
-    console.error("Error in chat API:", error)
-    return NextResponse.json({ error: "Failed to process chat request" }, { status: 500 })
+    console.error("❌ Error in chat API:", error)
+    return NextResponse.json(
+      {
+        error: "Failed to process chat request",
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
+    )
   }
 }
