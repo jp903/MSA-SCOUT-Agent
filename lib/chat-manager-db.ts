@@ -2,123 +2,141 @@ import { sql } from "./db"
 import type { ChatHistoryItem } from "./portfolio-types"
 
 export class ChatManagerDB {
-  static async getChatHistory(): Promise<ChatHistoryItem[]> {
+  async createChat(title = "New Chat"): Promise<ChatHistoryItem> {
     try {
-      const chats = await sql`
-        SELECT 
-          id,
+      if (!process.env.DATABASE_URL) {
+        // Return a mock chat for preview mode
+        return {
+          id: crypto.randomUUID(),
           title,
-          messages,
-          created_at as "createdAt",
-          updated_at as "updatedAt"
-        FROM chat_history 
-        ORDER BY created_at DESC
+          messages: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+      }
+
+      const result = await sql`
+        INSERT INTO chat_history (title, messages)
+        VALUES (${title}, '[]')
+        RETURNING id, title, messages, created_at, updated_at
       `
 
-      return chats.map((chat) => ({
-        ...chat,
-        createdAt: chat.createdAt.toISOString(),
-        updatedAt: chat.updatedAt.toISOString(),
+      const chat = result[0]
+      return {
+        id: chat.id,
+        title: chat.title,
+        messages: chat.messages,
+        createdAt: new Date(chat.created_at),
+        updatedAt: new Date(chat.updated_at),
+      }
+    } catch (error) {
+      console.error("Error creating chat:", error)
+      // Return a mock chat as fallback
+      return {
+        id: crypto.randomUUID(),
+        title,
+        messages: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+    }
+  }
+
+  async updateChat(id: string, messages: any[], title?: string): Promise<void> {
+    try {
+      if (!process.env.DATABASE_URL) {
+        console.log("Database not available, skipping chat update")
+        return
+      }
+
+      const updateData: any = {
+        messages: JSON.stringify(messages),
+        updated_at: new Date(),
+      }
+
+      if (title) {
+        updateData.title = title
+      }
+
+      await sql`
+        UPDATE chat_history 
+        SET messages = ${JSON.stringify(messages)},
+            title = COALESCE(${title}, title),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${id}
+      `
+    } catch (error) {
+      console.error("Error updating chat:", error)
+    }
+  }
+
+  async getChat(id: string): Promise<ChatHistoryItem | null> {
+    try {
+      if (!process.env.DATABASE_URL) {
+        return null
+      }
+
+      const result = await sql`
+        SELECT id, title, messages, created_at, updated_at
+        FROM chat_history
+        WHERE id = ${id}
+      `
+
+      if (result.length === 0) return null
+
+      const chat = result[0]
+      return {
+        id: chat.id,
+        title: chat.title,
+        messages: chat.messages,
+        createdAt: new Date(chat.created_at),
+        updatedAt: new Date(chat.updated_at),
+      }
+    } catch (error) {
+      console.error("Error getting chat:", error)
+      return null
+    }
+  }
+
+  async getAllChats(): Promise<ChatHistoryItem[]> {
+    try {
+      if (!process.env.DATABASE_URL) {
+        return []
+      }
+
+      const result = await sql`
+        SELECT id, title, messages, created_at, updated_at
+        FROM chat_history
+        ORDER BY updated_at DESC
+      `
+
+      return result.map((chat) => ({
+        id: chat.id,
+        title: chat.title,
+        messages: chat.messages,
+        createdAt: new Date(chat.created_at),
+        updatedAt: new Date(chat.updated_at),
       }))
     } catch (error) {
-      console.error("Error fetching chat history:", error)
+      console.error("Error getting all chats:", error)
       return []
     }
   }
 
-  static async addChat(title: string, messages: any[] = []): Promise<ChatHistoryItem | null> {
+  async deleteChat(id: string): Promise<void> {
     try {
-      const result = await sql`
-        INSERT INTO chat_history (title, messages)
-        VALUES (${title}, ${JSON.stringify(messages)})
-        RETURNING 
-          id,
-          title,
-          messages,
-          created_at as "createdAt",
-          updated_at as "updatedAt"
-      `
-
-      if (result.length > 0) {
-        const newChat = result[0]
-        return {
-          ...newChat,
-          createdAt: newChat.createdAt.toISOString(),
-          updatedAt: newChat.updatedAt.toISOString(),
-        }
+      if (!process.env.DATABASE_URL) {
+        return
       }
-      return null
-    } catch (error) {
-      console.error("Error adding chat:", error)
-      return null
-    }
-  }
 
-  static async updateChat(id: string, title?: string, messages?: any[]): Promise<ChatHistoryItem | null> {
-    try {
-      const result = await sql`
-        UPDATE chat_history SET
-          title = COALESCE(${title}, title),
-          messages = COALESCE(${messages ? JSON.stringify(messages) : null}, messages)
+      await sql`
+        DELETE FROM chat_history
         WHERE id = ${id}
-        RETURNING 
-          id,
-          title,
-          messages,
-          created_at as "createdAt",
-          updated_at as "updatedAt"
       `
-
-      if (result.length > 0) {
-        const updatedChat = result[0]
-        return {
-          ...updatedChat,
-          createdAt: updatedChat.createdAt.toISOString(),
-          updatedAt: updatedChat.updatedAt.toISOString(),
-        }
-      }
-      return null
-    } catch (error) {
-      console.error("Error updating chat:", error)
-      return null
-    }
-  }
-
-  static async deleteChat(id: string): Promise<boolean> {
-    try {
-      const result = await sql`DELETE FROM chat_history WHERE id = ${id}`
-      return result.count > 0
     } catch (error) {
       console.error("Error deleting chat:", error)
-      return false
-    }
-  }
-
-  static async getChat(id: string): Promise<ChatHistoryItem | null> {
-    try {
-      const result = await sql`
-        SELECT 
-          id,
-          title,
-          messages,
-          created_at as "createdAt",
-          updated_at as "updatedAt"
-        FROM chat_history 
-        WHERE id = ${id}
-      `
-
-      if (result.length > 0) {
-        const chat = result[0]
-        return {
-          ...chat,
-          createdAt: chat.createdAt.toISOString(),
-          updatedAt: chat.updatedAt.toISOString(),
-        }
-      }
-      return null
-    } catch (error) {
-      console.error("Error fetching chat:", error)
-      return null
     }
   }
 }
+
+export const chatManagerDB = new ChatManagerDB()

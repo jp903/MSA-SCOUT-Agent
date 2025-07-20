@@ -1,102 +1,88 @@
 "use client"
 
 import { useState, useEffect } from "react"
+
 import { AppSidebar } from "@/components/app-sidebar"
 import EnhancedChat from "@/components/enhanced-chat"
 import PropertyCalculator from "@/components/property-calculator"
 import MarketInsights from "@/components/market-insights"
 import PortfolioDashboard from "@/components/portfolio-dashboard"
-import { ChatManagerDB } from "@/lib/chat-manager-db"
+
+import { chatManagerDB } from "@/lib/chat-manager-db"
 import type { ChatHistoryItem } from "@/lib/portfolio-types"
 
 export default function HomePage() {
-  const [activeView, setActiveView] = useState("home")
+  const [activeView, setActiveView] = useState<"home" | "calculator" | "insights" | "portfolio">("home")
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const [currentChat, setCurrentChat] = useState<ChatHistoryItem | null>(null)
 
-  // Load chat history on component mount
+  /* ─────────────────────────  LOAD CHAT HISTORY  ────────────────────────── */
   useEffect(() => {
     loadChatHistory()
   }, [])
 
-  const loadChatHistory = async () => {
+  async function loadChatHistory() {
     try {
-      const history = await ChatManagerDB.getChatHistory()
+      const history = await chatManagerDB.getAllChats()
       setChatHistory(history)
-    } catch (error) {
-      console.error("Error loading chat history:", error)
+    } catch (err) {
+      console.error("Error loading chat history:", err)
     }
   }
 
-  const handleNewChat = async () => {
+  /* ─────────────────────────────  CHAT CRUD  ────────────────────────────── */
+  async function handleNewChat() {
     try {
-      const newChat = await ChatManagerDB.addChat("New Chat", [])
-      if (newChat) {
-        setCurrentChatId(newChat.id)
-        setCurrentChat(newChat)
-        await loadChatHistory()
-      }
-    } catch (error) {
-      console.error("Error creating new chat:", error)
+      const newChat = await chatManagerDB.createChat("New Chat")
+      setCurrentChatId(newChat.id)
+      setCurrentChat(newChat)
+      await loadChatHistory()
+    } catch (err) {
+      console.error("Error creating new chat:", err)
     }
   }
 
-  const handleChatSelect = async (chatId: string) => {
+  async function handleChatSelect(chatId: string) {
     try {
-      const chat = await ChatManagerDB.getChat(chatId)
+      const chat = await chatManagerDB.getChat(chatId)
       if (chat) {
         setCurrentChatId(chatId)
         setCurrentChat(chat)
       }
-    } catch (error) {
-      console.error("Error loading chat:", error)
+    } catch (err) {
+      console.error("Error loading chat:", err)
     }
   }
 
-  const handleChatUpdate = async (messages: any[], title?: string) => {
-    if (currentChatId) {
-      try {
-        const updatedChat = await ChatManagerDB.updateChat(currentChatId, title || currentChat?.title, messages)
-        if (updatedChat) {
-          setCurrentChat(updatedChat)
-          await loadChatHistory()
-        }
-      } catch (error) {
-        console.error("Error updating chat:", error)
-      }
-    }
-  }
-
-  const handleDeleteChat = async (chatId: string) => {
+  async function handleChatUpdate(messages: any[], title?: string) {
+    if (!currentChatId) return
     try {
-      await ChatManagerDB.deleteChat(chatId)
+      await chatManagerDB.updateChat(currentChatId, messages, title)
+      const updatedChat = await chatManagerDB.getChat(currentChatId)
+      setCurrentChat(updatedChat)
+      await loadChatHistory()
+    } catch (err) {
+      console.error("Error updating chat:", err)
+    }
+  }
+
+  async function handleDeleteChat(chatId: string) {
+    try {
+      await chatManagerDB.deleteChat(chatId)
       if (currentChatId === chatId) {
         setCurrentChatId(null)
         setCurrentChat(null)
       }
       await loadChatHistory()
-    } catch (error) {
-      console.error("Error deleting chat:", error)
+    } catch (err) {
+      console.error("Error deleting chat:", err)
     }
   }
 
-  const renderContent = () => {
+  /* ──────────────────────────  RENDER HELPERS  ──────────────────────────── */
+  function renderContent() {
     switch (activeView) {
-      case "home":
-        return (
-          <div className="flex-1 overflow-y-auto">
-            <EnhancedChat
-              currentChat={currentChat}
-              onChatUpdate={handleChatUpdate}
-              onToolSelect={(tool) => {
-                if (tool === "investment-calculator") setActiveView("calculator")
-                if (tool === "market-insights") setActiveView("insights")
-                if (tool === "property-analysis") setActiveView("portfolio")
-              }}
-            />
-          </div>
-        )
       case "calculator":
         return (
           <div className="flex-1 overflow-y-auto p-6">
@@ -132,6 +118,7 @@ export default function HomePage() {
     }
   }
 
+  /* ───────────────────────────────  UI  ─────────────────────────────────── */
   return (
     <div className="flex h-screen bg-gray-50">
       <AppSidebar
