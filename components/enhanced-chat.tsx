@@ -25,8 +25,6 @@ import {
   PresentationIcon as PresentationChart,
   FileSpreadsheet,
   FileImage,
-  Video,
-  Search,
   Download,
   Edit3,
   ArrowUp,
@@ -107,6 +105,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
 
   useEffect(() => {
     if (currentChat?.messages) {
+      console.log("📥 Loading messages from current chat:", currentChat.messages.length)
       const loaded: Message[] = currentChat.messages.map((m: any) => ({
         id: m.id || crypto.randomUUID(),
         role: m.role,
@@ -117,6 +116,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
       }))
       setMessages(loaded)
     } else {
+      console.log("🆕 No current chat, starting fresh")
       setMessages([])
     }
   }, [currentChat])
@@ -137,8 +137,9 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
 
     // Debounce the chat update to avoid too many database calls
     const timeoutId = setTimeout(() => {
+      console.log("💾 Saving chat to database...")
       onChatUpdate?.(serialised, title)
-    }, 500)
+    }, 1000)
 
     return () => clearTimeout(timeoutId)
   }, [messages, onChatUpdate])
@@ -613,13 +614,12 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     )
   }
 
+  // Removed Generate Video and Deep Research tools
   const aiTools = [
     { id: "ai-slides", label: "Generate Slides", icon: PresentationChart, color: "from-orange-500 to-orange-600" },
     { id: "ai-sheets", label: "Generate Sheets", icon: FileSpreadsheet, color: "from-green-500 to-green-600" },
     { id: "ai-docs", label: "Generate Docs", icon: FileText, color: "from-blue-500 to-blue-600" },
     { id: "ai-image", label: "Generate Image", icon: FileImage, color: "from-pink-500 to-pink-600" },
-    { id: "ai-video", label: "Generate Video", icon: Video, color: "from-red-500 to-red-600" },
-    { id: "deep-research", label: "Deep Research", icon: Search, color: "from-teal-500 to-teal-600" },
     { id: "download-for-me", label: "Generate Reports", icon: Download, color: "from-cyan-500 to-cyan-600" },
     {
       id: "investment-calculator",
@@ -859,9 +859,9 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
           </div>
         </Card>
 
-        {/* AI Tools */}
+        {/* AI Tools - Removed Generate Video and Deep Research */}
         <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
             {aiTools.map((tool) => (
               <Card
                 key={tool.id}

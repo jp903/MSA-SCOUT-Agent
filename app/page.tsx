@@ -6,13 +6,12 @@ import { AppSidebar } from "@/components/app-sidebar"
 import EnhancedChat from "@/components/enhanced-chat"
 import PropertyCalculator from "@/components/property-calculator"
 import MarketInsights from "@/components/market-insights"
-import PortfolioDashboard from "@/components/portfolio-dashboard"
 
 import { chatManagerDB } from "@/lib/chat-manager-db"
 import type { ChatHistoryItem } from "@/lib/portfolio-types"
 
 export default function HomePage() {
-  const [activeView, setActiveView] = useState<"home" | "calculator" | "insights" | "portfolio">("home")
+  const [activeView, setActiveView] = useState<"home" | "calculator" | "insights">("home")
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const [currentChat, setCurrentChat] = useState<ChatHistoryItem | null>(null)
@@ -25,54 +24,66 @@ export default function HomePage() {
 
   async function initializeDatabase() {
     try {
-      await fetch("/api/init-db", { method: "POST" })
-      console.log("Database initialized successfully")
+      console.log("🔧 Initializing database...")
+      const response = await fetch("/api/init-db", { method: "POST" })
+      const result = await response.json()
+      if (result.success) {
+        console.log("✅ Database initialized successfully")
+      } else {
+        console.error("❌ Database initialization failed:", result.error)
+      }
     } catch (error) {
-      console.error("Error initializing database:", error)
+      console.error("❌ Error initializing database:", error)
     }
   }
 
   async function loadChatHistory() {
     try {
+      console.log("📚 Loading chat history...")
       const history = await chatManagerDB.getAllChats()
       setChatHistory(history)
+      console.log(`✅ Loaded ${history.length} chats`)
     } catch (err) {
-      console.error("Error loading chat history:", err)
+      console.error("❌ Error loading chat history:", err)
     }
   }
 
   /* ─────────────────────────────  CHAT CRUD  ────────────────────────────── */
   async function handleNewChat() {
     try {
+      console.log("🆕 Creating new chat...")
       // Clear current chat state
       setCurrentChatId(null)
       setCurrentChat(null)
       setActiveView("home")
-      console.log("New chat initiated - ready for first message")
+      console.log("✅ New chat initiated - ready for first message")
     } catch (err) {
-      console.error("Error creating new chat:", err)
+      console.error("❌ Error creating new chat:", err)
     }
   }
 
   async function handleChatSelect(chatId: string) {
     try {
+      console.log("📋 Selecting chat:", chatId)
       const chat = await chatManagerDB.getChat(chatId)
       if (chat) {
         setCurrentChatId(chatId)
         setCurrentChat(chat)
         setActiveView("home")
-        console.log("Chat selected:", chatId)
+        console.log("✅ Chat selected and loaded")
       }
     } catch (err) {
-      console.error("Error loading chat:", err)
+      console.error("❌ Error loading chat:", err)
     }
   }
 
   async function handleChatUpdate(messages: any[], title?: string) {
     try {
+      console.log("💾 Updating chat with", messages.length, "messages")
+
       // If no current chat exists, create one automatically
       if (!currentChatId && messages.length > 0) {
-        console.log("Creating new chat automatically...")
+        console.log("🆕 Creating new chat automatically...")
         const newChat = await chatManagerDB.createChat(title || "New Chat")
         setCurrentChatId(newChat.id)
 
@@ -81,7 +92,7 @@ export default function HomePage() {
         const updatedChat = await chatManagerDB.getChat(newChat.id)
         setCurrentChat(updatedChat)
         await loadChatHistory()
-        console.log("New chat created and saved:", newChat.id)
+        console.log("✅ New chat created and saved:", newChat.id)
         return
       }
 
@@ -91,24 +102,25 @@ export default function HomePage() {
         const updatedChat = await chatManagerDB.getChat(currentChatId)
         setCurrentChat(updatedChat)
         await loadChatHistory()
-        console.log("Chat updated:", currentChatId)
+        console.log("✅ Chat updated:", currentChatId)
       }
     } catch (err) {
-      console.error("Error updating chat:", err)
+      console.error("❌ Error updating chat:", err)
     }
   }
 
   async function handleDeleteChat(chatId: string) {
     try {
+      console.log("🗑️ Deleting chat:", chatId)
       await chatManagerDB.deleteChat(chatId)
       if (currentChatId === chatId) {
         setCurrentChatId(null)
         setCurrentChat(null)
       }
       await loadChatHistory()
-      console.log("Chat deleted:", chatId)
+      console.log("✅ Chat deleted")
     } catch (err) {
-      console.error("Error deleting chat:", err)
+      console.error("❌ Error deleting chat:", err)
     }
   }
 
@@ -127,12 +139,6 @@ export default function HomePage() {
             <MarketInsights />
           </div>
         )
-      case "portfolio":
-        return (
-          <div className="flex-1 overflow-y-auto p-6">
-            <PortfolioDashboard />
-          </div>
-        )
       default:
         return (
           <div className="flex-1 overflow-y-auto">
@@ -142,7 +148,6 @@ export default function HomePage() {
               onToolSelect={(tool) => {
                 if (tool === "investment-calculator") setActiveView("calculator")
                 if (tool === "market-insights") setActiveView("insights")
-                if (tool === "property-analysis") setActiveView("portfolio")
               }}
             />
           </div>

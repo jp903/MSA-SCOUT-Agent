@@ -9,6 +9,11 @@ export const metadata: Metadata = {
   title: "MSASCOUT AI - Property Investment Agent",
   description: "AI-powered investment analysis and portfolio management",
   generator: "v0.dev",
+  icons: {
+    icon: "/images/msascout-logo.png",
+    shortcut: "/images/msascout-logo.png",
+    apple: "/images/msascout-logo.png",
+  },
 }
 
 export default function RootLayout({

@@ -11,7 +11,6 @@ import {
   HelpCircle,
   LogIn,
   Home,
-  BarChart3,
   MessageSquare,
   Trash2,
   Clock,
@@ -46,12 +45,14 @@ export function AppSidebar({
   const [showChatHistory, setShowChatHistory] = useState(false)
 
   const handleNewChat = () => {
+    console.log("🆕 New chat button clicked")
     onViewChange?.("home")
     onNewChat?.()
     setShowChatHistory(false)
   }
 
   const handleChatSelect = (chatId: string) => {
+    console.log("📋 Chat selected:", chatId)
     onViewChange?.("home")
     onChatSelect?.(chatId)
     setShowChatHistory(false)
@@ -245,19 +246,6 @@ export function AppSidebar({
         >
           <TrendingUp className="h-4 w-4" />
           <span className="text-xs">Market</span>
-        </Button>
-
-        <Button
-          onClick={() => onViewChange?.("portfolio")}
-          variant={activeView === "portfolio" ? "default" : "ghost"}
-          className={`w-full h-12 rounded-xl flex-col gap-1 p-2 ${
-            activeView === "portfolio"
-              ? "bg-gradient-to-br from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
-              : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-          }`}
-        >
-          <BarChart3 className="h-4 w-4" />
-          <span className="text-xs">Portfolio</span>
         </Button>
       </div>
 
