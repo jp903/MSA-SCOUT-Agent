@@ -35,34 +35,21 @@ export async function POST(request: NextRequest) {
     const createTables = [
       `CREATE TABLE IF NOT EXISTS properties (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        name TEXT NOT NULL DEFAULT '',
-        address TEXT,
-        city TEXT,
-        state TEXT,
+        address TEXT NOT NULL,
+        city TEXT NOT NULL,
+        state TEXT NOT NULL,
         zip_code TEXT,
-        property_type TEXT,
+        price DECIMAL(12,2),
         bedrooms INTEGER,
-        bathrooms DECIMAL,
+        bathrooms DECIMAL(3,1),
         square_feet INTEGER,
-        lot_size DECIMAL,
+        lot_size DECIMAL(10,2),
         year_built INTEGER,
-        purchase_price DECIMAL,
-        current_value DECIMAL,
-        monthly_rent DECIMAL,
-        expenses JSONB DEFAULT '{}',
-        notes TEXT,
-        loan_amount DECIMAL,
-        loan_term INTEGER,
-        interest_rate DECIMAL,
-        monthly_payment DECIMAL,
-        down_payment DECIMAL,
-        closing_costs DECIMAL,
-        renovation_costs DECIMAL,
-        monthly_insurance DECIMAL,
-        monthly_taxes DECIMAL,
-        monthly_hoa DECIMAL,
-        vacancy_rate DECIMAL,
-        management_fee_percent DECIMAL,
+        property_type TEXT,
+        listing_status TEXT DEFAULT 'active',
+        description TEXT,
+        features JSONB DEFAULT '[]'::jsonb,
+        analysis_data JSONB DEFAULT '{}'::jsonb,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )`,
@@ -70,14 +57,9 @@ export async function POST(request: NextRequest) {
       `CREATE TABLE IF NOT EXISTS property_images (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
         property_id TEXT REFERENCES properties(id) ON DELETE CASCADE,
-        filename TEXT NOT NULL,
-        original_name TEXT,
-        mime_type TEXT,
-        size_bytes INTEGER,
-        width INTEGER,
-        height INTEGER,
-        url TEXT,
-        thumbnail_url TEXT,
+        image_url TEXT NOT NULL,
+        image_type TEXT DEFAULT 'photo',
+        caption TEXT,
         is_primary BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -86,7 +68,7 @@ export async function POST(request: NextRequest) {
       `CREATE TABLE IF NOT EXISTS chat_history (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
         title TEXT NOT NULL DEFAULT 'New Chat',
-        messages JSONB DEFAULT '[]',
+        messages JSONB NOT NULL DEFAULT '[]'::jsonb,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )`,
@@ -94,18 +76,18 @@ export async function POST(request: NextRequest) {
       `CREATE TABLE IF NOT EXISTS market_data (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
         state TEXT NOT NULL,
-        population_growth DECIMAL,
-        job_growth DECIMAL,
-        house_price_index_growth DECIMAL,
+        city TEXT,
+        population_growth DECIMAL(5,2),
+        job_growth DECIMAL(5,2),
+        house_price_index_growth DECIMAL(5,2),
         net_migration INTEGER,
-        vacancy_rate DECIMAL,
+        vacancy_rate DECIMAL(5,2),
         international_inflows INTEGER,
         single_family_permits INTEGER,
         multi_family_permits INTEGER,
         data_date DATE DEFAULT CURRENT_DATE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(state, data_date)
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )`,
     ]
 
@@ -128,6 +110,13 @@ export async function POST(request: NextRequest) {
       "ALTER TABLE properties ADD COLUMN IF NOT EXISTS monthly_hoa DECIMAL",
       "ALTER TABLE properties ADD COLUMN IF NOT EXISTS vacancy_rate DECIMAL",
       "ALTER TABLE properties ADD COLUMN IF NOT EXISTS management_fee_percent DECIMAL",
+      "ALTER TABLE chat_history ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT 'New Chat'",
+      "ALTER TABLE chat_history ADD COLUMN IF NOT EXISTS messages JSONB NOT NULL DEFAULT '[]'::jsonb",
+      "ALTER TABLE chat_history ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP",
+      "ALTER TABLE chat_history ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP",
+      "ALTER TABLE properties ADD COLUMN IF NOT EXISTS analysis_data JSONB DEFAULT '{}'::jsonb",
+      "ALTER TABLE properties ADD COLUMN IF NOT EXISTS features JSONB DEFAULT '[]'::jsonb",
+      "ALTER TABLE market_data ADD COLUMN IF NOT EXISTS data_date DATE DEFAULT CURRENT_DATE",
     ]
 
     await runStatements(alterTables)
@@ -142,6 +131,9 @@ export async function POST(request: NextRequest) {
       "CREATE INDEX IF NOT EXISTS idx_property_images_is_primary ON property_images(is_primary)",
       "CREATE INDEX IF NOT EXISTS idx_chat_history_updated_at ON chat_history(updated_at DESC)",
       "CREATE INDEX IF NOT EXISTS idx_market_data_state ON market_data(state)",
+      "CREATE INDEX IF NOT EXISTS idx_market_data_date ON market_data(data_date DESC)",
+      "CREATE INDEX IF NOT EXISTS idx_properties_state_city ON properties(state, city)",
+      "CREATE INDEX IF NOT EXISTS idx_properties_price ON properties(price)",
       "CREATE INDEX IF NOT EXISTS idx_market_data_date ON market_data(data_date DESC)",
     ]
 
@@ -208,6 +200,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: "Database initialized successfully",
+      timestamp: new Date().toISOString(),
     })
   } catch (error) {
     console.error("❌ DB init error:", error)
@@ -215,6 +208,7 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error occurred",
+        timestamp: new Date().toISOString(),
       },
       { status: 500 },
     )

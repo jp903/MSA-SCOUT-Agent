@@ -97,8 +97,10 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
   const [attachments, setAttachments] = useState<FileAttachment[]>([])
   const [marketData, setMarketData] = useState<MarketData[]>([])
   const [topStates, setTopStates] = useState<MarketData[]>([])
+  const [autoScroll, setAutoScroll] = useState(true)
   const previousDataRef = useRef<Map<string, MarketData>>(new Map())
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   /* ---------------- CHAT HISTORY LOAD / SAVE ---------------- */
@@ -115,9 +117,13 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
         chartData: m.chartData,
       }))
       setMessages(loaded)
+      // Don't auto-scroll when loading existing chat
+      setAutoScroll(false)
+      setTimeout(() => setAutoScroll(true), 1000)
     } else {
       console.log("🆕 No current chat, starting fresh")
       setMessages([])
+      setAutoScroll(true)
     }
   }, [currentChat])
 
@@ -139,7 +145,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     const timeoutId = setTimeout(() => {
       console.log("💾 Saving chat to database...")
       onChatUpdate?.(serialised, title)
-    }, 1000)
+    }, 500)
 
     return () => clearTimeout(timeoutId)
   }, [messages, onChatUpdate])
@@ -421,12 +427,23 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
   }, [])
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    if (autoScroll && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+    }
   }
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages])
+  }, [messages, autoScroll])
+
+  // Handle scroll events to detect if user is scrolling up
+  const handleScroll = () => {
+    if (messagesContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10
+      setAutoScroll(isAtBottom)
+    }
+  }
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
@@ -516,6 +533,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     setInput("")
     setAttachments([])
     setIsLoading(true)
+    setAutoScroll(true) // Enable auto-scroll when sending new message
 
     try {
       console.log("🔄 Making API call to /api/chat")
@@ -676,7 +694,11 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
         {messages.length > 0 && (
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
             <div className="p-6">
-              <div className="max-h-[600px] overflow-y-auto mb-6 space-y-4">
+              <div
+                ref={messagesContainerRef}
+                onScroll={handleScroll}
+                className="max-h-[600px] overflow-y-auto mb-6 space-y-4"
+              >
                 {messages.map((message) => (
                   <div
                     key={message.id}
@@ -744,6 +766,24 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
 
                 <div ref={messagesEndRef} />
               </div>
+
+              {/* Scroll to bottom button */}
+              {!autoScroll && (
+                <div className="flex justify-center mb-4">
+                  <Button
+                    onClick={() => {
+                      setAutoScroll(true)
+                      scrollToBottom()
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="bg-white/90 backdrop-blur-sm"
+                  >
+                    <ArrowDown className="h-4 w-4 mr-2" />
+                    Scroll to bottom
+                  </Button>
+                </div>
+              )}
             </div>
           </Card>
         )}
@@ -911,183 +951,117 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                       >
                         #{index + 1}
                       </Badge>
-                      <CardTitle className="text-lg font-bold">{state.state}</CardTitle>
+                      <CardTitle className="text-lg">{state.state}</CardTitle>
                     </div>
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                      <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
-                      Live
+                    <Badge variant="outline" className="text-xs">
+                      Score: {state.score?.toFixed(1)}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  {/* Variables with trends */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">Population Growth</span>
-                      <div className="flex items-center gap-1">
+                <CardContent className="space-y-4">
+                  {/* Key Metrics Grid */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-600">Population Growth</span>
                         {getTrendIcon(state.trends.population_growth)}
-                        <span className={`font-semibold text-sm ${getTrendColor(state.trends.population_growth)}`}>
-                          {state.population_growth}%
-                        </span>
                       </div>
+                      <p className={`font-semibold ${getTrendColor(state.trends.population_growth)}`}>
+                        {state.population_growth}%
+                      </p>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">Job Growth</span>
-                      <div className="flex items-center gap-1">
+
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-600">Job Growth</span>
                         {getTrendIcon(state.trends.job_growth)}
-                        <span className={`font-semibold text-sm ${getTrendColor(state.trends.job_growth)}`}>
-                          {state.job_growth}%
-                        </span>
                       </div>
+                      <p className={`font-semibold ${getTrendColor(state.trends.job_growth)}`}>{state.job_growth}%</p>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">House Price Growth</span>
-                      <div className="flex items-center gap-1">
+
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-600">Price Growth</span>
                         {getTrendIcon(state.trends.house_price_index_growth)}
-                        <span
-                          className={`font-semibold text-sm ${getTrendColor(state.trends.house_price_index_growth)}`}
-                        >
-                          {state.house_price_index_growth}%
-                        </span>
                       </div>
+                      <p className={`font-semibold ${getTrendColor(state.trends.house_price_index_growth)}`}>
+                        {state.house_price_index_growth}%
+                      </p>
                     </div>
+
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-600">Vacancy Rate</span>
+                        {getTrendIcon(state.trends.vacancy_rate)}
+                      </div>
+                      <p className={`font-semibold ${getTrendColor(state.trends.vacancy_rate)}`}>
+                        {state.vacancy_rate}%
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Additional Metrics */}
+                  <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-600">Net Migration</span>
                       <div className="flex items-center gap-1">
                         {getTrendIcon(state.trends.net_migration)}
-                        <span className={`font-semibold text-sm ${getTrendColor(state.trends.net_migration)}`}>
-                          {state.net_migration > 0 ? "+" : ""}
+                        <span className={`text-sm font-medium ${getTrendColor(state.trends.net_migration)}`}>
                           {formatNumber(state.net_migration)}
                         </span>
                       </div>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">Vacancy Rate</span>
-                      <div className="flex items-center gap-1">
-                        {getTrendIcon(state.trends.vacancy_rate)}
-                        <span className={`font-semibold text-sm ${getTrendColor(state.trends.vacancy_rate)}`}>
-                          {state.vacancy_rate}%
-                        </span>
-                      </div>
-                    </div>
+
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-600">International Inflows</span>
                       <div className="flex items-center gap-1">
                         {getTrendIcon(state.trends.international_inflows)}
-                        <span className={`font-semibold text-sm ${getTrendColor(state.trends.international_inflows)}`}>
+                        <span className={`text-sm font-medium ${getTrendColor(state.trends.international_inflows)}`}>
                           {formatNumber(state.international_inflows)}
                         </span>
                       </div>
                     </div>
+
                     <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">Single Family Permits</span>
+                      <span className="text-xs text-gray-600">SF Permits</span>
                       <div className="flex items-center gap-1">
                         {getTrendIcon(state.trends.single_family_permits)}
-                        <span className={`font-semibold text-sm ${getTrendColor(state.trends.single_family_permits)}`}>
+                        <span className={`text-sm font-medium ${getTrendColor(state.trends.single_family_permits)}`}>
                           {formatNumber(state.single_family_permits)}
                         </span>
                       </div>
                     </div>
+
                     <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">Multi Family Permits</span>
+                      <span className="text-xs text-gray-600">MF Permits</span>
                       <div className="flex items-center gap-1">
                         {getTrendIcon(state.trends.multi_family_permits)}
-                        <span className={`font-semibold text-sm ${getTrendColor(state.trends.multi_family_permits)}`}>
+                        <span className={`text-sm font-medium ${getTrendColor(state.trends.multi_family_permits)}`}>
                           {formatNumber(state.multi_family_permits)}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Reasons */}
-                  <div className="pt-3 border-t">
-                    <h4 className="text-xs font-semibold text-gray-700 mb-2">Key Drivers:</h4>
-                    <div className="space-y-1">
-                      {state.reasons.map((reason, idx) => (
-                        <div key={idx} className="flex items-start gap-1">
-                          <div className="w-1 h-1 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
-                          <span className="text-xs text-gray-600 leading-relaxed">{reason}</span>
-                        </div>
+                  {/* Key Reasons */}
+                  <div className="pt-2 border-t">
+                    <h4 className="text-xs font-medium text-gray-700 mb-2">Key Investment Drivers:</h4>
+                    <ul className="space-y-1">
+                      {state.reasons.slice(0, 2).map((reason, idx) => (
+                        <li key={idx} className="text-xs text-gray-600 flex items-start gap-1">
+                          <span className="text-blue-600 mt-1">•</span>
+                          <span>{reason}</span>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   </div>
 
-                  <div className="text-xs text-gray-500 text-center pt-2 border-t">
-                    Updated: {state.lastUpdated.toLocaleTimeString()}
+                  <div className="text-xs text-gray-500 pt-2 border-t">
+                    Last updated: {state.lastUpdated.toLocaleTimeString()}
                   </div>
                 </CardContent>
               </Card>
             ))}
-          </div>
-
-          {/* All States Market Data */}
-          <div className="space-y-4">
-            <h3 className="text-xl font-bold text-gray-900 text-center">All States Market Data</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {marketData.map((state) => (
-                <Card key={state.state} className="border-0 bg-white/80 backdrop-blur-sm">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg font-bold">{state.state}</CardTitle>
-                      <Badge variant="secondary" className="bg-green-100 text-green-800">
-                        <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
-                        Live
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">Population Growth</span>
-                      <span className="font-semibold text-sm">{state.population_growth}%</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">Job Growth</span>
-                      <span
-                        className={`font-semibold text-sm ${state.job_growth > 2.5 ? "text-green-600" : "text-gray-900"}`}
-                      >
-                        {state.job_growth}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">House Price Growth</span>
-                      <span className="font-semibold text-sm">{state.house_price_index_growth}%</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">Net Migration</span>
-                      <span
-                        className={`font-semibold text-sm ${state.net_migration > 0 ? "text-green-600" : "text-red-600"}`}
-                      >
-                        {state.net_migration > 0 ? "+" : ""}
-                        {formatNumber(state.net_migration)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">Vacancy Rate</span>
-                      <span
-                        className={`font-semibold text-sm ${state.vacancy_rate < 4 ? "text-green-600" : "text-gray-900"}`}
-                      >
-                        {state.vacancy_rate}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">International Inflows</span>
-                      <span className="font-semibold text-sm">{formatNumber(state.international_inflows)}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">Single Family Permits</span>
-                      <span className="font-semibold text-sm">{formatNumber(state.single_family_permits)}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">Multi Family Permits</span>
-                      <span className="font-semibold text-sm">{formatNumber(state.multi_family_permits)}</span>
-                    </div>
-                    <div className="text-xs text-gray-500 text-center pt-2 border-t">
-                      Updated: {state.lastUpdated.toLocaleTimeString()}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
           </div>
         </div>
       </div>
