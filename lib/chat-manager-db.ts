@@ -5,7 +5,6 @@ export class ChatManagerDB {
   async createChat(title = "New Chat"): Promise<ChatHistoryItem> {
     try {
       if (!process.env.DATABASE_URL) {
-        // Return a mock chat for preview mode
         return {
           id: crypto.randomUUID(),
           title,
@@ -31,7 +30,6 @@ export class ChatManagerDB {
       }
     } catch (error) {
       console.error("Error creating chat:", error)
-      // Return a mock chat as fallback
       return {
         id: crypto.randomUUID(),
         title,
@@ -47,15 +45,6 @@ export class ChatManagerDB {
       if (!process.env.DATABASE_URL) {
         console.log("Database not available, skipping chat update")
         return
-      }
-
-      const updateData: any = {
-        messages: JSON.stringify(messages),
-        updated_at: new Date(),
-      }
-
-      if (title) {
-        updateData.title = title
       }
 
       await sql`

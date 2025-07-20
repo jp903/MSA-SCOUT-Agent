@@ -20,7 +20,17 @@ export default function HomePage() {
   /* ─────────────────────────  LOAD CHAT HISTORY  ────────────────────────── */
   useEffect(() => {
     loadChatHistory()
+    initializeDatabase()
   }, [])
+
+  async function initializeDatabase() {
+    try {
+      await fetch("/api/init-db", { method: "POST" })
+      console.log("Database initialized successfully")
+    } catch (error) {
+      console.error("Error initializing database:", error)
+    }
+  }
 
   async function loadChatHistory() {
     try {
@@ -34,12 +44,11 @@ export default function HomePage() {
   /* ─────────────────────────────  CHAT CRUD  ────────────────────────────── */
   async function handleNewChat() {
     try {
-      // Clear current chat first
+      // Clear current chat state
       setCurrentChatId(null)
       setCurrentChat(null)
-      setActiveView("home") // Return to home view
-
-      // The new chat will be created automatically when user sends first message
+      setActiveView("home")
+      console.log("New chat initiated - ready for first message")
     } catch (err) {
       console.error("Error creating new chat:", err)
     }
@@ -51,6 +60,8 @@ export default function HomePage() {
       if (chat) {
         setCurrentChatId(chatId)
         setCurrentChat(chat)
+        setActiveView("home")
+        console.log("Chat selected:", chatId)
       }
     } catch (err) {
       console.error("Error loading chat:", err)
@@ -61,13 +72,16 @@ export default function HomePage() {
     try {
       // If no current chat exists, create one automatically
       if (!currentChatId && messages.length > 0) {
+        console.log("Creating new chat automatically...")
         const newChat = await chatManagerDB.createChat(title || "New Chat")
         setCurrentChatId(newChat.id)
-        setCurrentChat(newChat)
+
+        // Update the new chat with messages
         await chatManagerDB.updateChat(newChat.id, messages, title)
         const updatedChat = await chatManagerDB.getChat(newChat.id)
         setCurrentChat(updatedChat)
         await loadChatHistory()
+        console.log("New chat created and saved:", newChat.id)
         return
       }
 
@@ -77,6 +91,7 @@ export default function HomePage() {
         const updatedChat = await chatManagerDB.getChat(currentChatId)
         setCurrentChat(updatedChat)
         await loadChatHistory()
+        console.log("Chat updated:", currentChatId)
       }
     } catch (err) {
       console.error("Error updating chat:", err)
@@ -91,6 +106,7 @@ export default function HomePage() {
         setCurrentChat(null)
       }
       await loadChatHistory()
+      console.log("Chat deleted:", chatId)
     } catch (err) {
       console.error("Error deleting chat:", err)
     }

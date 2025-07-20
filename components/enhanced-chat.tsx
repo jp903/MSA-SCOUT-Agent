@@ -99,7 +99,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
   const [attachments, setAttachments] = useState<FileAttachment[]>([])
   const [marketData, setMarketData] = useState<MarketData[]>([])
   const [topStates, setTopStates] = useState<MarketData[]>([])
-  const previousDataRef = useRef<Map<string, MarketData>>(new Map()) // 🔑 now a ref
+  const previousDataRef = useRef<Map<string, MarketData>>(new Map())
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -122,21 +122,21 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
   }, [currentChat])
 
   useEffect(() => {
-    if (!messages.length || !currentChat) return
+    if (!messages.length) return
 
     const serialised = messages.map((m) => ({
       ...m,
       timestamp: m.timestamp.toISOString(),
     }))
 
-    let title = currentChat.title
-    if (title === "New Chat") {
+    let title = "New Chat"
+    if (messages.length > 0) {
       const first = messages.find((m) => m.role === "user")
       if (first) title = first.content.slice(0, 50) + (first.content.length > 50 ? "…" : "")
     }
 
     onChatUpdate?.(serialised, title)
-  }, [messages, currentChat, onChatUpdate])
+  }, [messages, onChatUpdate])
 
   /* ---------------- MARKET DATA (LIVE) ---------------- */
 
@@ -335,11 +335,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     },
   ]
 
-  const trend = (
-    current: number,
-    previous: number,
-    invert = false, // vacancy-rate special-case
-  ): "up" | "down" | "stable" => {
+  const trend = (current: number, previous: number, invert = false): "up" | "down" | "stable" => {
     if (!previous) return "stable"
     const pct = ((current - previous) / Math.abs(previous)) * 100
     if (invert) {
@@ -408,10 +404,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
         return full
       })
 
-      /* update ref (does NOT trigger re-render) */
       previousDataRef.current = new Map(next.map((s) => [s.state, s]))
-
-      /* trigger UI updates only once */
       setMarketData(next)
       setTopStates([...next].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, 6))
     }
@@ -419,26 +412,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     update()
     const id = setInterval(update, 30_000)
     return () => clearInterval(id)
-  }, []) // ← runs once, no depth loop
-
-  /* ---------------- helper fns (icons, numbers, etc.) ---------------- */
-  const num = (n: number) =>
-    n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : n.toString()
-  const icon = (t: "up" | "down" | "stable") =>
-    t === "up" ? (
-      <ArrowUp className="h-3 w-3 text-green-600" />
-    ) : t === "down" ? (
-      <ArrowDown className="h-3 w-3 text-red-600" />
-    ) : (
-      <Minus className="h-3 w-3 text-gray-600" />
-    )
-  const color = (t: "up" | "down" | "stable") =>
-    t === "up" ? "text-green-600" : t === "down" ? "text-red-600" : "text-gray-600"
-
-  /* ----------------  rest of the component (render, chat, etc.)  ----------------
-     !!  UNCHANGED from previous working version, for brevity.
-     Copy your existing render / chat logic here or keep as-is if already present.
-  -------------------------------------------------------------------- */
+  }, [])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -520,23 +494,6 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
 
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading) return
-
-    // Auto-create chat if this is the first message and no current chat exists
-    if (!currentChat && messages.length === 0) {
-      try {
-        const title = input.trim().slice(0, 50) + (input.trim().length > 50 ? "..." : "")
-        const newChat = {
-          id: crypto.randomUUID(),
-          title: title,
-          messages: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }
-        onChatUpdate?.([], title) // This will trigger the parent to create the chat
-      } catch (error) {
-        console.error("Error auto-creating chat:", error)
-      }
-    }
 
     const userMessage: Message = {
       id: crypto.randomUUID(),

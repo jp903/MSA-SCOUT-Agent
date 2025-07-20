@@ -28,26 +28,40 @@ function PropertyCalculator() {
 
   const [results, setResults] = useState<CalculationResults | null>(null)
 
+  const handleInputChange = (field: string, value: string) => {
+    // Allow only numbers and one decimal point
+    const sanitizedValue = value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1")
+    setInputs((prev) => ({ ...prev, [field]: sanitizedValue }))
+  }
+
   const calculateInvestment = () => {
-    const purchasePrice = Number.parseFloat(inputs.purchasePrice)
-    const monthlyRent = Number.parseFloat(inputs.monthlyRent)
-    const monthlyExpenses = Number.parseFloat(inputs.monthlyExpenses)
-    const downPayment = Number.parseFloat(inputs.downPayment)
-    const annualRate = Number.parseFloat(inputs.interestRate) / 100
-    const loanTermYears = Number.parseFloat(inputs.loanTerm)
+    const purchasePrice = Number.parseFloat(inputs.purchasePrice) || 0
+    const monthlyRent = Number.parseFloat(inputs.monthlyRent) || 0
+    const monthlyExpenses = Number.parseFloat(inputs.monthlyExpenses) || 0
+    const downPayment = Number.parseFloat(inputs.downPayment) || 0
+    const annualRate = (Number.parseFloat(inputs.interestRate) || 0) / 100
+    const loanTermYears = Number.parseFloat(inputs.loanTerm) || 30
+
+    if (purchasePrice === 0 || downPayment === 0) {
+      alert("Please enter valid purchase price and down payment")
+      return
+    }
 
     const loanAmount = purchasePrice - downPayment
     const monthlyRate = annualRate / 12
     const numberOfPayments = loanTermYears * 12
 
-    const monthlyMortgage =
-      (loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments))) /
-      (Math.pow(1 + monthlyRate, numberOfPayments) - 1)
+    let monthlyMortgage = 0
+    if (loanAmount > 0 && monthlyRate > 0) {
+      monthlyMortgage =
+        (loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments))) /
+        (Math.pow(1 + monthlyRate, numberOfPayments) - 1)
+    }
 
     const monthlyCashFlow = monthlyRent - monthlyExpenses - monthlyMortgage
     const annualCashFlow = monthlyCashFlow * 12
-    const cashOnCashReturn = (annualCashFlow / downPayment) * 100
-    const capRate = ((monthlyRent * 12 - monthlyExpenses * 12) / purchasePrice) * 100
+    const cashOnCashReturn = downPayment > 0 ? (annualCashFlow / downPayment) * 100 : 0
+    const capRate = purchasePrice > 0 ? ((monthlyRent * 12 - monthlyExpenses * 12) / purchasePrice) * 100 : 0
 
     setResults({
       monthlyMortgage: Math.round(monthlyMortgage),
@@ -82,11 +96,9 @@ function PropertyCalculator() {
                 </Label>
                 <Input
                   id="purchasePrice"
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*"
                   value={inputs.purchasePrice}
-                  onChange={(e) => setInputs({ ...inputs, purchasePrice: e.target.value.replace(/[^0-9.]/g, "") })}
+                  onChange={(e) => handleInputChange("purchasePrice", e.target.value)}
+                  placeholder="250000"
                   className="mt-1"
                 />
               </div>
@@ -96,11 +108,9 @@ function PropertyCalculator() {
                 </Label>
                 <Input
                   id="downPayment"
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*"
                   value={inputs.downPayment}
-                  onChange={(e) => setInputs({ ...inputs, downPayment: e.target.value.replace(/[^0-9.]/g, "") })}
+                  onChange={(e) => handleInputChange("downPayment", e.target.value)}
+                  placeholder="50000"
                   className="mt-1"
                 />
               </div>
@@ -110,11 +120,9 @@ function PropertyCalculator() {
                 </Label>
                 <Input
                   id="monthlyRent"
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*"
                   value={inputs.monthlyRent}
-                  onChange={(e) => setInputs({ ...inputs, monthlyRent: e.target.value.replace(/[^0-9.]/g, "") })}
+                  onChange={(e) => handleInputChange("monthlyRent", e.target.value)}
+                  placeholder="2000"
                   className="mt-1"
                 />
               </div>
@@ -124,11 +132,9 @@ function PropertyCalculator() {
                 </Label>
                 <Input
                   id="monthlyExpenses"
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*"
                   value={inputs.monthlyExpenses}
-                  onChange={(e) => setInputs({ ...inputs, monthlyExpenses: e.target.value.replace(/[^0-9.]/g, "") })}
+                  onChange={(e) => handleInputChange("monthlyExpenses", e.target.value)}
+                  placeholder="500"
                   className="mt-1"
                 />
               </div>
@@ -138,11 +144,9 @@ function PropertyCalculator() {
                 </Label>
                 <Input
                   id="interestRate"
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*"
                   value={inputs.interestRate}
-                  onChange={(e) => setInputs({ ...inputs, interestRate: e.target.value.replace(/[^0-9.]/g, "") })}
+                  onChange={(e) => handleInputChange("interestRate", e.target.value)}
+                  placeholder="6.5"
                   className="mt-1"
                 />
               </div>
@@ -152,11 +156,9 @@ function PropertyCalculator() {
                 </Label>
                 <Input
                   id="loanTerm"
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*"
                   value={inputs.loanTerm}
-                  onChange={(e) => setInputs({ ...inputs, loanTerm: e.target.value.replace(/[^0-9.]/g, "") })}
+                  onChange={(e) => handleInputChange("loanTerm", e.target.value)}
+                  placeholder="30"
                   className="mt-1"
                 />
               </div>

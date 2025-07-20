@@ -1,25 +1,14 @@
 import { neon } from "@neondatabase/serverless"
 import type { NeonQueryFunction } from "@neondatabase/serverless"
 
-/**
- * Returns a dummy no-op SQL tagged-template function that satisfies the Neon
- * type signature.  Lets the app run in environments where DATABASE_URL is
- * not defined (e.g. v0 preview) without crashing.
- */
 function createDummySql(): NeonQueryFunction<any[]> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   return (strings: TemplateStringsArray, ..._values: unknown[]) => Promise.resolve([]) as any
 }
 
-// Use a real Neon client only when DATABASE_URL is provided
 export const sql: NeonQueryFunction<any[]> = process.env.DATABASE_URL
   ? neon(process.env.DATABASE_URL)
   : createDummySql()
 
-/**
- * Attempts to connect to the database (only when DATABASE_URL is provided).
- * Logs a warning and exits early in environments that do not have a DB.
- */
 export async function testConnection() {
   if (!process.env.DATABASE_URL) {
     console.warn("DATABASE_URL is not set – skipping database connectivity check.")
@@ -36,9 +25,6 @@ export async function testConnection() {
   }
 }
 
-/**
- * Creates required tables if they don't exist (only when a DB is available).
- */
 export async function initializeDatabase() {
   if (!process.env.DATABASE_URL) {
     console.warn("DATABASE_URL not set – skipping database initialization.")
@@ -46,7 +32,6 @@ export async function initializeDatabase() {
   }
 
   try {
-    // Create properties table
     await sql`
       CREATE TABLE IF NOT EXISTS properties (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -70,7 +55,6 @@ export async function initializeDatabase() {
       )
     `
 
-    // Create property_images table
     await sql`
       CREATE TABLE IF NOT EXISTS property_images (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -84,7 +68,6 @@ export async function initializeDatabase() {
       )
     `
 
-    // Create chat_history table
     await sql`
       CREATE TABLE IF NOT EXISTS chat_history (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

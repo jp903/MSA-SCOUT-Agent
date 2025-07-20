@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { ChatManagerDB } from "@/lib/chat-manager-db"
+import { chatManagerDB } from "@/lib/chat-manager-db"
 
 export async function GET() {
   try {
-    const chatHistory = await ChatManagerDB.getChatHistory()
+    const chatHistory = await chatManagerDB.getAllChats()
     return NextResponse.json(chatHistory)
   } catch (error) {
     console.error("Error fetching chat history:", error)
@@ -14,9 +14,10 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const { title, messages } = await request.json()
-    const chat = await ChatManagerDB.addChat(title, messages)
+    const chat = await chatManagerDB.createChat(title || "New Chat")
 
     if (chat) {
+      await chatManagerDB.updateChat(chat.id, messages, title)
       return NextResponse.json(chat)
     } else {
       return NextResponse.json({ error: "Failed to create chat" }, { status: 400 })

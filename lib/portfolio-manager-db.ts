@@ -28,7 +28,6 @@ export class PortfolioManagerDB {
         ORDER BY created_at DESC
       `
 
-      // Get images for each property
       const propertiesWithImages = await Promise.all(
         properties.map(async (property) => {
           const images = await this.getPropertyImages(property.id)
@@ -244,10 +243,8 @@ export class PortfolioManagerDB {
 
   static async setPrimaryImage(propertyId: string, imageId: string): Promise<boolean> {
     try {
-      // First, unset all primary images for this property
       await sql`UPDATE property_images SET is_primary = false WHERE property_id = ${propertyId}`
 
-      // Then set the selected image as primary
       const result = await sql`
         UPDATE property_images 
         SET is_primary = true 
