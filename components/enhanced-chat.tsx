@@ -27,9 +27,7 @@ import {
   FileImage,
   Video,
   Search,
-  Phone,
   Download,
-  Sparkles,
   Edit3,
   RotateCcw,
 } from "lucide-react"
@@ -512,14 +510,10 @@ export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
     { id: "ai-slides", label: "AI Slides", icon: PresentationChart, color: "from-orange-500 to-orange-600" },
     { id: "ai-sheets", label: "AI Sheets", icon: FileSpreadsheet, color: "from-green-500 to-green-600" },
     { id: "ai-docs", label: "AI Docs", icon: FileText, color: "from-blue-500 to-blue-600" },
-    { id: "ai-pods", label: "AI Pods", icon: Sparkles, color: "from-purple-500 to-purple-600" },
-    { id: "ai-chat", label: "AI Chat", icon: Bot, color: "from-indigo-500 to-indigo-600" },
     { id: "ai-image", label: "AI Image", icon: FileImage, color: "from-pink-500 to-pink-600" },
     { id: "ai-video", label: "AI Video", icon: Video, color: "from-red-500 to-red-600" },
     { id: "deep-research", label: "Deep Research", icon: Search, color: "from-teal-500 to-teal-600" },
-    { id: "call-for-me", label: "Call For Me", icon: Phone, color: "from-yellow-500 to-yellow-600" },
     { id: "download-for-me", label: "Download For Me", icon: Download, color: "from-cyan-500 to-cyan-600" },
-    { id: "all-agents", label: "All Agents", icon: Sparkles, color: "from-gray-500 to-gray-600" },
     {
       id: "investment-calculator",
       label: "Investment Calculator",
@@ -541,7 +535,7 @@ export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-blue-50 to-purple-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6 overflow-y-auto">
       <div className="max-w-6xl mx-auto w-full space-y-8">
         {/* Header */}
         <div className="text-center">
@@ -553,7 +547,7 @@ export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
         {messages.length > 0 && (
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
             <div className="p-6">
-              <div className="h-96 overflow-y-auto mb-6 space-y-4">
+              <div className="max-h-[600px] overflow-y-auto mb-6 space-y-4">
                 {messages.map((message) => (
                   <div
                     key={message.id}
@@ -722,13 +716,6 @@ export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
                     )}
                   </Button>
                 </div>
-
-                {/* Profile avatar in top right corner */}
-                <div className="absolute -top-2 -right-2">
-                  <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                    <User className="h-4 w-4 text-gray-600" />
-                  </div>
-                </div>
               </div>
 
               <input
@@ -745,7 +732,7 @@ export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
 
         {/* AI Tools */}
         <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {aiTools.map((tool) => (
               <Card
                 key={tool.id}
