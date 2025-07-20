@@ -1,45 +1,63 @@
+import { type NextRequest, NextResponse } from "next/server"
+import { generateText } from "ai"
 import { openai } from "@ai-sdk/openai"
-import { streamText } from "ai"
 
-export const maxDuration = 30
-
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { messages } = await req.json()
+    const { messages } = await request.json()
 
-    console.log("🤖 Processing chat request with", messages.length, "messages")
+    console.log("📨 Chat API received messages:", messages?.length || 0)
 
-    const result = streamText({
+    if (!messages || !Array.isArray(messages)) {
+      return NextResponse.json({ error: "Invalid messages format" }, { status: 400 })
+    }
+
+    const { text } = await generateText({
       model: openai("gpt-4o"),
-      system: `You are MSASCOUT, an advanced property investment agent powered by real-time market data from the Census Bureau and Bureau of Labor Statistics. 
-
-Your expertise includes:
-- Real estate market analysis with specific data points and numbers
-- Investment property evaluation and ROI calculations  
-- Market trend analysis with demographic and economic factors
-- Risk assessment and opportunity identification
-- Data-driven investment recommendations
-
-Always provide:
-- Specific numbers and data points when available
-- Market trends with supporting evidence
-- Clear investment recommendations with reasoning
-- Risk factors and mitigation strategies
-- Actionable insights for property investors
-
-Use a professional, analytical tone while being accessible to both novice and experienced investors. When discussing markets, always reference specific metrics like population growth rates, job growth percentages, median home prices, rental yields, and vacancy rates.`,
       messages: messages.map((msg: any) => ({
         role: msg.role,
         content: msg.content,
       })),
+      system: `You are MSASCOUT, an advanced property investment research agent with access to real-time Census Bureau and Bureau of Labor Statistics data. You specialize in:
+
+🏠 CORE CAPABILITIES:
+- Real estate market analysis using Census and BLS data
+- Property investment ROI calculations and projections
+- Demographic and economic trend analysis
+- Risk assessment and market timing recommendations
+- Data visualization and chart generation
+
+📊 DATA SOURCES:
+- U.S. Census Bureau: Population, housing, income, migration data
+- Bureau of Labor Statistics: Employment, wages, job growth data
+- Real-time market indicators and trends
+- Historical performance data for predictive modeling
+
+💡 RESPONSE GUIDELINES:
+- Always provide specific, data-driven insights with actual numbers
+- Include relevant market trends and supporting statistics
+- Generate charts and visualizations when discussing data
+- Offer actionable investment recommendations
+- Highlight both opportunities and risk factors
+- Use professional real estate investment terminology
+
+🎯 EXAMPLE RESPONSES:
+When asked about a state market: "Based on latest Census data, Texas shows 1.8% population growth with 45,000 net migration. BLS employment data indicates 3.2% job growth, particularly strong in tech and healthcare sectors. This translates to a market score of 78/100 for investment potential."
+
+Always be specific, data-focused, and provide actionable insights for property investors.`,
     })
 
-    return result.toDataStreamResponse()
+    console.log("✅ Chat API generated response")
+
+    return NextResponse.json({ message: text })
   } catch (error) {
-    console.error("❌ Chat API error:", error)
-    return new Response(JSON.stringify({ error: "Failed to process chat request" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    })
+    console.error("❌ Error in chat API:", error)
+    return NextResponse.json(
+      {
+        error: "Failed to process chat request",
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
+    )
   }
 }

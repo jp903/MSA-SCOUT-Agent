@@ -27,8 +27,8 @@ import {
   FileImage,
   Download,
   Edit3,
-  ArrowDown,
   ArrowUp,
+  ArrowDown,
   Minus,
   Send,
 } from "lucide-react"
@@ -101,8 +101,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [isNearBottom, setIsNearBottom] = useState(true)
-  const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
+  const [userScrolled, setUserScrolled] = useState(false)
 
   /* ---------------- CHAT HISTORY LOAD / SAVE ---------------- */
 
@@ -118,15 +117,15 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
         chartData: m.chartData,
       }))
       setMessages(loaded)
-      setShouldAutoScroll(true)
-      // Scroll to bottom after loading with a delay
+      setUserScrolled(false)
+      // Scroll to bottom after loading
       setTimeout(() => {
-        scrollToBottom(true)
+        scrollToBottom()
       }, 100)
     } else {
       console.log("🆕 No current chat, starting fresh")
       setMessages([])
-      setShouldAutoScroll(true)
+      setUserScrolled(false)
     }
   }, [currentChat])
 
@@ -429,26 +428,24 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     return () => clearInterval(id)
   }, [])
 
-  const scrollToBottom = (force = false) => {
-    if ((shouldAutoScroll && isNearBottom) || force) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  const scrollToBottom = () => {
+    if (!userScrolled && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
     }
   }
 
   useEffect(() => {
-    // Only auto-scroll for new messages when user is near bottom
-    if (messages.length > 0 && shouldAutoScroll && isNearBottom) {
-      setTimeout(() => scrollToBottom(), 100)
+    if (!userScrolled) {
+      scrollToBottom()
     }
-  }, [messages, shouldAutoScroll, isNearBottom])
+  }, [messages, userScrolled])
 
-  // Handle scroll events to detect user position
+  // Handle scroll events to detect if user is scrolling
   const handleScroll = () => {
     if (messagesContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current
-      const distanceFromBottom = scrollHeight - scrollTop - clientHeight
-      const nearBottom = distanceFromBottom < 100
-      setIsNearBottom(nearBottom)
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 50
+      setUserScrolled(!isAtBottom)
     }
   }
 
@@ -570,7 +567,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     setInput("")
     setAttachments([])
     setIsLoading(true)
-    setShouldAutoScroll(true) // Enable auto-scroll when sending new message
+    setUserScrolled(false) // Enable auto-scroll when sending new message
 
     try {
       console.log("🔄 Making API call to /api/chat")
@@ -805,12 +802,12 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
               </div>
 
               {/* Scroll to bottom button */}
-              {!isNearBottom && (
+              {userScrolled && (
                 <div className="flex justify-center mb-4">
                   <Button
                     onClick={() => {
-                      setShouldAutoScroll(true)
-                      scrollToBottom(true)
+                      setUserScrolled(false)
+                      scrollToBottom()
                     }}
                     variant="outline"
                     size="sm"
@@ -1038,50 +1035,63 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                   </div>
 
                   {/* Additional Metrics */}
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Net Migration:</span>
-                      <span className={`font-medium ${getTrendColor(state.trends.net_migration)}`}>
-                        {formatNumber(state.net_migration)}
-                      </span>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">Net Migration</span>
+                      <div className="flex items-center gap-1">
+                        {getTrendIcon(state.trends.net_migration)}
+                        <span className={`text-sm font-medium ${getTrendColor(state.trends.net_migration)}`}>
+                          {formatNumber(state.net_migration)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">International Inflows:</span>
-                      <span className={`font-medium ${getTrendColor(state.trends.international_inflows)}`}>
-                        {formatNumber(state.international_inflows)}
-                      </span>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">International Inflows</span>
+                      <div className="flex items-center gap-1">
+                        {getTrendIcon(state.trends.international_inflows)}
+                        <span className={`text-sm font-medium ${getTrendColor(state.trends.international_inflows)}`}>
+                          {formatNumber(state.international_inflows)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">SF Permits:</span>
-                      <span className={`font-medium ${getTrendColor(state.trends.single_family_permits)}`}>
-                        {formatNumber(state.single_family_permits)}
-                      </span>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">SF Permits</span>
+                      <div className="flex items-center gap-1">
+                        {getTrendIcon(state.trends.single_family_permits)}
+                        <span className={`text-sm font-medium ${getTrendColor(state.trends.single_family_permits)}`}>
+                          {formatNumber(state.single_family_permits)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">MF Permits:</span>
-                      <span className={`font-medium ${getTrendColor(state.trends.multi_family_permits)}`}>
-                        {formatNumber(state.multi_family_permits)}
-                      </span>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">MF Permits</span>
+                      <div className="flex items-center gap-1">
+                        {getTrendIcon(state.trends.multi_family_permits)}
+                        <span className={`text-sm font-medium ${getTrendColor(state.trends.multi_family_permits)}`}>
+                          {formatNumber(state.multi_family_permits)}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Key Insights */}
+                  {/* Key Reasons */}
                   <div className="pt-2 border-t">
-                    <p className="text-xs text-gray-600 mb-2">Key Factors:</p>
-                    <div className="space-y-1">
+                    <h4 className="text-xs font-medium text-gray-700 mb-2">AI Analysis:</h4>
+                    <ul className="space-y-1">
                       {state.reasons.slice(0, 2).map((reason, idx) => (
-                        <p key={idx} className="text-xs text-gray-700 leading-relaxed">
-                          • {reason}
-                        </p>
+                        <li key={idx} className="text-xs text-gray-600 flex items-start gap-1">
+                          <span className="text-blue-600 mt-1">•</span>
+                          <span>{reason}</span>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   </div>
 
-                  {/* Last Updated */}
-                  <div className="pt-2 border-t">
-                    <p className="text-xs text-gray-500">
-                      Updated: {state.lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </p>
+                  <div className="text-xs text-gray-500 pt-2 border-t">
+                    Last updated: {state.lastUpdated.toLocaleTimeString()}
                   </div>
                 </CardContent>
               </Card>

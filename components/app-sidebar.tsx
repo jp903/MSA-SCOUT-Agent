@@ -1,69 +1,30 @@
 "use client"
-import {
-  Building2,
-  Calculator,
-  TrendingUp,
-  MessageSquare,
-  Plus,
-  Trash2,
-  ChevronRight,
-  Loader2,
-  PanelLeftClose,
-  PanelLeftOpen,
-} from "lucide-react"
 
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  SidebarTrigger,
-  useSidebar,
 } from "@/components/ui/sidebar"
-import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Badge } from "@/components/ui/badge"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Home, Calculator, TrendingUp, Plus, MessageSquare, MoreHorizontal, Trash2 } from "lucide-react"
 import type { ChatHistoryItem } from "@/lib/portfolio-types"
 
-const navigation = [
-  {
-    title: "Chat",
-    icon: MessageSquare,
-    id: "chat",
-  },
-  {
-    title: "Calculator",
-    icon: Calculator,
-    id: "calculator",
-  },
-  {
-    title: "Market Insights",
-    icon: TrendingUp,
-    id: "insights",
-  },
-  {
-    title: "Property Analysis",
-    icon: Building2,
-    id: "property-form",
-  },
-]
-
 interface AppSidebarProps {
-  activeView: string
-  onViewChange: (view: string) => void
+  activeView: "home" | "calculator" | "insights"
+  onViewChange: (view: "home" | "calculator" | "insights") => void
   onNewChat: () => void
   chatHistory: ChatHistoryItem[]
+  currentChatId: string | null
   onChatSelect: (chatId: string) => void
   onDeleteChat: (chatId: string) => void
-  currentChatId?: string
-  isLoading?: boolean
 }
 
 export function AppSidebar({
@@ -71,132 +32,166 @@ export function AppSidebar({
   onViewChange,
   onNewChat,
   chatHistory,
+  currentChatId,
   onChatSelect,
   onDeleteChat,
-  currentChatId,
-  isLoading = false,
 }: AppSidebarProps) {
-  const { open, setOpen } = useSidebar()
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
-  const formatDate = (date: Date) => {
+  const menuItems = [
+    {
+      id: "home" as const,
+      label: "Chat",
+      icon: Home,
+      description: "AI Assistant Chat",
+    },
+    {
+      id: "calculator" as const,
+      label: "Calculator",
+      icon: Calculator,
+      description: "Investment Calculator",
+    },
+    {
+      id: "insights" as const,
+      label: "Market Insights",
+      icon: TrendingUp,
+      description: "Market Analysis",
+    },
+  ]
+
+  const formatChatTitle = (chat: ChatHistoryItem) => {
+    if (chat.title && chat.title !== "New Chat") {
+      return chat.title.length > 30 ? chat.title.slice(0, 30) + "..." : chat.title
+    }
+
+    // Try to get title from first user message
+    const firstUserMessage = chat.messages?.find((m: any) => m.role === "user")
+    if (firstUserMessage?.content) {
+      const content = firstUserMessage.content.slice(0, 30)
+      return content.length > 30 ? content + "..." : content
+    }
+
+    return "New Chat"
+  }
+
+  const formatChatDate = (date: Date) => {
     const now = new Date()
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
 
-    if (diffInHours < 24) {
-      return "Today"
+    if (diffInHours < 1) {
+      return "Just now"
+    } else if (diffInHours < 24) {
+      return `${Math.floor(diffInHours)}h ago`
     } else if (diffInHours < 48) {
       return "Yesterday"
-    } else if (diffInHours < 168) {
-      return `${Math.floor(diffInHours / 24)} days ago`
     } else {
       return date.toLocaleDateString()
     }
   }
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-purple-600">
-            <Building2 className="h-4 w-4 text-white" />
+    <Sidebar className="border-r bg-white">
+      <SidebarHeader className="p-4 border-b">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+            <span className="text-white font-bold text-sm">MS</span>
           </div>
-          <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-semibold">MSASCOUT</span>
-            <span className="truncate text-xs text-muted-foreground">Property Investment Agent</span>
+          <div>
+            <h2 className="font-semibold text-gray-900">MSASCOUT</h2>
+            <p className="text-xs text-gray-500">Property AI Agent</p>
           </div>
         </div>
+
+        <Button
+          onClick={onNewChat}
+          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          New Chat
+        </Button>
       </SidebarHeader>
 
-      <SidebarContent>
-        {/* Navigation */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navigation.map((item) => (
-                <SidebarMenuItem key={item.id}>
-                  <SidebarMenuButton
-                    onClick={() => onViewChange(item.id)}
-                    isActive={activeView === item.id}
-                    className="w-full"
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+      <SidebarContent className="p-4">
+        {/* Navigation Menu */}
+        <div className="mb-6">
+          <h3 className="text-sm font-medium text-gray-700 mb-3">Navigation</h3>
+          <SidebarMenu>
+            {menuItems.map((item) => (
+              <SidebarMenuItem key={item.id}>
+                <SidebarMenuButton
+                  onClick={() => onViewChange(item.id)}
+                  isActive={activeView === item.id}
+                  className="w-full justify-start"
+                >
+                  <item.icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </div>
 
         {/* Chat History */}
-        <SidebarGroup className="flex-1">
-          <div className="flex items-center justify-between px-2">
-            <SidebarGroupLabel>Chat History</SidebarGroupLabel>
-            <Button variant="ghost" size="sm" onClick={onNewChat} className="h-6 w-6 p-0 hover:bg-accent">
-              <Plus className="h-3 w-3" />
-            </Button>
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-gray-700">Recent Chats</h3>
+            <Badge variant="secondary" className="text-xs">
+              {chatHistory.length}
+            </Badge>
           </div>
-          <SidebarGroupContent>
-            <ScrollArea className="h-[400px]">
-              {isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                </div>
-              ) : chatHistory.length === 0 ? (
-                <div className="px-2 py-4 text-center text-sm text-muted-foreground">No chat history yet</div>
-              ) : (
-                <SidebarMenu>
-                  {chatHistory.map((chat) => (
-                    <SidebarMenuItem key={chat.id}>
-                      <div className="group flex items-center gap-2">
-                        <SidebarMenuButton
-                          onClick={() => onChatSelect(chat.id)}
-                          isActive={currentChatId === chat.id}
-                          className="flex-1 justify-start"
-                        >
-                          <MessageSquare className="h-3 w-3 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="truncate text-xs font-medium">{chat.title}</div>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span>{formatDate(chat.updatedAt)}</span>
-                              {chat.messages.length > 0 && (
-                                <Badge variant="secondary" className="h-4 px-1 text-xs">
-                                  {chat.messages.length}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                          <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </SidebarMenuButton>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onDeleteChat(chat.id)
-                          }}
-                          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-opacity"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              )}
-            </ScrollArea>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
 
-      <SidebarFooter>
-        <div className="flex items-center justify-center p-2">
-          <SidebarTrigger className="h-8 w-8">
-            {open ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
-          </SidebarTrigger>
+          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            {chatHistory.length === 0 ? (
+              <Card className="border-dashed">
+                <CardContent className="p-4 text-center">
+                  <MessageSquare className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500">No chats yet</p>
+                  <p className="text-xs text-gray-400">Start a conversation!</p>
+                </CardContent>
+              </Card>
+            ) : (
+              chatHistory.map((chat) => (
+                <Card
+                  key={chat.id}
+                  className={`cursor-pointer transition-all hover:shadow-md ${
+                    currentChatId === chat.id ? "ring-2 ring-blue-500 bg-blue-50" : "hover:bg-gray-50"
+                  }`}
+                >
+                  <CardContent className="p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0" onClick={() => onChatSelect(chat.id)}>
+                        <h4 className="font-medium text-sm text-gray-900 truncate">{formatChatTitle(chat)}</h4>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-xs text-gray-500">{chat.messages?.length || 0} messages</p>
+                          <span className="text-xs text-gray-400">•</span>
+                          <p className="text-xs text-gray-400">{formatChatDate(new Date(chat.updatedAt))}</p>
+                        </div>
+                      </div>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-gray-200">
+                            <MoreHorizontal className="h-3 w-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => onDeleteChat(chat.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
         </div>
-      </SidebarFooter>
+      </SidebarContent>
 
       <SidebarRail />
     </Sidebar>
