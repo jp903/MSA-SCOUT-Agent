@@ -428,24 +428,29 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     return () => clearInterval(id)
   }, [])
 
-  const scrollToBottom = () => {
-    if (!userScrolled && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+  const scrollToBottom = (force = false) => {
+    if (force || !userScrolled) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
     }
   }
 
   useEffect(() => {
-    if (!userScrolled) {
-      scrollToBottom()
+    // Only auto-scroll when not manually scrolled by user
+    if (messages.length > 0 && !userScrolled) {
+      setTimeout(() => scrollToBottom(), 100)
     }
-  }, [messages, userScrolled])
+  }, [messages])
 
-  // Handle scroll events to detect if user is scrolling
+  // Handle scroll events to detect if user is manually scrolling
   const handleScroll = () => {
     if (messagesContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current
-      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 50
-      setUserScrolled(!isAtBottom)
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10
+
+      // If user scrolls up, disable auto-scroll
+      if (!isAtBottom) {
+        setUserScrolled(true)
+      }
     }
   }
 
@@ -567,7 +572,8 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     setInput("")
     setAttachments([])
     setIsLoading(true)
-    setUserScrolled(false) // Enable auto-scroll when sending new message
+    // Don't force scroll reset when sending message
+    // setUserScrolled(false) // Remove this line
 
     try {
       console.log("🔄 Making API call to /api/chat")
@@ -801,20 +807,20 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Scroll to bottom button */}
+              {/* Scroll to bottom button - only show when user has scrolled up */}
               {userScrolled && (
                 <div className="flex justify-center mb-4">
                   <Button
                     onClick={() => {
                       setUserScrolled(false)
-                      scrollToBottom()
+                      scrollToBottom(true)
                     }}
                     variant="outline"
                     size="sm"
-                    className="bg-white/90 backdrop-blur-sm"
+                    className="bg-white/90 backdrop-blur-sm shadow-lg"
                   >
                     <ArrowDown className="h-4 w-4 mr-2" />
-                    Scroll to bottom
+                    New messages - Scroll to bottom
                   </Button>
                 </div>
               )}

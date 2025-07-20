@@ -2,36 +2,41 @@ import { neon } from "@neondatabase/serverless"
 import type { NeonQueryFunction } from "@neondatabase/serverless"
 
 function createDummySql(): NeonQueryFunction<any[]> {
-  return (strings: TemplateStringsArray, ..._values: unknown[]) => Promise.resolve([]) as any
+  return async () => [] as any
 }
 
-export const sql: NeonQueryFunction<any[]> = process.env.DATABASE_URL
-  ? neon(process.env.DATABASE_URL)
-  : createDummySql()
+const isBrowser = typeof window !== "undefined"
+
+export const sql: NeonQueryFunction<any[]> =
+  !isBrowser && process.env.DATABASE_URL ? neon(process.env.DATABASE_URL) : createDummySql()
 
 export async function testConnection() {
-  if (!process.env.DATABASE_URL) {
-    console.warn("DATABASE_URL is not set – skipping database connectivity check.")
+  if (isBrowser || !process.env.DATABASE_URL) {
+    console.warn("Skipping DB connectivity check (browser build or no DATABASE_URL).")
     return false
   }
 
   try {
     const result = await sql`SELECT NOW() AS current_time`
-    console.log("Database connected successfully:", result[0].current_time)
+    console.log("✅ Database connected:", result[0].current_time)
     return true
   } catch (error) {
-    console.error("Database connection failed:", error)
+    console.error("❌ Database connection failed:", error)
     return false
   }
 }
 
 export async function initializeDatabase() {
-  if (!process.env.DATABASE_URL) {
-    console.warn("DATABASE_URL not set – skipping database initialization.")
+  if (isBrowser || !process.env.DATABASE_URL) {
+    console.warn("Skipping DB init (browser build or no DATABASE_URL).")
     return false
   }
 
   try {
+    // Test connection first
+    await sql`SELECT 1`
+    console.log("✅ Database connection verified")
+
     await sql`
       CREATE TABLE IF NOT EXISTS properties (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -78,10 +83,10 @@ export async function initializeDatabase() {
       )
     `
 
-    console.log("Database tables initialized successfully")
+    console.log("✅ Database tables initialized successfully")
     return true
   } catch (error) {
-    console.error("Database initialization failed:", error)
+    console.error("❌ Database initialization failed:", error)
     return false
   }
 }
