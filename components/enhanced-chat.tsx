@@ -6,13 +6,11 @@ import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, BarChart, Bar } from "recharts"
 import {
-  Send,
   Mic,
   Calculator,
   TrendingUp,
@@ -24,6 +22,16 @@ import {
   X,
   FileText,
   ImageIcon,
+  PresentationIcon as PresentationChart,
+  FileSpreadsheet,
+  FileImage,
+  Video,
+  Search,
+  Phone,
+  Download,
+  Sparkles,
+  Edit3,
+  RotateCcw,
 } from "lucide-react"
 
 interface Message {
@@ -51,25 +59,228 @@ interface ChartData {
   yKey: string
 }
 
+interface MarketData {
+  state: string
+  population_growth: number
+  job_growth: number
+  house_price_index_growth: number
+  net_migration: number
+  vacancy_rate: number
+  international_inflows: number
+  single_family_permits: number
+  multi_family_permits: number
+  lastUpdated: Date
+}
+
 interface EnhancedChatProps {
   onToolSelect?: (tool: string) => void
 }
 
 export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      role: "assistant",
-      content:
-        "Hello! I'm your AI property investment assistant. I can help you analyze properties, calculate investment returns, provide market insights, and generate charts. You can also attach files for analysis. What would you like to explore today?",
-      timestamp: new Date(),
-    },
-  ])
+  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [attachments, setAttachments] = useState<FileAttachment[]>([])
+  const [marketData, setMarketData] = useState<MarketData[]>([])
+  const [topStates, setTopStates] = useState<string[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Mock data for 16 states with the 8 variables
+  const mockMarketData: MarketData[] = [
+    {
+      state: "Texas",
+      population_growth: 1.8,
+      job_growth: 3.2,
+      house_price_index_growth: 8.5,
+      net_migration: 45000,
+      vacancy_rate: 3.8,
+      international_inflows: 12000,
+      single_family_permits: 85000,
+      multi_family_permits: 25000,
+      lastUpdated: new Date(),
+    },
+    {
+      state: "Florida",
+      population_growth: 2.3,
+      job_growth: 3.5,
+      house_price_index_growth: 11.8,
+      net_migration: 85000,
+      vacancy_rate: 3.2,
+      international_inflows: 45000,
+      single_family_permits: 95000,
+      multi_family_permits: 35000,
+      lastUpdated: new Date(),
+    },
+    {
+      state: "Nevada",
+      population_growth: 2.1,
+      job_growth: 2.8,
+      house_price_index_growth: 12.3,
+      net_migration: 18000,
+      vacancy_rate: 4.2,
+      international_inflows: 3200,
+      single_family_permits: 15000,
+      multi_family_permits: 8500,
+      lastUpdated: new Date(),
+    },
+    {
+      state: "Arkansas",
+      population_growth: 0.8,
+      job_growth: 1.5,
+      house_price_index_growth: 6.8,
+      net_migration: 8500,
+      vacancy_rate: 5.1,
+      international_inflows: 1200,
+      single_family_permits: 12000,
+      multi_family_permits: 2800,
+      lastUpdated: new Date(),
+    },
+    {
+      state: "Alabama",
+      population_growth: 0.6,
+      job_growth: 1.8,
+      house_price_index_growth: 7.2,
+      net_migration: 12000,
+      vacancy_rate: 4.8,
+      international_inflows: 1800,
+      single_family_permits: 18000,
+      multi_family_permits: 4200,
+      lastUpdated: new Date(),
+    },
+    {
+      state: "Georgia",
+      population_growth: 1.5,
+      job_growth: 2.9,
+      house_price_index_growth: 9.1,
+      net_migration: 35000,
+      vacancy_rate: 4.1,
+      international_inflows: 8500,
+      single_family_permits: 42000,
+      multi_family_permits: 18000,
+      lastUpdated: new Date(),
+    },
+    {
+      state: "Montana",
+      population_growth: 1.2,
+      job_growth: 2.1,
+      house_price_index_growth: 15.2,
+      net_migration: 8500,
+      vacancy_rate: 2.9,
+      international_inflows: 450,
+      single_family_permits: 5500,
+      multi_family_permits: 1200,
+      lastUpdated: new Date(),
+    },
+    {
+      state: "Ohio",
+      population_growth: 0.2,
+      job_growth: 1.2,
+      house_price_index_growth: 5.4,
+      net_migration: -5000,
+      vacancy_rate: 5.8,
+      international_inflows: 3200,
+      single_family_permits: 28000,
+      multi_family_permits: 12000,
+      lastUpdated: new Date(),
+    },
+    {
+      state: "Indiana",
+      population_growth: 0.4,
+      job_growth: 1.8,
+      house_price_index_growth: 6.2,
+      net_migration: 8000,
+      vacancy_rate: 5.2,
+      international_inflows: 2100,
+      single_family_permits: 22000,
+      multi_family_permits: 8500,
+      lastUpdated: new Date(),
+    },
+    {
+      state: "North Carolina",
+      population_growth: 1.4,
+      job_growth: 2.6,
+      house_price_index_growth: 10.3,
+      net_migration: 28000,
+      vacancy_rate: 3.6,
+      international_inflows: 6800,
+      single_family_permits: 48000,
+      multi_family_permits: 22000,
+      lastUpdated: new Date(),
+    },
+    {
+      state: "Tennessee",
+      population_growth: 1.1,
+      job_growth: 2.4,
+      house_price_index_growth: 8.9,
+      net_migration: 22000,
+      vacancy_rate: 4.3,
+      international_inflows: 3500,
+      single_family_permits: 32000,
+      multi_family_permits: 15000,
+      lastUpdated: new Date(),
+    },
+    {
+      state: "Arizona",
+      population_growth: 1.9,
+      job_growth: 3.1,
+      house_price_index_growth: 13.1,
+      net_migration: 42000,
+      vacancy_rate: 3.8,
+      international_inflows: 8200,
+      single_family_permits: 38000,
+      multi_family_permits: 18500,
+      lastUpdated: new Date(),
+    },
+    {
+      state: "Missouri",
+      population_growth: 0.3,
+      job_growth: 1.4,
+      house_price_index_growth: 6.8,
+      net_migration: 2500,
+      vacancy_rate: 5.4,
+      international_inflows: 2800,
+      single_family_permits: 18000,
+      multi_family_permits: 7500,
+      lastUpdated: new Date(),
+    },
+    {
+      state: "Michigan",
+      population_growth: 0.1,
+      job_growth: 1.6,
+      house_price_index_growth: 7.8,
+      net_migration: -2000,
+      vacancy_rate: 6.1,
+      international_inflows: 4200,
+      single_family_permits: 25000,
+      multi_family_permits: 11000,
+      lastUpdated: new Date(),
+    },
+    {
+      state: "South Carolina",
+      population_growth: 1.3,
+      job_growth: 2.2,
+      house_price_index_growth: 9.6,
+      net_migration: 18000,
+      vacancy_rate: 4.5,
+      international_inflows: 2800,
+      single_family_permits: 28000,
+      multi_family_permits: 12500,
+      lastUpdated: new Date(),
+    },
+    {
+      state: "Kentucky",
+      population_growth: 0.5,
+      job_growth: 1.3,
+      house_price_index_growth: 5.9,
+      net_migration: 3500,
+      vacancy_rate: 5.7,
+      international_inflows: 1500,
+      single_family_permits: 15000,
+      multi_family_permits: 5500,
+      lastUpdated: new Date(),
+    },
+  ]
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -79,6 +290,49 @@ export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
     scrollToBottom()
   }, [messages])
 
+  useEffect(() => {
+    // Load market data and calculate top states
+    const loadMarketData = () => {
+      const data = mockMarketData.map((state) => ({
+        ...state,
+        population_growth: Number((state.population_growth + (Math.random() - 0.5) * 0.1).toFixed(1)),
+        job_growth: Number((state.job_growth + (Math.random() - 0.5) * 0.2).toFixed(1)),
+        house_price_index_growth: Number((state.house_price_index_growth + (Math.random() - 0.5) * 0.5).toFixed(1)),
+        net_migration: Math.round(state.net_migration + (Math.random() - 0.5) * 1000),
+        vacancy_rate: Number((state.vacancy_rate + (Math.random() - 0.5) * 0.3).toFixed(1)),
+        international_inflows: Math.round(state.international_inflows + (Math.random() - 0.5) * 200),
+        single_family_permits: Math.round(state.single_family_permits + (Math.random() - 0.5) * 2000),
+        multi_family_permits: Math.round(state.multi_family_permits + (Math.random() - 0.5) * 1000),
+        lastUpdated: new Date(),
+      }))
+
+      // Calculate composite scores and get top 3
+      const scoredStates = data.map((state) => ({
+        ...state,
+        score:
+          state.population_growth * 0.2 +
+          state.job_growth * 0.25 +
+          state.house_price_index_growth * 0.2 +
+          (state.net_migration / 1000) * 0.15 +
+          (10 - state.vacancy_rate) * 0.1 +
+          (state.international_inflows / 1000) * 0.05 +
+          (state.single_family_permits / 1000) * 0.03 +
+          (state.multi_family_permits / 1000) * 0.02,
+      }))
+
+      const sortedStates = scoredStates.sort((a, b) => b.score - a.score)
+      const top3 = sortedStates.slice(0, 3).map((state) => state.state)
+
+      setMarketData(data)
+      setTopStates(top3)
+    }
+
+    loadMarketData()
+    // Update every 30 seconds
+    const interval = setInterval(loadMarketData, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
     if (!files) return
@@ -87,8 +341,6 @@ export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
-
-      // Create a URL for the file
       const url = URL.createObjectURL(file)
 
       const attachment: FileAttachment = {
@@ -139,30 +391,12 @@ export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
       return {
         type: "bar",
         title: "ROI by State",
-        data: [
-          { state: "TX", roi: 12.5 },
-          { state: "FL", roi: 11.8 },
-          { state: "NV", roi: 10.2 },
-          { state: "AR", roi: 14.1 },
-          { state: "AL", roi: 13.6 },
-        ],
+        data: marketData.slice(0, 5).map((state) => ({
+          state: state.state,
+          roi: state.job_growth,
+        })),
         xKey: "state",
         yKey: "roi",
-      }
-    }
-
-    if (type.includes("market") || type.includes("comparison")) {
-      return {
-        type: "bar",
-        title: "Market Comparison",
-        data: [
-          { metric: "Price Growth", value: 8.5 },
-          { metric: "Rental Yield", value: 6.8 },
-          { metric: "Vacancy Rate", value: 4.2 },
-          { metric: "Population Growth", value: 2.1 },
-        ],
-        xKey: "metric",
-        yKey: "value",
       }
     }
 
@@ -206,8 +440,6 @@ export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
       }
 
       const data = await response.json()
-
-      // Check if response should include a chart
       const chartData = generateSampleChartData(currentInput.toLowerCase())
 
       const assistantMessage: Message = {
@@ -276,333 +508,358 @@ export default function EnhancedChat({ onToolSelect }: EnhancedChatProps) {
     )
   }
 
-  const quickActions = [
+  const aiTools = [
+    { id: "ai-slides", label: "AI Slides", icon: PresentationChart, color: "from-orange-500 to-orange-600" },
+    { id: "ai-sheets", label: "AI Sheets", icon: FileSpreadsheet, color: "from-green-500 to-green-600" },
+    { id: "ai-docs", label: "AI Docs", icon: FileText, color: "from-blue-500 to-blue-600" },
+    { id: "ai-pods", label: "AI Pods", icon: Sparkles, color: "from-purple-500 to-purple-600" },
+    { id: "ai-chat", label: "AI Chat", icon: Bot, color: "from-indigo-500 to-indigo-600" },
+    { id: "ai-image", label: "AI Image", icon: FileImage, color: "from-pink-500 to-pink-600" },
+    { id: "ai-video", label: "AI Video", icon: Video, color: "from-red-500 to-red-600" },
+    { id: "deep-research", label: "Deep Research", icon: Search, color: "from-teal-500 to-teal-600" },
+    { id: "call-for-me", label: "Call For Me", icon: Phone, color: "from-yellow-500 to-yellow-600" },
+    { id: "download-for-me", label: "Download For Me", icon: Download, color: "from-cyan-500 to-cyan-600" },
+    { id: "all-agents", label: "All Agents", icon: Sparkles, color: "from-gray-500 to-gray-600" },
     {
       id: "investment-calculator",
       label: "Investment Calculator",
       icon: Calculator,
-      description: "Calculate ROI and cash flow",
+      color: "from-emerald-500 to-emerald-600",
     },
-    {
-      id: "market-insights",
-      label: "Market Insights",
-      icon: TrendingUp,
-      description: "Get real-time market data",
-    },
-    {
-      id: "property-analysis",
-      label: "Property Analysis",
-      icon: Building2,
-      description: "Analyze specific properties",
-    },
+    { id: "market-insights", label: "Market Insights", icon: TrendingUp, color: "from-violet-500 to-violet-600" },
+    { id: "property-analysis", label: "Property Analysis", icon: Building2, color: "from-rose-500 to-rose-600" },
   ]
 
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + "M"
+    }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + "K"
+    }
+    return num.toString()
+  }
+
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-blue-50 to-purple-50">
-      <Tabs defaultValue="chat" className="flex-1 flex flex-col">
-        <div className="flex-shrink-0 p-4 bg-white border-b">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="chat">AI Chat</TabsTrigger>
-            <TabsTrigger value="tools">Quick Tools</TabsTrigger>
-            <TabsTrigger value="insights">Live Market Data</TabsTrigger>
-          </TabsList>
+    <div className="flex flex-col h-full bg-gradient-to-br from-blue-50 to-purple-50 p-6">
+      <div className="max-w-6xl mx-auto w-full space-y-8">
+        {/* Header */}
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">MSASCOUT Super Agent</h1>
+          <p className="text-gray-600">Ask anything, create anything</p>
         </div>
 
-        <TabsContent value="chat" className="flex-1 flex flex-col m-0">
-          {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
-              >
-                {message.role === "assistant" && (
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Bot className="h-4 w-4 text-white" />
-                  </div>
-                )}
+        {/* Chat Messages (if any) */}
+        {messages.length > 0 && (
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
+            <div className="p-6">
+              <div className="h-96 overflow-y-auto mb-6 space-y-4">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                  >
+                    {message.role === "assistant" && (
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Bot className="h-4 w-4 text-white" />
+                      </div>
+                    )}
 
-                <div
-                  className={`max-w-[70%] rounded-2xl px-4 py-3 ${
-                    message.role === "user"
-                      ? "bg-gradient-to-br from-blue-600 to-purple-600 text-white"
-                      : "bg-white border shadow-sm"
-                  }`}
-                >
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                    <div
+                      className={`max-w-[70%] rounded-2xl px-4 py-3 ${
+                        message.role === "user"
+                          ? "bg-gradient-to-br from-blue-600 to-purple-600 text-white"
+                          : "bg-gray-100 border"
+                      }`}
+                    >
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
 
-                  {/* Render attachments */}
-                  {message.attachments && message.attachments.length > 0 && (
-                    <div className="mt-3 space-y-2">
-                      {message.attachments.map((attachment) => (
-                        <div key={attachment.id} className="flex items-center gap-2 p-2 bg-black/10 rounded-lg">
-                          {attachment.type.startsWith("image/") ? (
-                            <ImageIcon className="h-4 w-4" />
-                          ) : (
-                            <FileText className="h-4 w-4" />
-                          )}
-                          <span className="text-xs">{attachment.name}</span>
-                          <span className="text-xs opacity-70">({formatFileSize(attachment.size)})</span>
+                      {message.attachments && message.attachments.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {message.attachments.map((attachment) => (
+                            <div key={attachment.id} className="flex items-center gap-2 p-2 bg-black/10 rounded-lg">
+                              {attachment.type.startsWith("image/") ? (
+                                <ImageIcon className="h-4 w-4" />
+                              ) : (
+                                <FileText className="h-4 w-4" />
+                              )}
+                              <span className="text-xs">{attachment.name}</span>
+                              <span className="text-xs opacity-70">({formatFileSize(attachment.size)})</span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
+
+                      {message.chartData && renderChart(message.chartData)}
+
+                      <p className={`text-xs mt-2 ${message.role === "user" ? "text-blue-100" : "text-gray-500"}`}>
+                        {message.timestamp.toLocaleTimeString()}
+                      </p>
                     </div>
-                  )}
 
-                  {/* Render chart if present */}
-                  {message.chartData && renderChart(message.chartData)}
+                    {message.role === "user" && (
+                      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                        <User className="h-4 w-4 text-gray-600" />
+                      </div>
+                    )}
+                  </div>
+                ))}
 
-                  <p className={`text-xs mt-2 ${message.role === "user" ? "text-blue-100" : "text-gray-500"}`}>
-                    {message.timestamp.toLocaleTimeString()}
-                  </p>
-                </div>
-
-                {message.role === "user" && (
-                  <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
-                    <User className="h-4 w-4 text-gray-600" />
+                {isLoading && (
+                  <div className="flex gap-3 justify-start">
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Bot className="h-4 w-4 text-white" />
+                    </div>
+                    <div className="bg-gray-100 border rounded-2xl px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                        <span className="text-sm text-gray-600">Analyzing...</span>
+                      </div>
+                    </div>
                   </div>
                 )}
-              </div>
-            ))}
 
-            {isLoading && (
-              <div className="flex gap-3 justify-start">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Bot className="h-4 w-4 text-white" />
-                </div>
-                <div className="bg-white border shadow-sm rounded-2xl px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                    <span className="text-sm text-gray-600">Analyzing...</span>
-                  </div>
+                <div ref={messagesEndRef} />
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Chat Input - Matching the provided image exactly */}
+        <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-2xl rounded-3xl">
+          <div className="p-6">
+            {/* File Attachments Preview */}
+            {attachments.length > 0 && (
+              <div className="mb-4 p-4 bg-gray-50 rounded-2xl">
+                <div className="flex flex-wrap gap-2">
+                  {attachments.map((attachment) => (
+                    <div key={attachment.id} className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border">
+                      {attachment.type.startsWith("image/") ? (
+                        <ImageIcon className="h-4 w-4 text-blue-600" />
+                      ) : (
+                        <FileText className="h-4 w-4 text-blue-600" />
+                      )}
+                      <span className="text-sm">{attachment.name}</span>
+                      <span className="text-xs text-gray-500">({formatFileSize(attachment.size)})</span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => removeAttachment(attachment.id)}
+                        className="h-6 w-6 p-0 hover:bg-red-100"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
 
-            <div ref={messagesEndRef} />
-          </div>
+            {/* Chat Input matching the image design */}
+            <div className="relative">
+              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-3xl border-2 border-gray-200 focus-within:border-blue-500 transition-colors">
+                {/* Left side icons */}
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                    <User className="h-5 w-5 text-gray-600" />
+                  </div>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-gray-200 rounded-full">
+                    <Edit3 className="h-4 w-4 text-gray-600" />
+                  </Button>
+                </div>
 
-          {/* File Attachments Preview */}
-          {attachments.length > 0 && (
-            <div className="flex-shrink-0 p-4 bg-gray-50 border-t">
-              <div className="flex flex-wrap gap-2">
-                {attachments.map((attachment) => (
-                  <div key={attachment.id} className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border">
-                    {attachment.type.startsWith("image/") ? (
-                      <ImageIcon className="h-4 w-4 text-blue-600" />
+                {/* Input field */}
+                <div className="flex-1">
+                  <Input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Ask anything, create anything"
+                    className="border-0 bg-transparent text-lg placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                {/* Right side icons */}
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-8 w-8 p-0 hover:bg-gray-200 rounded-full"
+                  >
+                    <Paperclip className="h-4 w-4 text-gray-600" />
+                  </Button>
+
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 hover:bg-gray-200 rounded-full"
+                          disabled
+                        >
+                          <Mic className="h-4 w-4 text-gray-400" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Voice input launching soon!</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!input.trim() || isLoading}
+                    className="h-8 w-8 p-0 bg-gray-300 hover:bg-gray-400 rounded-full"
+                    variant="ghost"
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-gray-600" />
                     ) : (
-                      <FileText className="h-4 w-4 text-blue-600" />
+                      <RotateCcw className="h-4 w-4 text-gray-600" />
                     )}
-                    <span className="text-sm">{attachment.name}</span>
-                    <span className="text-xs text-gray-500">({formatFileSize(attachment.size)})</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => removeAttachment(attachment.id)}
-                      className="h-6 w-6 p-0 hover:bg-red-100"
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
+                  </Button>
+                </div>
+
+                {/* Profile avatar in top right corner */}
+                <div className="absolute -top-2 -right-2">
+                  <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                    <User className="h-4 w-4 text-gray-600" />
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Chat Input */}
-          <div className="flex-shrink-0 p-4 bg-white border-t">
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                className="flex-shrink-0"
-              >
-                <Paperclip className="h-4 w-4" />
-              </Button>
-
-              <div className="flex-1 relative">
-                <Input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Ask about investments, request charts, or attach files for analysis..."
-                  className="pr-12 py-3 text-sm"
-                  disabled={isLoading}
-                />
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
-                        disabled
-                      >
-                        <Mic className="h-4 w-4 text-gray-400" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Voice input launching soon!</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                </div>
               </div>
 
-              <Button
-                onClick={handleSendMessage}
-                disabled={!input.trim() || isLoading}
-                className="bg-gradient-to-br from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-6"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.jpg,.jpeg,.png,.gif"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
             </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.jpg,.jpeg,.png,.gif"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
           </div>
-        </TabsContent>
+        </Card>
 
-        <TabsContent value="tools" className="flex-1 m-0 p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {quickActions.map((action) => (
+        {/* AI Tools */}
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+            {aiTools.map((tool) => (
               <Card
-                key={action.id}
-                className="cursor-pointer hover:shadow-lg transition-all duration-200 border-0 bg-white/80 backdrop-blur-sm"
-                onClick={() => onToolSelect?.(action.id)}
+                key={tool.id}
+                className="cursor-pointer hover:shadow-lg transition-all duration-200 border-0 bg-white/80 backdrop-blur-sm hover:scale-105"
+                onClick={() => onToolSelect?.(tool.id)}
               >
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-                      <action.icon className="h-5 w-5 text-white" />
-                    </div>
-                    <CardTitle className="text-lg">{action.label}</CardTitle>
+                <CardContent className="p-4 text-center">
+                  <div
+                    className={`w-12 h-12 bg-gradient-to-br ${tool.color} rounded-xl flex items-center justify-center mx-auto mb-3`}
+                  >
+                    <tool.icon className="h-6 w-6 text-white" />
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600">{action.description}</p>
+                  <h3 className="font-medium text-xs text-gray-900">{tool.label}</h3>
                 </CardContent>
               </Card>
             ))}
           </div>
-        </TabsContent>
+        </div>
 
-        <TabsContent value="insights" className="flex-1 m-0 p-6">
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Live Market Data</h2>
-              <Badge variant="secondary" className="bg-green-100 text-green-800">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-                Live
-              </Badge>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card className="border-0 bg-white/80 backdrop-blur-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-600">National Median Price</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold text-green-600">$425,000</span>
-                    <Badge variant="secondary" className="bg-green-100 text-green-700">
-                      +5.2%
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">vs last quarter</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-0 bg-white/80 backdrop-blur-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-600">Average ROI</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold text-blue-600">12.8%</span>
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-                      Strong
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">annual return</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-0 bg-white/80 backdrop-blur-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-600">Hot Markets</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold text-purple-600">TX, FL, NV</span>
-                    <Badge variant="secondary" className="bg-purple-100 text-purple-700">
-                      Top 3
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">growth states</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-0 bg-white/80 backdrop-blur-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-600">Market Sentiment</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold text-orange-600">Bullish</span>
-                    <Badge variant="secondary" className="bg-orange-100 text-orange-700">
-                      85/100
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">investor confidence</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Real-time Market Chart */}
-            <Card className="border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle>Market Trends (Last 6 Months)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ChartContainer
-                  config={{
-                    price: {
-                      label: "Median Price",
-                      color: "hsl(var(--chart-1))",
-                    },
-                  }}
-                  className="h-[300px]"
+        {/* For You Section */}
+        <div className="space-y-6">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">For You</h2>
+            <p className="text-gray-600">
+              Which 3 states are best performing in population growth, job growth, house price index growth, net
+              migration, vacancy rate, international inflows, single family permits, and multi family permits?
+            </p>
+            <div className="flex justify-center gap-4 mt-4">
+              {topStates.map((state, index) => (
+                <Badge
+                  key={state}
+                  variant="secondary"
+                  className={`px-4 py-2 text-sm ${
+                    index === 0
+                      ? "bg-yellow-100 text-yellow-800 border-yellow-300"
+                      : index === 1
+                        ? "bg-gray-100 text-gray-800 border-gray-300"
+                        : "bg-orange-100 text-orange-800 border-orange-300"
+                  }`}
                 >
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={[
-                        { month: "Aug", price: 410000, volume: 1250 },
-                        { month: "Sep", price: 415000, volume: 1180 },
-                        { month: "Oct", price: 418000, volume: 1320 },
-                        { month: "Nov", price: 422000, volume: 1150 },
-                        { month: "Dec", price: 425000, volume: 1280 },
-                        { month: "Jan", price: 425000, volume: 1200 },
-                      ]}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Line type="monotone" dataKey="price" stroke="var(--color-price)" strokeWidth={3} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-              </CardContent>
-            </Card>
+                  #{index + 1} {state}
+                </Badge>
+              ))}
+            </div>
           </div>
-        </TabsContent>
-      </Tabs>
+
+          {/* Live Market Data */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {marketData.map((state) => (
+              <Card key={state.state} className="border-0 bg-white/80 backdrop-blur-sm">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg font-bold">{state.state}</CardTitle>
+                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                      <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
+                      Live
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">Population Growth</span>
+                    <span className="font-semibold text-sm">{state.population_growth}%</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">Job Growth</span>
+                    <span
+                      className={`font-semibold text-sm ${state.job_growth > 2.5 ? "text-green-600" : "text-gray-900"}`}
+                    >
+                      {state.job_growth}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">House Price Growth</span>
+                    <span className="font-semibold text-sm">{state.house_price_index_growth}%</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">Net Migration</span>
+                    <span
+                      className={`font-semibold text-sm ${state.net_migration > 0 ? "text-green-600" : "text-red-600"}`}
+                    >
+                      {state.net_migration > 0 ? "+" : ""}
+                      {formatNumber(state.net_migration)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">Vacancy Rate</span>
+                    <span
+                      className={`font-semibold text-sm ${state.vacancy_rate < 4 ? "text-green-600" : "text-gray-900"}`}
+                    >
+                      {state.vacancy_rate}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">International Inflows</span>
+                    <span className="font-semibold text-sm">{formatNumber(state.international_inflows)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">Single Family Permits</span>
+                    <span className="font-semibold text-sm">{formatNumber(state.single_family_permits)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">Multi Family Permits</span>
+                    <span className="font-semibold text-sm">{formatNumber(state.multi_family_permits)}</span>
+                  </div>
+                  <div className="text-xs text-gray-500 text-center pt-2 border-t">
+                    Updated: {state.lastUpdated.toLocaleTimeString()}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

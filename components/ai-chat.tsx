@@ -46,7 +46,7 @@ export default function AIChat() {
     setTimeout(() => {
       const aiMessage: Message = {
         id: crypto.randomUUID(),
-        content: `I understand you're asking about "${inputMessage}". As your property investment AI agent, I can help you analyze properties, calculate ROI, research markets, and provide investment insights. What specific aspect would you like to explore?`,
+        content: `I understand you're asking about "${inputMessage}". As your investment AI agent, I can help you analyze properties, calculate ROI, research markets, and provide investment insights. What specific aspect would you like to explore?`,
         sender: "ai",
         timestamp: new Date().toISOString(),
       }
