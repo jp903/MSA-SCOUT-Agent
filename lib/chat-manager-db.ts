@@ -1,261 +1,161 @@
-import { sql } from "./db"
-import type { ChatHistoryItem } from "./portfolio-types"
+import { neon } from "@neondatabase/serverless"
+
+export interface ChatMessage {
+  id: string
+  role: "user" | "assistant"
+  content: string
+  timestamp: string
+}
+
+export interface ChatHistoryItem {
+  id: string
+  title: string
+  messages: ChatMessage[]
+  createdAt: string
+  updatedAt: string
+}
 
 export class ChatManagerDB {
-  async createChat(title = "New Chat"): Promise<ChatHistoryItem> {
-    try {
-      console.log("🆕 Creating new chat with title:", title)
+  private sql: any
 
-      if (!process.env.DATABASE_URL) {
-        console.warn("⚠️ No database URL, using fallback")
-        const fallbackChat = {
-          id: crypto.randomUUID(),
-          title,
-          messages: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }
-        // Store in localStorage as fallback
-        if (typeof window !== "undefined") {
-          const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
-          existingChats.unshift(fallbackChat)
-          localStorage.setItem("msascout_chats", JSON.stringify(existingChats.slice(0, 50)))
-        }
-        return fallbackChat
-      }
-
-      const result = await sql`
-        INSERT INTO chat_history (title, messages)
-        VALUES (${title}, '[]'::jsonb)
-        RETURNING id, title, messages, created_at, updated_at
-      `
-
-      if (result.length === 0) {
-        throw new Error("Failed to create chat - no result returned")
-      }
-
-      const chat = result[0]
-      console.log("✅ Chat created successfully:", chat.id)
-
-      return {
-        id: chat.id,
-        title: chat.title,
-        messages: Array.isArray(chat.messages) ? chat.messages : [],
-        createdAt: new Date(chat.created_at),
-        updatedAt: new Date(chat.updated_at),
-      }
-    } catch (error) {
-      console.error("❌ Error creating chat:", error)
-      // Fallback to localStorage
-      const fallbackChat = {
-        id: crypto.randomUUID(),
-        title,
-        messages: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
-      if (typeof window !== "undefined") {
-        const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
-        existingChats.unshift(fallbackChat)
-        localStorage.setItem("msascout_chats", JSON.stringify(existingChats.slice(0, 50)))
-      }
-      return fallbackChat
-    }
-  }
-
-  async updateChat(id: string, messages: any[], title?: string): Promise<void> {
-    try {
-      console.log("💾 Updating chat:", id, "with", messages.length, "messages")
-
-      if (!process.env.DATABASE_URL) {
-        console.warn("⚠️ No database URL, using localStorage fallback")
-        if (typeof window !== "undefined") {
-          const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
-          const chatIndex = existingChats.findIndex((chat: any) => chat.id === id)
-          if (chatIndex !== -1) {
-            existingChats[chatIndex].messages = messages
-            existingChats[chatIndex].title = title || existingChats[chatIndex].title
-            existingChats[chatIndex].updatedAt = new Date()
-            localStorage.setItem("msascout_chats", JSON.stringify(existingChats))
-          }
-        }
-        return
-      }
-
-      const messagesJson = JSON.stringify(messages)
-
-      const result = await sql`
-        UPDATE chat_history 
-        SET messages = ${messagesJson}::jsonb,
-            title = COALESCE(${title}, title),
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${id}
-        RETURNING id
-      `
-
-      if (result.length === 0) {
-        console.warn("⚠️ No chat found with id:", id)
-        return
-      }
-
-      console.log("✅ Chat updated successfully:", id)
-    } catch (error) {
-      console.error("❌ Error updating chat:", error)
-      // Fallback to localStorage
-      if (typeof window !== "undefined") {
-        const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
-        const chatIndex = existingChats.findIndex((chat: any) => chat.id === id)
-        if (chatIndex !== -1) {
-          existingChats[chatIndex].messages = messages
-          existingChats[chatIndex].title = title || existingChats[chatIndex].title
-          existingChats[chatIndex].updatedAt = new Date()
-          localStorage.setItem("msascout_chats", JSON.stringify(existingChats))
-        }
-      }
-    }
-  }
-
-  async getChat(id: string): Promise<ChatHistoryItem | null> {
-    try {
-      console.log("📋 Getting chat:", id)
-
-      if (!process.env.DATABASE_URL) {
-        console.warn("⚠️ No database URL, using localStorage fallback")
-        if (typeof window !== "undefined") {
-          const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
-          const chat = existingChats.find((chat: any) => chat.id === id)
-          return chat
-            ? {
-                ...chat,
-                createdAt: new Date(chat.createdAt),
-                updatedAt: new Date(chat.updatedAt),
-              }
-            : null
-        }
-        return null
-      }
-
-      const result = await sql`
-        SELECT id, title, messages, created_at, updated_at
-        FROM chat_history
-        WHERE id = ${id}
-      `
-
-      if (result.length === 0) {
-        console.warn("⚠️ Chat not found:", id)
-        return null
-      }
-
-      const chat = result[0]
-      console.log("✅ Chat retrieved successfully:", id)
-
-      return {
-        id: chat.id,
-        title: chat.title,
-        messages: Array.isArray(chat.messages) ? chat.messages : [],
-        createdAt: new Date(chat.created_at),
-        updatedAt: new Date(chat.updated_at),
-      }
-    } catch (error) {
-      console.error("❌ Error getting chat:", error)
-      // Fallback to localStorage
-      if (typeof window !== "undefined") {
-        const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
-        const chat = existingChats.find((chat: any) => chat.id === id)
-        return chat
-          ? {
-              ...chat,
-              createdAt: new Date(chat.createdAt),
-              updatedAt: new Date(chat.updatedAt),
-            }
-          : null
-      }
-      return null
+  constructor() {
+    if (process.env.DATABASE_URL) {
+      this.sql = neon(process.env.DATABASE_URL)
+    } else {
+      console.warn("⚠️ No database URL, using localStorage fallback")
+      this.sql = null
     }
   }
 
   async getAllChats(): Promise<ChatHistoryItem[]> {
     try {
-      console.log("📚 Getting all chats...")
-
-      if (!process.env.DATABASE_URL) {
-        console.warn("⚠️ No database URL, using localStorage fallback")
-        if (typeof window !== "undefined") {
-          const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
-          return existingChats.map((chat: any) => ({
-            ...chat,
-            createdAt: new Date(chat.createdAt),
-            updatedAt: new Date(chat.updatedAt),
-          }))
-        }
-        return []
+      if (!this.sql) {
+        // Fallback to localStorage
+        const chats = localStorage.getItem("msascout_chats")
+        return chats ? JSON.parse(chats) : []
       }
 
-      const result = await sql`
-        SELECT id, title, messages, created_at, updated_at
-        FROM chat_history
+      const result = await this.sql`
+        SELECT id, title, messages, created_at, updated_at 
+        FROM chat_history 
         ORDER BY updated_at DESC
-        LIMIT 50
       `
 
-      console.log("✅ Retrieved", result.length, "chats")
-
-      return result.map((chat) => ({
-        id: chat.id,
-        title: chat.title,
-        messages: Array.isArray(chat.messages) ? chat.messages : [],
-        createdAt: new Date(chat.created_at),
-        updatedAt: new Date(chat.updated_at),
+      return result.map((row: any) => ({
+        id: row.id,
+        title: row.title,
+        messages: row.messages || [],
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
       }))
     } catch (error) {
-      console.error("❌ Error getting all chats:", error)
+      console.error("❌ Error loading chat history:", error)
       // Fallback to localStorage
-      if (typeof window !== "undefined") {
-        const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
-        return existingChats.map((chat: any) => ({
-          ...chat,
-          createdAt: new Date(chat.createdAt),
-          updatedAt: new Date(chat.updatedAt),
-        }))
+      try {
+        const chats = localStorage.getItem("msascout_chats")
+        return chats ? JSON.parse(chats) : []
+      } catch {
+        return []
       }
-      return []
+    }
+  }
+
+  async getChatById(id: string): Promise<ChatHistoryItem | null> {
+    try {
+      if (!this.sql) {
+        // Fallback to localStorage
+        const chats = localStorage.getItem("msascout_chats")
+        const allChats = chats ? JSON.parse(chats) : []
+        return allChats.find((chat: ChatHistoryItem) => chat.id === id) || null
+      }
+
+      const result = await this.sql`
+        SELECT id, title, messages, created_at, updated_at 
+        FROM chat_history 
+        WHERE id = ${id}
+      `
+
+      if (result.length === 0) return null
+
+      const row = result[0]
+      return {
+        id: row.id,
+        title: row.title,
+        messages: row.messages || [],
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }
+    } catch (error) {
+      console.error("❌ Error loading chat:", error)
+      return null
+    }
+  }
+
+  async saveChat(chat: ChatHistoryItem): Promise<void> {
+    try {
+      if (!this.sql) {
+        // Fallback to localStorage
+        const chats = localStorage.getItem("msascout_chats")
+        const allChats = chats ? JSON.parse(chats) : []
+        const existingIndex = allChats.findIndex((c: ChatHistoryItem) => c.id === chat.id)
+
+        if (existingIndex >= 0) {
+          allChats[existingIndex] = chat
+        } else {
+          allChats.unshift(chat)
+        }
+
+        localStorage.setItem("msascout_chats", JSON.stringify(allChats))
+        return
+      }
+
+      await this.sql`
+        INSERT INTO chat_history (id, title, messages, created_at, updated_at)
+        VALUES (${chat.id}, ${chat.title}, ${JSON.stringify(chat.messages)}, ${chat.createdAt}, ${chat.updatedAt})
+        ON CONFLICT (id) 
+        DO UPDATE SET 
+          title = EXCLUDED.title,
+          messages = EXCLUDED.messages,
+          updated_at = EXCLUDED.updated_at
+      `
+
+      console.log("✅ Chat saved successfully:", chat.id)
+    } catch (error) {
+      console.error("❌ Error saving chat:", error)
+      // Fallback to localStorage
+      try {
+        const chats = localStorage.getItem("msascout_chats")
+        const allChats = chats ? JSON.parse(chats) : []
+        const existingIndex = allChats.findIndex((c: ChatHistoryItem) => c.id === chat.id)
+
+        if (existingIndex >= 0) {
+          allChats[existingIndex] = chat
+        } else {
+          allChats.unshift(chat)
+        }
+
+        localStorage.setItem("msascout_chats", JSON.stringify(allChats))
+      } catch (fallbackError) {
+        console.error("❌ Fallback save failed:", fallbackError)
+      }
     }
   }
 
   async deleteChat(id: string): Promise<void> {
     try {
-      console.log("🗑️ Deleting chat:", id)
-
-      if (!process.env.DATABASE_URL) {
-        console.warn("⚠️ No database URL, using localStorage fallback")
-        if (typeof window !== "undefined") {
-          const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
-          const filteredChats = existingChats.filter((chat: any) => chat.id !== id)
-          localStorage.setItem("msascout_chats", JSON.stringify(filteredChats))
-        }
+      if (!this.sql) {
+        // Fallback to localStorage
+        const chats = localStorage.getItem("msascout_chats")
+        const allChats = chats ? JSON.parse(chats) : []
+        const filteredChats = allChats.filter((chat: ChatHistoryItem) => chat.id !== id)
+        localStorage.setItem("msascout_chats", JSON.stringify(filteredChats))
         return
       }
 
-      const result = await sql`
-        DELETE FROM chat_history
-        WHERE id = ${id}
-        RETURNING id
-      `
-
-      if (result.length === 0) {
-        console.warn("⚠️ No chat found to delete:", id)
-        return
-      }
-
+      await this.sql`DELETE FROM chat_history WHERE id = ${id}`
       console.log("✅ Chat deleted successfully:", id)
     } catch (error) {
       console.error("❌ Error deleting chat:", error)
-      // Fallback to localStorage
-      if (typeof window !== "undefined") {
-        const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
-        const filteredChats = existingChats.filter((chat: any) => chat.id !== id)
-        localStorage.setItem("msascout_chats", JSON.stringify(filteredChats))
-      }
     }
   }
 }

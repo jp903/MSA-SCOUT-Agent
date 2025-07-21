@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Send, Calculator, TrendingUp, Building2, BarChart3, Users, Loader2, AlertCircle } from "lucide-react"
+import { Send, Users, Loader2, AlertCircle } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import type { ChatHistoryItem } from "@/lib/portfolio-types"
 
@@ -137,46 +137,6 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     }
   }
 
-  const quickActions = [
-    {
-      id: "investment-calculator",
-      label: "Investment Calculator",
-      icon: Calculator,
-      description: "Calculate ROI and cash flow",
-      color: "bg-emerald-500",
-    },
-    {
-      id: "market-insights",
-      label: "Market Insights",
-      icon: TrendingUp,
-      description: "Real-time market data",
-      color: "bg-violet-500",
-    },
-    {
-      id: "property-analysis",
-      label: "Property Analysis",
-      icon: Building2,
-      description: "Analyze property details",
-      color: "bg-rose-500",
-    },
-    {
-      id: "market-research",
-      label: "Market Research",
-      icon: BarChart3,
-      description: "Research market trends",
-      color: "bg-blue-500",
-    },
-  ]
-
-  const suggestedQuestions = [
-    "What are the best states for real estate investment in 2024?",
-    "How do I calculate cash flow for a rental property?",
-    "What market indicators should I watch for property investment?",
-    "Compare Texas vs Florida real estate markets",
-    "What's the current mortgage rate trend?",
-    "How to analyze a property's investment potential?",
-  ]
-
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col">
       {/* Chat Header */}
@@ -188,8 +148,8 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                 <span className="text-sm font-bold text-white">MS</span>
               </div>
               <div>
-                <CardTitle className="text-lg">MSASCOUT AI Assistant</CardTitle>
-                <p className="text-sm text-gray-600">Property Investment Research Agent</p>
+                <CardTitle className="text-lg">MSASCOUT AI SuperAgent</CardTitle>
+                <p className="text-sm text-gray-600">Property Investment Agent</p>
               </div>
             </div>
             <Badge variant="secondary" className="bg-green-100 text-green-800">
@@ -209,48 +169,11 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                   <Users className="h-8 w-8 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Welcome to MSASCOUT</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Welcome to MSASCOUT AI SuperAgent</h3>
                   <p className="text-gray-600 mb-6 max-w-md">
-                    I'm your AI property investment research agent. Ask me about market analysis, ROI calculations, or
-                    any real estate investment questions.
+                    I'm your AI investment agent. Ask me about market analysis, ROI calculations, Risk analysis or any
+                    investment questions.
                   </p>
-                </div>
-
-                {/* Quick Actions */}
-                <div className="grid grid-cols-2 gap-3 w-full max-w-md">
-                  {quickActions.map((action) => (
-                    <Button
-                      key={action.id}
-                      variant="outline"
-                      className="h-auto p-3 flex flex-col items-center gap-2 hover:shadow-md transition-all bg-transparent"
-                      onClick={() => onToolSelect(action.id)}
-                    >
-                      <div className={`w-8 h-8 ${action.color} rounded-lg flex items-center justify-center`}>
-                        <action.icon className="h-4 w-4 text-white" />
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs font-medium">{action.label}</p>
-                        <p className="text-xs text-gray-500">{action.description}</p>
-                      </div>
-                    </Button>
-                  ))}
-                </div>
-
-                {/* Suggested Questions */}
-                <div className="w-full max-w-2xl">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Suggested Questions:</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {suggestedQuestions.map((question, index) => (
-                      <Button
-                        key={index}
-                        variant="ghost"
-                        className="h-auto p-3 text-left justify-start text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                        onClick={() => setInput(question)}
-                      >
-                        {question}
-                      </Button>
-                    ))}
-                  </div>
                 </div>
               </div>
             ) : (
@@ -325,7 +248,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Ask me about real estate investments, market analysis, or property calculations..."
+              placeholder="Ask me about investments, market analysis, or property calculations..."
               disabled={isLoading}
               className="flex-1"
             />
@@ -337,8 +260,6 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
-
-          <p className="text-xs text-gray-500 mt-2">Press Enter to send • Shift+Enter for new line</p>
         </div>
       </Card>
     </div>

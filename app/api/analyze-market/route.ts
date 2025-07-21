@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const { state, marketData } = await request.json()
 
     const prompt = `
-You are a real estate market analyst with expertise in property investment. Analyze the following market data for ${state} and provide insights:
+You are a  market analyst with expertise in investment. Analyze the following market data for ${state} and provide insights:
 
 Market Data:
 - Population Growth: ${marketData.population_growth}%
