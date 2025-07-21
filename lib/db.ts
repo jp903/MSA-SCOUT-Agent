@@ -8,12 +8,15 @@ function createDummySql(): NeonQueryFunction<any[]> {
   }
 }
 
-export const sql: NeonQueryFunction<any[]> = process.env.DATABASE_URL
-  ? neon(process.env.DATABASE_URL)
-  : createDummySql()
+// Use the provided database URL or fallback to environment variable
+const databaseUrl =
+  process.env.DATABASE_URL ||
+  "postgresql://neondb_owner:npg_mJ9dhet5vsMw@ep-icy-tree-aeb06nzf-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+
+export const sql: NeonQueryFunction<any[]> = databaseUrl ? neon(databaseUrl) : createDummySql()
 
 export async function testConnection() {
-  if (!process.env.DATABASE_URL) {
+  if (!databaseUrl) {
     console.warn("DATABASE_URL is not set – skipping database connectivity check.")
     return false
   }
@@ -29,7 +32,7 @@ export async function testConnection() {
 }
 
 export async function initializeDatabase() {
-  if (!process.env.DATABASE_URL) {
+  if (!databaseUrl) {
     console.warn("DATABASE_URL not set – skipping database initialization.")
     return false
   }
