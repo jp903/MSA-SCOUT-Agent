@@ -8,13 +8,20 @@ export class ChatManagerDB {
 
       if (!process.env.DATABASE_URL) {
         console.warn("⚠️ No database URL, using fallback")
-        return {
+        const fallbackChat = {
           id: crypto.randomUUID(),
           title,
           messages: [],
           createdAt: new Date(),
           updatedAt: new Date(),
         }
+        // Store in localStorage as fallback
+        if (typeof window !== "undefined") {
+          const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
+          existingChats.unshift(fallbackChat)
+          localStorage.setItem("msascout_chats", JSON.stringify(existingChats.slice(0, 50)))
+        }
+        return fallbackChat
       }
 
       const result = await sql`
@@ -39,14 +46,20 @@ export class ChatManagerDB {
       }
     } catch (error) {
       console.error("❌ Error creating chat:", error)
-      // Fallback to local storage
-      return {
+      // Fallback to localStorage
+      const fallbackChat = {
         id: crypto.randomUUID(),
         title,
         messages: [],
         createdAt: new Date(),
         updatedAt: new Date(),
       }
+      if (typeof window !== "undefined") {
+        const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
+        existingChats.unshift(fallbackChat)
+        localStorage.setItem("msascout_chats", JSON.stringify(existingChats.slice(0, 50)))
+      }
+      return fallbackChat
     }
   }
 
@@ -55,7 +68,17 @@ export class ChatManagerDB {
       console.log("💾 Updating chat:", id, "with", messages.length, "messages")
 
       if (!process.env.DATABASE_URL) {
-        console.warn("⚠️ No database URL, skipping chat update")
+        console.warn("⚠️ No database URL, using localStorage fallback")
+        if (typeof window !== "undefined") {
+          const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
+          const chatIndex = existingChats.findIndex((chat: any) => chat.id === id)
+          if (chatIndex !== -1) {
+            existingChats[chatIndex].messages = messages
+            existingChats[chatIndex].title = title || existingChats[chatIndex].title
+            existingChats[chatIndex].updatedAt = new Date()
+            localStorage.setItem("msascout_chats", JSON.stringify(existingChats))
+          }
+        }
         return
       }
 
@@ -78,7 +101,17 @@ export class ChatManagerDB {
       console.log("✅ Chat updated successfully:", id)
     } catch (error) {
       console.error("❌ Error updating chat:", error)
-      throw error
+      // Fallback to localStorage
+      if (typeof window !== "undefined") {
+        const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
+        const chatIndex = existingChats.findIndex((chat: any) => chat.id === id)
+        if (chatIndex !== -1) {
+          existingChats[chatIndex].messages = messages
+          existingChats[chatIndex].title = title || existingChats[chatIndex].title
+          existingChats[chatIndex].updatedAt = new Date()
+          localStorage.setItem("msascout_chats", JSON.stringify(existingChats))
+        }
+      }
     }
   }
 
@@ -87,7 +120,18 @@ export class ChatManagerDB {
       console.log("📋 Getting chat:", id)
 
       if (!process.env.DATABASE_URL) {
-        console.warn("⚠️ No database URL, returning null")
+        console.warn("⚠️ No database URL, using localStorage fallback")
+        if (typeof window !== "undefined") {
+          const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
+          const chat = existingChats.find((chat: any) => chat.id === id)
+          return chat
+            ? {
+                ...chat,
+                createdAt: new Date(chat.createdAt),
+                updatedAt: new Date(chat.updatedAt),
+              }
+            : null
+        }
         return null
       }
 
@@ -114,6 +158,18 @@ export class ChatManagerDB {
       }
     } catch (error) {
       console.error("❌ Error getting chat:", error)
+      // Fallback to localStorage
+      if (typeof window !== "undefined") {
+        const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
+        const chat = existingChats.find((chat: any) => chat.id === id)
+        return chat
+          ? {
+              ...chat,
+              createdAt: new Date(chat.createdAt),
+              updatedAt: new Date(chat.updatedAt),
+            }
+          : null
+      }
       return null
     }
   }
@@ -123,7 +179,15 @@ export class ChatManagerDB {
       console.log("📚 Getting all chats...")
 
       if (!process.env.DATABASE_URL) {
-        console.warn("⚠️ No database URL, returning empty array")
+        console.warn("⚠️ No database URL, using localStorage fallback")
+        if (typeof window !== "undefined") {
+          const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
+          return existingChats.map((chat: any) => ({
+            ...chat,
+            createdAt: new Date(chat.createdAt),
+            updatedAt: new Date(chat.updatedAt),
+          }))
+        }
         return []
       }
 
@@ -145,6 +209,15 @@ export class ChatManagerDB {
       }))
     } catch (error) {
       console.error("❌ Error getting all chats:", error)
+      // Fallback to localStorage
+      if (typeof window !== "undefined") {
+        const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
+        return existingChats.map((chat: any) => ({
+          ...chat,
+          createdAt: new Date(chat.createdAt),
+          updatedAt: new Date(chat.updatedAt),
+        }))
+      }
       return []
     }
   }
@@ -154,7 +227,12 @@ export class ChatManagerDB {
       console.log("🗑️ Deleting chat:", id)
 
       if (!process.env.DATABASE_URL) {
-        console.warn("⚠️ No database URL, skipping delete")
+        console.warn("⚠️ No database URL, using localStorage fallback")
+        if (typeof window !== "undefined") {
+          const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
+          const filteredChats = existingChats.filter((chat: any) => chat.id !== id)
+          localStorage.setItem("msascout_chats", JSON.stringify(filteredChats))
+        }
         return
       }
 
@@ -172,7 +250,12 @@ export class ChatManagerDB {
       console.log("✅ Chat deleted successfully:", id)
     } catch (error) {
       console.error("❌ Error deleting chat:", error)
-      throw error
+      // Fallback to localStorage
+      if (typeof window !== "undefined") {
+        const existingChats = JSON.parse(localStorage.getItem("msascout_chats") || "[]")
+        const filteredChats = existingChats.filter((chat: any) => chat.id !== id)
+        localStorage.setItem("msascout_chats", JSON.stringify(filteredChats))
+      }
     }
   }
 }

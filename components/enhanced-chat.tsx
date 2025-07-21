@@ -1,13 +1,18 @@
 "use client"
+
+import type React from "react"
+
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb"
-import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { Send, Loader2, User, Bot, Home, TrendingUp, Calculator, Building2 } from "lucide-react"
-import { useChat } from "ai/react"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Send, Calculator, TrendingUp, Building2, BarChart3, Users, Loader2, AlertCircle } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
+import type { ChatHistoryItem } from "@/lib/portfolio-types"
 
 interface Message {
   id: string
@@ -16,182 +21,326 @@ interface Message {
   timestamp: Date
 }
 
-export default function EnhancedChat() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
-    api: "/api/chat",
-  })
+interface EnhancedChatProps {
+  onToolSelect: (toolId: string) => void
+  currentChat: ChatHistoryItem | null
+  onChatUpdate: (messages: Message[], title?: string) => void
+}
 
-  const welcomePrompts = [
+export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }: EnhancedChatProps) {
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Load messages from current chat
+  useEffect(() => {
+    if (currentChat?.messages) {
+      console.log("📥 Loading messages from current chat:", currentChat.id)
+      const formattedMessages = currentChat.messages.map((msg: any) => ({
+        id: msg.id || crypto.randomUUID(),
+        role: msg.role,
+        content: msg.content,
+        timestamp: new Date(msg.timestamp || Date.now()),
+      }))
+      setMessages(formattedMessages)
+    } else {
+      console.log("🆕 Starting with empty messages")
+      setMessages([])
+    }
+  }, [currentChat])
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
+
+  const handleSendMessage = async () => {
+    if (!input.trim() || isLoading) return
+
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: input.trim(),
+      timestamp: new Date(),
+    }
+
+    const newMessages = [...messages, userMessage]
+    setMessages(newMessages)
+    setInput("")
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      console.log("📤 Sending message to chat API...")
+
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: newMessages.map((msg) => ({
+            role: msg.role,
+            content: msg.content,
+          })),
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `HTTP ${response.status}`)
+      }
+
+      const data = await response.json()
+      console.log("📥 Received response from chat API")
+
+      const assistantMessage: Message = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: data.message,
+        timestamp: new Date(),
+      }
+
+      const finalMessages = [...newMessages, assistantMessage]
+      setMessages(finalMessages)
+
+      // Generate title from first user message if this is a new chat
+      const chatTitle =
+        messages.length === 0
+          ? userMessage.content.slice(0, 50) + (userMessage.content.length > 50 ? "..." : "")
+          : undefined
+
+      // Update chat in database
+      onChatUpdate(finalMessages, chatTitle)
+
+      console.log("✅ Message sent and response received successfully")
+    } catch (error) {
+      console.error("❌ Error sending message:", error)
+      setError(error instanceof Error ? error.message : "Failed to send message")
+
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to send message",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      handleSendMessage()
+    }
+  }
+
+  const quickActions = [
     {
-      icon: Building2,
-      title: "Analyze Property",
-      description: "Get detailed analysis of a specific property investment",
-      prompt:
-        "I want to analyze a property investment opportunity. Can you help me evaluate the potential returns and risks?",
-    },
-    {
-      icon: TrendingUp,
-      title: "Market Research",
-      description: "Research current market trends and opportunities",
-      prompt: "What are the current real estate market trends I should know about for property investment?",
-    },
-    {
+      id: "investment-calculator",
+      label: "Investment Calculator",
       icon: Calculator,
-      title: "Calculate ROI",
-      description: "Calculate return on investment for properties",
-      prompt: "Help me calculate the ROI for a rental property investment. What factors should I consider?",
+      description: "Calculate ROI and cash flow",
+      color: "bg-emerald-500",
     },
     {
-      icon: Home,
-      title: "Location Analysis",
-      description: "Analyze the best locations for investment",
-      prompt: "Which locations or markets are currently best for real estate investment and why?",
+      id: "market-insights",
+      label: "Market Insights",
+      icon: TrendingUp,
+      description: "Real-time market data",
+      color: "bg-violet-500",
+    },
+    {
+      id: "property-analysis",
+      label: "Property Analysis",
+      icon: Building2,
+      description: "Analyze property details",
+      color: "bg-rose-500",
+    },
+    {
+      id: "market-research",
+      label: "Market Research",
+      icon: BarChart3,
+      description: "Research market trends",
+      color: "bg-blue-500",
     },
   ]
 
-  const handlePromptClick = (prompt: string) => {
-    handleInputChange({ target: { value: prompt } } as any)
-  }
+  const suggestedQuestions = [
+    "What are the best states for real estate investment in 2024?",
+    "How do I calculate cash flow for a rental property?",
+    "What market indicators should I watch for property investment?",
+    "Compare Texas vs Florida real estate markets",
+    "What's the current mortgage rate trend?",
+    "How to analyze a property's investment potential?",
+  ]
 
   return (
-    <SidebarInset>
-      <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbPage>Chat</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
+    <div className="flex h-[calc(100vh-8rem)] flex-col">
+      {/* Chat Header */}
+      <Card className="mb-4">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-purple-600">
+                <span className="text-sm font-bold text-white">MS</span>
+              </div>
+              <div>
+                <CardTitle className="text-lg">MSASCOUT AI Assistant</CardTitle>
+                <p className="text-sm text-gray-600">Property Investment Research Agent</p>
+              </div>
+            </div>
+            <Badge variant="secondary" className="bg-green-100 text-green-800">
+              Online
+            </Badge>
+          </div>
+        </CardHeader>
+      </Card>
 
-      <div className="flex flex-1 flex-col h-full">
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto text-center space-y-8">
-              <div className="space-y-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto">
-                  <Bot className="h-8 w-8 text-white" />
+      {/* Messages Area */}
+      <Card className="flex-1 flex flex-col">
+        <CardContent className="flex-1 p-0">
+          <ScrollArea className="h-full p-4">
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center space-y-6">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center">
+                  <Users className="h-8 w-8 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome to MSASCOUT AI</h2>
-                  <p className="text-gray-600">
-                    Your intelligent property investment assistant. Ask me anything about real estate analysis, market
-                    trends, or investment strategies.
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Welcome to MSASCOUT</h3>
+                  <p className="text-gray-600 mb-6 max-w-md">
+                    I'm your AI property investment research agent. Ask me about market analysis, ROI calculations, or
+                    any real estate investment questions.
                   </p>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
-                {welcomePrompts.map((prompt, index) => (
-                  <Card
-                    key={index}
-                    className="cursor-pointer hover:shadow-lg transition-all duration-200 border-0 bg-white/80 backdrop-blur-sm hover:scale-105"
-                    onClick={() => handlePromptClick(prompt.prompt)}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <prompt.icon className="h-5 w-5 text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 mb-1">{prompt.title}</h3>
-                          <p className="text-sm text-gray-600">{prompt.description}</p>
-                        </div>
+                {/* Quick Actions */}
+                <div className="grid grid-cols-2 gap-3 w-full max-w-md">
+                  {quickActions.map((action) => (
+                    <Button
+                      key={action.id}
+                      variant="outline"
+                      className="h-auto p-3 flex flex-col items-center gap-2 hover:shadow-md transition-all bg-transparent"
+                      onClick={() => onToolSelect(action.id)}
+                    >
+                      <div className={`w-8 h-8 ${action.color} rounded-lg flex items-center justify-center`}>
+                        <action.icon className="h-4 w-4 text-white" />
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      <div className="text-center">
+                        <p className="text-xs font-medium">{action.label}</p>
+                        <p className="text-xs text-gray-500">{action.description}</p>
+                      </div>
+                    </Button>
+                  ))}
+                </div>
+
+                {/* Suggested Questions */}
+                <div className="w-full max-w-2xl">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Suggested Questions:</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {suggestedQuestions.map((question, index) => (
+                      <Button
+                        key={index}
+                        variant="ghost"
+                        className="h-auto p-3 text-left justify-start text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                        onClick={() => setInput(question)}
+                      >
+                        {question}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="max-w-4xl mx-auto space-y-6">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  {message.role === "assistant" && (
-                    <Avatar className="w-10 h-10 border-2 border-blue-200">
-                      <AvatarImage src="/placeholder-logo.svg" />
-                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                        <Bot className="h-5 w-5" />
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-
+            ) : (
+              <div className="space-y-4">
+                {messages.map((message) => (
                   <div
-                    className={`max-w-[80%] rounded-2xl px-6 py-4 ${
-                      message.role === "user"
-                        ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white"
-                        : "bg-white border border-gray-200 text-gray-900"
-                    }`}
+                    key={message.id}
+                    className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
                   >
-                    <div className="prose prose-sm max-w-none">
-                      <div className="whitespace-pre-wrap">{message.content}</div>
-                    </div>
-                  </div>
+                    {message.role === "assistant" && (
+                      <Avatar className="w-8 h-8">
+                        <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white text-xs">
+                          MS
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
 
-                  {message.role === "user" && (
-                    <Avatar className="w-10 h-10 border-2 border-purple-200">
-                      <AvatarImage src="/placeholder-user.jpg" />
-                      <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-600 text-white">
-                        <User className="h-5 w-5" />
+                    <div
+                      className={`max-w-[80%] rounded-lg p-3 ${
+                        message.role === "user" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-900"
+                      }`}
+                    >
+                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      <p className={`text-xs mt-1 ${message.role === "user" ? "text-blue-100" : "text-gray-500"}`}>
+                        {message.timestamp.toLocaleTimeString()}
+                      </p>
+                    </div>
+
+                    {message.role === "user" && (
+                      <Avatar className="w-8 h-8">
+                        <AvatarFallback className="bg-gray-600 text-white text-xs">You</AvatarFallback>
+                      </Avatar>
+                    )}
+                  </div>
+                ))}
+
+                {isLoading && (
+                  <div className="flex gap-3 justify-start">
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white text-xs">
+                        MS
                       </AvatarFallback>
                     </Avatar>
-                  )}
-                </div>
-              ))}
-
-              {isLoading && (
-                <div className="flex gap-4 justify-start">
-                  <Avatar className="w-10 h-10 border-2 border-blue-200">
-                    <AvatarImage src="/placeholder-logo.svg" />
-                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                      <Bot className="h-5 w-5" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="max-w-[80%] rounded-2xl px-6 py-4 bg-white border border-gray-200">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>AI is thinking...</span>
+                    <div className="bg-gray-100 rounded-lg p-3">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm text-gray-600">MSASCOUT is thinking...</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                )}
+
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </ScrollArea>
+        </CardContent>
+
+        <Separator />
 
         {/* Input Area */}
-        <div className="border-t bg-white p-4">
-          <div className="max-w-4xl mx-auto">
-            <form onSubmit={handleSubmit} className="flex gap-4 items-end">
-              <div className="flex-1">
-                <Input
-                  value={input}
-                  onChange={handleInputChange}
-                  placeholder="Ask me about property investment, market analysis, or any real estate questions..."
-                  className="min-h-[60px] text-base resize-none rounded-2xl border-2 border-gray-200 focus:border-blue-500 px-6 py-4"
-                  disabled={isLoading}
-                />
-              </div>
-              <Button
-                type="submit"
-                disabled={isLoading || !input.trim()}
-                className="h-[60px] w-[60px] rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-0 shadow-lg"
-              >
-                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-              </Button>
-            </form>
+        <div className="p-4">
+          {error && (
+            <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-red-600" />
+              <span className="text-sm text-red-700">{error}</span>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Ask me about real estate investments, market analysis, or property calculations..."
+              disabled={isLoading}
+              className="flex-1"
+            />
+            <Button
+              onClick={handleSendMessage}
+              disabled={!input.trim() || isLoading}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
+            >
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
           </div>
+
+          <p className="text-xs text-gray-500 mt-2">Press Enter to send • Shift+Enter for new line</p>
         </div>
-      </div>
-    </SidebarInset>
+      </Card>
+    </div>
   )
 }

@@ -3,46 +3,52 @@ import { ChatManagerDB } from "@/lib/chat-manager-db"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    console.log("🔍 API: Getting chat with ID:", params.id)
     const chat = await ChatManagerDB.getChat(params.id)
 
     if (chat) {
+      console.log("✅ API: Chat found:", chat.id)
       return NextResponse.json(chat)
     } else {
+      console.warn("⚠️ API: Chat not found:", params.id)
       return NextResponse.json({ error: "Chat not found" }, { status: 404 })
     }
   } catch (error) {
-    console.error("Error fetching chat:", error)
+    console.error("❌ API: Error fetching chat:", error)
     return NextResponse.json({ error: "Failed to fetch chat" }, { status: 500 })
   }
 }
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    console.log("💾 API: Updating chat:", params.id)
     const { title, messages } = await request.json()
-    const chat = await ChatManagerDB.updateChat(params.id, title, messages)
 
-    if (chat) {
-      return NextResponse.json(chat)
+    await ChatManagerDB.updateChat(params.id, messages, title)
+    const updatedChat = await ChatManagerDB.getChat(params.id)
+
+    if (updatedChat) {
+      console.log("✅ API: Chat updated successfully:", params.id)
+      return NextResponse.json(updatedChat)
     } else {
+      console.warn("⚠️ API: Chat not found after update:", params.id)
       return NextResponse.json({ error: "Chat not found" }, { status: 404 })
     }
   } catch (error) {
-    console.error("Error updating chat:", error)
+    console.error("❌ API: Error updating chat:", error)
     return NextResponse.json({ error: "Failed to update chat" }, { status: 500 })
   }
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const success = await ChatManagerDB.deleteChat(params.id)
+    console.log("🗑️ API: Deleting chat:", params.id)
+    await ChatManagerDB.deleteChat(params.id)
 
-    if (success) {
-      return NextResponse.json({ success: true })
-    } else {
-      return NextResponse.json({ error: "Chat not found" }, { status: 404 })
-    }
+    console.log("✅ API: Chat deleted successfully:", params.id)
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("Error deleting chat:", error)
+    console.error("❌ API: Error deleting chat:", error)
     return NextResponse.json({ error: "Failed to delete chat" }, { status: 500 })
   }
 }

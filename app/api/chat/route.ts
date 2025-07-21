@@ -9,8 +9,16 @@ export async function POST(request: NextRequest) {
     console.log("📨 Chat API received messages:", messages?.length || 0)
 
     if (!messages || !Array.isArray(messages)) {
+      console.error("❌ Invalid messages format:", messages)
       return NextResponse.json({ error: "Invalid messages format" }, { status: 400 })
     }
+
+    if (!process.env.OPENAI_API_KEY) {
+      console.error("❌ OpenAI API key not found")
+      return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 })
+    }
+
+    console.log("🤖 Generating response with OpenAI...")
 
     const { text } = await generateText({
       model: openai("gpt-4o"),
@@ -47,15 +55,28 @@ When asked about a state market: "Based on latest Census data, Texas shows 1.8% 
 Always be specific, data-focused, and provide actionable insights for property investors.`,
     })
 
-    console.log("✅ Chat API generated response")
+    console.log("✅ Chat API generated response successfully")
 
     return NextResponse.json({ message: text })
   } catch (error) {
     console.error("❌ Error in chat API:", error)
+
+    // Provide more specific error information
+    let errorMessage = "Failed to process chat request"
+    const errorDetails = error instanceof Error ? error.message : String(error)
+
+    if (errorDetails.includes("API key")) {
+      errorMessage = "OpenAI API configuration error"
+    } else if (errorDetails.includes("rate limit")) {
+      errorMessage = "Rate limit exceeded, please try again later"
+    } else if (errorDetails.includes("network")) {
+      errorMessage = "Network error, please check your connection"
+    }
+
     return NextResponse.json(
       {
-        error: "Failed to process chat request",
-        details: error instanceof Error ? error.message : String(error),
+        error: errorMessage,
+        details: errorDetails,
       },
       { status: 500 },
     )
