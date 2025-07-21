@@ -18,23 +18,23 @@ import { Home, MessageSquare, Calculator, TrendingUp, Plus, Trash2, MoreHorizont
 import type { ChatHistoryItem } from "@/lib/portfolio-types"
 
 interface AppSidebarProps {
-  activeView: "home" | "chat" | "calculator" | "insights"
-  onViewChange: (view: "home" | "chat" | "calculator" | "insights") => void
-  onNewChat: () => void
-  chatHistory: ChatHistoryItem[]
-  currentChatId: string | null
-  onChatSelect: (chatId: string) => void
-  onDeleteChat: (chatId: string) => void
+  activeView?: "home" | "chat" | "calculator" | "insights"
+  onViewChange?: (view: "home" | "chat" | "calculator" | "insights") => void
+  onNewChat?: () => void
+  chatHistory?: ChatHistoryItem[]
+  currentChatId?: string | null
+  onChatSelect?: (chatId: string) => void
+  onDeleteChat?: (chatId: string) => void
 }
 
 export function AppSidebar({
-  activeView,
-  onViewChange,
-  onNewChat,
-  chatHistory,
-  currentChatId,
-  onChatSelect,
-  onDeleteChat,
+  activeView = "home",
+  onViewChange = () => {},
+  onNewChat = () => {},
+  chatHistory = [],
+  currentChatId = null,
+  onChatSelect = () => {},
+  onDeleteChat = () => {},
 }: AppSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
 

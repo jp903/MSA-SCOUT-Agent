@@ -50,7 +50,7 @@ interface MarketData {
   }
 }
 
-export default function MarketInsights() {
+export function MarketInsights() {
   const [marketData, setMarketData] = useState<MarketData[]>([])
   const [topStates, setTopStates] = useState<MarketData[]>([])
   const [loading, setLoading] = useState(true)
@@ -358,23 +358,22 @@ export default function MarketInsights() {
     const loadMarketData = async () => {
       try {
         setLoading(true)
-        console.log("🔄 Loading real-time market data...")
 
-        // Add real-time variations to simulate live data
+        // Add hourly variations to simulate live data (smaller changes for hourly updates)
         const data: MarketData[] = await Promise.all(
           realMarketData.map(async (state) => {
             const newData = {
               ...state,
-              population_growth: Number((state.population_growth + (Math.random() - 0.5) * 0.1).toFixed(1)),
-              job_growth: Number((state.job_growth + (Math.random() - 0.5) * 0.2).toFixed(1)),
+              population_growth: Number((state.population_growth + (Math.random() - 0.5) * 0.02).toFixed(1)),
+              job_growth: Number((state.job_growth + (Math.random() - 0.5) * 0.05).toFixed(1)),
               house_price_index_growth: Number(
-                (state.house_price_index_growth + (Math.random() - 0.5) * 0.5).toFixed(1),
+                (state.house_price_index_growth + (Math.random() - 0.5) * 0.1).toFixed(1),
               ),
-              net_migration: Math.round(state.net_migration + (Math.random() - 0.5) * 1000),
-              vacancy_rate: Number((state.vacancy_rate + (Math.random() - 0.5) * 0.3).toFixed(1)),
-              international_inflows: Math.round(state.international_inflows + (Math.random() - 0.5) * 200),
-              single_family_permits: Math.round(state.single_family_permits + (Math.random() - 0.5) * 2000),
-              multi_family_permits: Math.round(state.multi_family_permits + (Math.random() - 0.5) * 1000),
+              net_migration: Math.round(state.net_migration + (Math.random() - 0.5) * 200),
+              vacancy_rate: Number((state.vacancy_rate + (Math.random() - 0.5) * 0.05).toFixed(1)),
+              international_inflows: Math.round(state.international_inflows + (Math.random() - 0.5) * 50),
+              single_family_permits: Math.round(state.single_family_permits + (Math.random() - 0.5) * 500),
+              multi_family_permits: Math.round(state.multi_family_permits + (Math.random() - 0.5) * 200),
               lastUpdated: new Date(),
             }
 
@@ -416,17 +415,16 @@ export default function MarketInsights() {
 
         setMarketData(data)
         setTopStates(top4)
-        console.log("✅ Market data loaded with AI analysis")
       } catch (error) {
-        console.error("❌ Error loading market data:", error)
+        console.error("Error loading market data:", error)
       } finally {
         setLoading(false)
       }
     }
 
     loadMarketData()
-    // Update every 30 seconds for real-time data
-    const interval = setInterval(loadMarketData, 30000)
+    // Update every hour (3600000 milliseconds = 1 hour)
+    const interval = setInterval(loadMarketData, 3600000)
     return () => clearInterval(interval)
   }, [])
 
@@ -692,7 +690,7 @@ export default function MarketInsights() {
                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                       <div className="flex items-center gap-2 mb-3">
                         <Zap className="h-4 w-4 text-blue-600" />
-                        <h4 className="font-semibold text-blue-900">AI Market Analysis</h4>
+                        <span className="text-sm font-medium text-blue-900">AI Market Analysis</span>
                         <Badge variant="outline" className="text-xs">
                           {market.aiInsights.confidenceLevel}% Confidence
                         </Badge>
@@ -702,7 +700,7 @@ export default function MarketInsights() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <h5 className="text-xs font-medium text-blue-900 mb-2">Key Growth Drivers:</h5>
+                          <h4 className="text-xs font-medium text-blue-900 mb-2">Key Growth Drivers:</h4>
                           <ul className="space-y-1">
                             {market.aiInsights.keyDrivers.map((driver, idx) => (
                               <li key={idx} className="text-xs text-blue-700 flex items-start gap-1">
@@ -714,7 +712,7 @@ export default function MarketInsights() {
                         </div>
 
                         <div>
-                          <h5 className="text-xs font-medium text-blue-900 mb-2">Risk Factors:</h5>
+                          <h4 className="text-xs font-medium text-blue-900 mb-2">Risk Factors:</h4>
                           <ul className="space-y-1">
                             {market.aiInsights.riskFactors.map((risk, idx) => (
                               <li key={idx} className="text-xs text-blue-700 flex items-start gap-1">
@@ -726,18 +724,16 @@ export default function MarketInsights() {
                         </div>
                       </div>
 
-                      <div className="mt-3 pt-3 border-t border-blue-200">
-                        <h5 className="text-xs font-medium text-blue-900 mb-1">Investment Recommendation:</h5>
-                        <p className="text-sm font-medium text-blue-800">
-                          {market.aiInsights.investmentRecommendation}
-                        </p>
+                      <div className="mt-3 p-3 bg-white rounded border border-blue-200">
+                        <h4 className="text-xs font-medium text-blue-900 mb-1">Investment Recommendation:</h4>
+                        <p className="text-sm text-blue-800">{market.aiInsights.investmentRecommendation}</p>
                       </div>
                     </div>
                   )}
 
-                  <div className="flex justify-between items-center text-xs text-gray-500 pt-2 border-t">
-                    <span>Last Updated: {market.lastUpdated.toLocaleTimeString()}</span>
-                    <span>Data Source: Census Bureau, BLS</span>
+                  <div className="text-xs text-gray-500 flex justify-between">
+                    <span>Last updated: {market.lastUpdated.toLocaleTimeString()}</span>
+                    <span>Data refreshes hourly</span>
                   </div>
                 </div>
               ))}
@@ -752,44 +748,35 @@ export default function MarketInsights() {
           <CardTitle>Key Market Factors</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {insights.map((insight, index) => (
-              <div key={index} className="p-4 border rounded-lg">
+              <div key={index} className="p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`p-2 rounded-lg ${
-                        insight.color === "red"
-                          ? "bg-red-100"
-                          : insight.color === "yellow"
-                            ? "bg-yellow-100"
-                            : "bg-green-100"
-                      }`}
-                    >
-                      <insight.icon
-                        className={`h-4 w-4 ${
-                          insight.color === "red"
-                            ? "text-red-600"
-                            : insight.color === "yellow"
-                              ? "text-yellow-600"
-                              : "text-green-600"
-                        }`}
-                      />
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <insight.icon className="h-5 w-5 text-blue-600" />
                     </div>
-                    <h3 className="font-semibold text-gray-900">{insight.title}</h3>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{insight.title}</h3>
+                      <Badge
+                        variant="outline"
+                        className={`text-xs mt-1 ${
+                          insight.color === "red"
+                            ? "border-red-300 text-red-700 bg-red-50"
+                            : insight.color === "yellow"
+                              ? "border-yellow-300 text-yellow-700 bg-yellow-50"
+                              : "border-green-300 text-green-700 bg-green-50"
+                        }`}
+                      >
+                        {insight.impact} Impact
+                      </Badge>
+                    </div>
                   </div>
-                  <Badge
-                    variant={
-                      insight.color === "red" ? "destructive" : insight.color === "yellow" ? "secondary" : "default"
-                    }
-                  >
-                    {insight.impact} Impact
-                  </Badge>
                 </div>
                 <p className="text-sm text-gray-600 mb-3">{insight.description}</p>
-                <div className="bg-gray-50 p-3 rounded-lg">
+                <div className="bg-white p-3 rounded border border-gray-200">
                   <p className="text-xs text-gray-700">
-                    <strong>Why this matters:</strong> {insight.reason}
+                    <span className="font-medium">Why this matters:</span> {insight.reason}
                   </p>
                 </div>
               </div>
@@ -800,3 +787,5 @@ export default function MarketInsights() {
     </div>
   )
 }
+
+export default MarketInsights
