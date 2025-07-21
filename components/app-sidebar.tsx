@@ -14,12 +14,12 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Home, Calculator, TrendingUp, Plus, MessageSquare, MoreHorizontal, Trash2 } from "lucide-react"
+import { Home, MessageSquare, Calculator, TrendingUp, Plus, Trash2, MoreHorizontal } from "lucide-react"
 import type { ChatHistoryItem } from "@/lib/portfolio-types"
 
 interface AppSidebarProps {
-  activeView: "home" | "calculator" | "insights"
-  onViewChange: (view: "home" | "calculator" | "insights") => void
+  activeView: "home" | "chat" | "calculator" | "insights"
+  onViewChange: (view: "home" | "chat" | "calculator" | "insights") => void
   onNewChat: () => void
   chatHistory: ChatHistoryItem[]
   currentChatId: string | null
@@ -38,12 +38,19 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
 
+  /* ————————————————————— NAV ITEMS ————————————————————— */
   const menuItems = [
     {
-      id: "home" as const,
+      id: "home" as const, // points to the dashboard page
       label: "Chat",
       icon: Home,
       description: "AI Assistant Chat",
+    },
+    {
+      id: "chat" as const, // points to the chat page
+      label: "Home",
+      icon: MessageSquare,
+      description: "Dashboard & Tools",
     },
     {
       id: "calculator" as const,
@@ -59,42 +66,36 @@ export function AppSidebar({
     },
   ]
 
+  /* ————————————————————— HELPERS ————————————————————— */
   const formatChatTitle = (chat: ChatHistoryItem) => {
     if (chat.title && chat.title !== "New Chat") {
-      return chat.title.length > 30 ? chat.title.slice(0, 30) + "..." : chat.title
+      return chat.title.length > 30 ? chat.title.slice(0, 30) + "…" : chat.title
     }
-
-    // Try to get title from first user message
-    const firstUserMessage = chat.messages?.find((m: any) => m.role === "user")
-    if (firstUserMessage?.content) {
-      const content = firstUserMessage.content.slice(0, 30)
-      return content.length > 30 ? content + "..." : content
+    const firstUserMsg = chat.messages?.find((m) => m.role === "user")
+    if (firstUserMsg?.content) {
+      const content = firstUserMsg.content.slice(0, 30)
+      return content.length > 30 ? content + "…" : content
     }
-
     return "New Chat"
   }
 
   const formatChatDate = (date: Date) => {
-    const now = new Date()
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
-
-    if (diffInHours < 1) {
-      return "Just now"
-    } else if (diffInHours < 24) {
-      return `${Math.floor(diffInHours)}h ago`
-    } else if (diffInHours < 48) {
-      return "Yesterday"
-    } else {
-      return date.toLocaleDateString()
-    }
+    const now = Date.now()
+    const diffHrs = (now - date.getTime()) / 3600000
+    if (diffHrs < 1) return "Just now"
+    if (diffHrs < 24) return `${Math.floor(diffHrs)}h ago`
+    if (diffHrs < 48) return "Yesterday"
+    return date.toLocaleDateString()
   }
 
+  /* ————————————————————— RENDER ————————————————————— */
   return (
-    <Sidebar className="border-r bg-white">
-      <SidebarHeader className="p-4 border-b">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">MS</span>
+    <Sidebar className="border-r bg-white" collapsible="icon">
+      {/* -------- Header -------- */}
+      <SidebarHeader className="border-b p-4">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-purple-600">
+            <span className="text-sm font-bold text-white">MS</span>
           </div>
           <div>
             <h2 className="font-semibold text-gray-900">MSASCOUT</h2>
@@ -104,17 +105,18 @@ export function AppSidebar({
 
         <Button
           onClick={onNewChat}
-          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
         >
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="mr-2 h-4 w-4" />
           New Chat
         </Button>
       </SidebarHeader>
 
+      {/* -------- Content -------- */}
       <SidebarContent className="p-4">
-        {/* Navigation Menu */}
+        {/* Navigation */}
         <div className="mb-6">
-          <h3 className="text-sm font-medium text-gray-700 mb-3">Navigation</h3>
+          <h3 className="mb-3 text-sm font-medium text-gray-700">Navigation</h3>
           <SidebarMenu>
             {menuItems.map((item) => (
               <SidebarMenuItem key={item.id}>
@@ -131,20 +133,20 @@ export function AppSidebar({
           </SidebarMenu>
         </div>
 
-        {/* Chat History */}
+        {/* Chat history */}
         <div>
-          <div className="flex items-center justify-between mb-3">
+          <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-medium text-gray-700">Recent Chats</h3>
             <Badge variant="secondary" className="text-xs">
               {chatHistory.length}
             </Badge>
           </div>
 
-          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+          <div className="max-h-[400px] space-y-2 overflow-y-auto">
             {chatHistory.length === 0 ? (
               <Card className="border-dashed">
                 <CardContent className="p-4 text-center">
-                  <MessageSquare className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                  <MessageSquare className="mx-auto mb-2 h-8 w-8 text-gray-400" />
                   <p className="text-sm text-gray-500">No chats yet</p>
                   <p className="text-xs text-gray-400">Start a conversation!</p>
                 </CardContent>
@@ -154,15 +156,15 @@ export function AppSidebar({
                 <Card
                   key={chat.id}
                   className={`cursor-pointer transition-all hover:shadow-md ${
-                    currentChatId === chat.id ? "ring-2 ring-blue-500 bg-blue-50" : "hover:bg-gray-50"
+                    currentChatId === chat.id ? "bg-blue-50 ring-2 ring-blue-500" : "hover:bg-gray-50"
                   }`}
                 >
                   <CardContent className="p-3">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0" onClick={() => onChatSelect(chat.id)}>
-                        <h4 className="font-medium text-sm text-gray-900 truncate">{formatChatTitle(chat)}</h4>
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="text-xs text-gray-500">{chat.messages?.length || 0} messages</p>
+                      <div className="min-w-0 flex-1" onClick={() => onChatSelect(chat.id)}>
+                        <h4 className="truncate text-sm font-medium text-gray-900">{formatChatTitle(chat)}</h4>
+                        <div className="mt-1 flex items-center gap-2">
+                          <p className="text-xs text-gray-500">{chat.messages?.length ?? 0} messages</p>
                           <span className="text-xs text-gray-400">•</span>
                           <p className="text-xs text-gray-400">{formatChatDate(new Date(chat.updatedAt))}</p>
                         </div>
@@ -177,9 +179,9 @@ export function AppSidebar({
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
                             onClick={() => onDeleteChat(chat.id)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="text-red-600 hover:bg-red-50 hover:text-red-700"
                           >
-                            <Trash2 className="h-4 w-4 mr-2" />
+                            <Trash2 className="mr-2 h-4 w-4" />
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
