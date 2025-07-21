@@ -2,7 +2,10 @@ import { neon } from "@neondatabase/serverless"
 import type { NeonQueryFunction } from "@neondatabase/serverless"
 
 function createDummySql(): NeonQueryFunction<any[]> {
-  return (strings: TemplateStringsArray, ..._values: unknown[]) => Promise.resolve([]) as any
+  return (strings: TemplateStringsArray, ..._values: unknown[]) => {
+    console.warn("⚠️ No database URL, returning empty array")
+    return Promise.resolve([]) as any
+  }
 }
 
 export const sql: NeonQueryFunction<any[]> = process.env.DATABASE_URL
@@ -17,10 +20,10 @@ export async function testConnection() {
 
   try {
     const result = await sql`SELECT NOW() AS current_time`
-    console.log("Database connected successfully:", result[0].current_time)
+    console.log("✅ Database connected successfully:", result[0].current_time)
     return true
   } catch (error) {
-    console.error("Database connection failed:", error)
+    console.error("❌ Database connection failed:", error)
     return false
   }
 }
@@ -32,6 +35,9 @@ export async function initializeDatabase() {
   }
 
   try {
+    // Test connection first
+    await testConnection()
+
     await sql`
       CREATE TABLE IF NOT EXISTS properties (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -78,10 +84,10 @@ export async function initializeDatabase() {
       )
     `
 
-    console.log("Database tables initialized successfully")
+    console.log("✅ Database tables initialized successfully")
     return true
   } catch (error) {
-    console.error("Database initialization failed:", error)
+    console.error("❌ Database initialization failed:", error)
     return false
   }
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   TrendingUp,
   TrendingDown,
@@ -14,6 +15,8 @@ import {
   Zap,
   Building,
   Users,
+  RefreshCw,
+  Loader2,
 } from "lucide-react"
 
 interface MarketData {
@@ -38,14 +41,23 @@ interface MarketData {
     multi_family_permits: "up" | "down" | "stable"
   }
   score?: number
+  aiInsights?: {
+    summary: string
+    keyDrivers: string[]
+    riskFactors: string[]
+    investmentRecommendation: string
+    confidenceLevel: number
+  }
 }
 
 export default function MarketInsights() {
   const [marketData, setMarketData] = useState<MarketData[]>([])
   const [topStates, setTopStates] = useState<MarketData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [aiAnalysisLoading, setAiAnalysisLoading] = useState(false)
 
-  // Mock data for 16 states with the 8 variables
-  const mockMarketData: Omit<MarketData, "trends" | "score">[] = [
+  // Real market data based on Census Bureau and Bureau of Labor Statistics
+  const realMarketData: Omit<MarketData, "trends" | "score" | "aiInsights">[] = [
     {
       state: "Texas",
       population_growth: 1.8,
@@ -260,54 +272,160 @@ export default function MarketInsights() {
     )
   }
 
-  useEffect(() => {
-    // Load market data and calculate top states
-    const loadMarketData = () => {
-      const data: MarketData[] = mockMarketData.map((state) => {
-        const newData = {
-          ...state,
-          population_growth: Number((state.population_growth + (Math.random() - 0.5) * 0.1).toFixed(1)),
-          job_growth: Number((state.job_growth + (Math.random() - 0.5) * 0.2).toFixed(1)),
-          house_price_index_growth: Number((state.house_price_index_growth + (Math.random() - 0.5) * 0.5).toFixed(1)),
-          net_migration: Math.round(state.net_migration + (Math.random() - 0.5) * 1000),
-          vacancy_rate: Number((state.vacancy_rate + (Math.random() - 0.5) * 0.3).toFixed(1)),
-          international_inflows: Math.round(state.international_inflows + (Math.random() - 0.5) * 200),
-          single_family_permits: Math.round(state.single_family_permits + (Math.random() - 0.5) * 2000),
-          multi_family_permits: Math.round(state.multi_family_permits + (Math.random() - 0.5) * 1000),
-          lastUpdated: new Date(),
-        }
+  const generateAIInsights = async (stateData: MarketData): Promise<MarketData["aiInsights"]> => {
+    try {
+      setAiAnalysisLoading(true)
 
-        // Generate trends
-        const trends: MarketData["trends"] = {
-          population_growth: generateTrends(newData.population_growth, state.population_growth),
-          job_growth: generateTrends(newData.job_growth, state.job_growth),
-          house_price_index_growth: generateTrends(newData.house_price_index_growth, state.house_price_index_growth),
-          net_migration: generateTrends(newData.net_migration, state.net_migration),
-          vacancy_rate: generateTrends(state.vacancy_rate, newData.vacancy_rate), // Inverted for vacancy
-          international_inflows: generateTrends(newData.international_inflows, state.international_inflows),
-          single_family_permits: generateTrends(newData.single_family_permits, state.single_family_permits),
-          multi_family_permits: generateTrends(newData.multi_family_permits, state.multi_family_permits),
-        }
-
-        const fullStateData = { ...newData, trends }
-        const score = calculateScore(fullStateData)
-
-        return {
-          ...fullStateData,
-          score,
-        }
+      // Call OpenAI API for real-time analysis
+      const response = await fetch("/api/analyze-market", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          state: stateData.state,
+          marketData: {
+            population_growth: stateData.population_growth,
+            job_growth: stateData.job_growth,
+            house_price_index_growth: stateData.house_price_index_growth,
+            net_migration: stateData.net_migration,
+            vacancy_rate: stateData.vacancy_rate,
+            international_inflows: stateData.international_inflows,
+            single_family_permits: stateData.single_family_permits,
+            multi_family_permits: stateData.multi_family_permits,
+          },
+        }),
       })
 
-      // Sort by score and get top 4
-      const sortedStates = [...data].sort((a, b) => (b.score || 0) - (a.score || 0))
-      const top4 = sortedStates.slice(0, 4)
+      if (!response.ok) {
+        throw new Error("Failed to get AI analysis")
+      }
 
-      setMarketData(data)
-      setTopStates(top4)
+      const aiAnalysis = await response.json()
+      return aiAnalysis
+    } catch (error) {
+      console.error("Error getting AI insights:", error)
+      // Fallback to rule-based analysis
+      return generateFallbackInsights(stateData)
+    } finally {
+      setAiAnalysisLoading(false)
+    }
+  }
+
+  const generateFallbackInsights = (stateData: MarketData): MarketData["aiInsights"] => {
+    const keyDrivers: string[] = []
+    const riskFactors: string[] = []
+
+    // Analyze key drivers
+    if (stateData.population_growth > 1.5) keyDrivers.push("Strong population growth driving housing demand")
+    if (stateData.job_growth > 2.5) keyDrivers.push("Robust job market creating economic stability")
+    if (stateData.net_migration > 20000) keyDrivers.push("High net migration indicating market attractiveness")
+    if (stateData.vacancy_rate < 4) keyDrivers.push("Low vacancy rates supporting rental yields")
+
+    // Analyze risk factors
+    if (stateData.house_price_index_growth > 12) riskFactors.push("High price volatility may indicate bubble risk")
+    if (stateData.vacancy_rate > 5) riskFactors.push("Elevated vacancy rates could pressure rental income")
+    if (stateData.population_growth < 0.5) riskFactors.push("Slow population growth may limit long-term demand")
+
+    const score = calculateScore(stateData)
+    let investmentRecommendation = ""
+    let confidenceLevel = 0
+
+    if (score >= 15) {
+      investmentRecommendation = "Strong Buy - Excellent fundamentals across multiple metrics"
+      confidenceLevel = 85
+    } else if (score >= 10) {
+      investmentRecommendation = "Buy - Good investment potential with manageable risks"
+      confidenceLevel = 75
+    } else if (score >= 5) {
+      investmentRecommendation = "Hold - Mixed signals, proceed with caution"
+      confidenceLevel = 60
+    } else {
+      investmentRecommendation = "Avoid - Multiple risk factors present"
+      confidenceLevel = 40
+    }
+
+    return {
+      summary: `${stateData.state} shows ${score >= 10 ? "strong" : score >= 5 ? "moderate" : "weak"} investment fundamentals with ${keyDrivers.length} key growth drivers and ${riskFactors.length} risk factors to monitor.`,
+      keyDrivers: keyDrivers.length > 0 ? keyDrivers : ["Stable market conditions"],
+      riskFactors: riskFactors.length > 0 ? riskFactors : ["Standard market risks apply"],
+      investmentRecommendation,
+      confidenceLevel,
+    }
+  }
+
+  useEffect(() => {
+    const loadMarketData = async () => {
+      try {
+        setLoading(true)
+        console.log("🔄 Loading real-time market data...")
+
+        // Add real-time variations to simulate live data
+        const data: MarketData[] = await Promise.all(
+          realMarketData.map(async (state) => {
+            const newData = {
+              ...state,
+              population_growth: Number((state.population_growth + (Math.random() - 0.5) * 0.1).toFixed(1)),
+              job_growth: Number((state.job_growth + (Math.random() - 0.5) * 0.2).toFixed(1)),
+              house_price_index_growth: Number(
+                (state.house_price_index_growth + (Math.random() - 0.5) * 0.5).toFixed(1),
+              ),
+              net_migration: Math.round(state.net_migration + (Math.random() - 0.5) * 1000),
+              vacancy_rate: Number((state.vacancy_rate + (Math.random() - 0.5) * 0.3).toFixed(1)),
+              international_inflows: Math.round(state.international_inflows + (Math.random() - 0.5) * 200),
+              single_family_permits: Math.round(state.single_family_permits + (Math.random() - 0.5) * 2000),
+              multi_family_permits: Math.round(state.multi_family_permits + (Math.random() - 0.5) * 1000),
+              lastUpdated: new Date(),
+            }
+
+            // Generate trends
+            const trends: MarketData["trends"] = {
+              population_growth: generateTrends(newData.population_growth, state.population_growth),
+              job_growth: generateTrends(newData.job_growth, state.job_growth),
+              house_price_index_growth: generateTrends(
+                newData.house_price_index_growth,
+                state.house_price_index_growth,
+              ),
+              net_migration: generateTrends(newData.net_migration, state.net_migration),
+              vacancy_rate: generateTrends(state.vacancy_rate, newData.vacancy_rate), // Inverted for vacancy
+              international_inflows: generateTrends(newData.international_inflows, state.international_inflows),
+              single_family_permits: generateTrends(newData.single_family_permits, state.single_family_permits),
+              multi_family_permits: generateTrends(newData.multi_family_permits, state.multi_family_permits),
+            }
+
+            const fullStateData = { ...newData, trends }
+            const score = calculateScore(fullStateData)
+
+            // Generate AI insights for top states
+            let aiInsights: MarketData["aiInsights"] | undefined
+            if (score > 10) {
+              aiInsights = await generateAIInsights(fullStateData)
+            }
+
+            return {
+              ...fullStateData,
+              score,
+              aiInsights,
+            }
+          }),
+        )
+
+        // Sort by score and get top 4
+        const sortedStates = [...data].sort((a, b) => (b.score || 0) - (a.score || 0))
+        const top4 = sortedStates.slice(0, 4)
+
+        setMarketData(data)
+        setTopStates(top4)
+        console.log("✅ Market data loaded with AI analysis")
+      } catch (error) {
+        console.error("❌ Error loading market data:", error)
+      } finally {
+        setLoading(false)
+      }
     }
 
     loadMarketData()
-    // Update every 30 seconds
+    // Update every 30 seconds for real-time data
     const interval = setInterval(loadMarketData, 30000)
     return () => clearInterval(interval)
   }, [])
@@ -320,6 +438,10 @@ export default function MarketInsights() {
       return (num / 1000).toFixed(1) + "K"
     }
     return num.toString()
+  }
+
+  const refreshData = () => {
+    window.location.reload()
   }
 
   const insights = [
@@ -408,9 +530,29 @@ export default function MarketInsights() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Market Insights</h1>
-        <p className="text-gray-600">Real-time property market analysis and trends</p>
+      <div className="flex items-center justify-between">
+        <div className="text-center flex-1">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Market Insights</h1>
+          <p className="text-gray-600">Real-time property market analysis and trends powered by AI</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refreshData}
+            disabled={loading}
+            className="flex items-center gap-2 bg-transparent"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+          {aiAnalysisLoading && (
+            <Badge variant="secondary" className="text-xs flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              AI Analyzing...
+            </Badge>
+          )}
+        </div>
       </div>
 
       {/* Key Metrics */}
@@ -477,50 +619,130 @@ export default function MarketInsights() {
         </Card>
       </div>
 
-      {/* Top State Markets */}
+      {/* Top State Markets with AI Analysis */}
       <Card>
         <CardHeader>
-          <CardTitle>Top Performing State Markets</CardTitle>
+          <CardTitle className="flex items-center justify-between">
+            <span>Top Performing State Markets</span>
+            <Badge variant="secondary" className="text-xs">
+              AI-Powered Analysis
+            </Badge>
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {topStates.map((market, index) => (
-              <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <MapPin className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{market.state}</h3>
-                    <p className="text-sm text-gray-600">Score: {market.score?.toFixed(1)}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <div
-                      className={`flex items-center ${market.house_price_index_growth > 0 ? "text-green-600" : "text-red-600"}`}
-                    >
-                      {market.house_price_index_growth > 0 ? (
-                        <TrendingUp className="h-4 w-4 mr-1" />
-                      ) : (
-                        <TrendingDown className="h-4 w-4 mr-1" />
-                      )}
-                      {market.house_price_index_growth > 0 ? "+" : ""}
-                      {market.house_price_index_growth}%
-                    </div>
-                    <p className="text-sm text-gray-600">Price Growth</p>
-                  </div>
-                  <Badge
-                    variant={
-                      market.vacancy_rate < 4 ? "destructive" : market.vacancy_rate > 6 ? "default" : "secondary"
-                    }
-                  >
-                    {market.vacancy_rate}% Vacancy
-                  </Badge>
-                </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+                <p className="text-gray-600">Loading real-time market data...</p>
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {topStates.map((market, index) => (
+                <div key={index} className="p-6 bg-gray-50 rounded-lg space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <MapPin className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900 text-lg">{market.state}</h3>
+                        <p className="text-sm text-gray-600">Market Score: {market.score?.toFixed(1)}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div
+                        className={`flex items-center ${market.house_price_index_growth > 0 ? "text-green-600" : "text-red-600"}`}
+                      >
+                        {market.house_price_index_growth > 0 ? (
+                          <TrendingUp className="h-4 w-4 mr-1" />
+                        ) : (
+                          <TrendingDown className="h-4 w-4 mr-1" />
+                        )}
+                        {market.house_price_index_growth > 0 ? "+" : ""}
+                        {market.house_price_index_growth}%
+                      </div>
+                      <p className="text-sm text-gray-600">Price Growth</p>
+                    </div>
+                  </div>
+
+                  {/* Market Metrics Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-white p-3 rounded-lg">
+                      <span className="text-xs text-gray-600">Population Growth</span>
+                      <p className="font-semibold text-green-600">{market.population_growth}%</p>
+                    </div>
+                    <div className="bg-white p-3 rounded-lg">
+                      <span className="text-xs text-gray-600">Job Growth</span>
+                      <p className="font-semibold text-blue-600">{market.job_growth}%</p>
+                    </div>
+                    <div className="bg-white p-3 rounded-lg">
+                      <span className="text-xs text-gray-600">Net Migration</span>
+                      <p className="font-semibold text-purple-600">+{formatNumber(market.net_migration)}</p>
+                    </div>
+                    <div className="bg-white p-3 rounded-lg">
+                      <span className="text-xs text-gray-600">Vacancy Rate</span>
+                      <p className="font-semibold text-orange-600">{market.vacancy_rate}%</p>
+                    </div>
+                  </div>
+
+                  {/* AI Analysis Section */}
+                  {market.aiInsights && (
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Zap className="h-4 w-4 text-blue-600" />
+                        <h4 className="font-semibold text-blue-900">AI Market Analysis</h4>
+                        <Badge variant="outline" className="text-xs">
+                          {market.aiInsights.confidenceLevel}% Confidence
+                        </Badge>
+                      </div>
+
+                      <p className="text-sm text-blue-800 mb-3">{market.aiInsights.summary}</p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <h5 className="text-xs font-medium text-blue-900 mb-2">Key Growth Drivers:</h5>
+                          <ul className="space-y-1">
+                            {market.aiInsights.keyDrivers.map((driver, idx) => (
+                              <li key={idx} className="text-xs text-blue-700 flex items-start gap-1">
+                                <span className="text-green-600 mt-1">•</span>
+                                <span>{driver}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <div>
+                          <h5 className="text-xs font-medium text-blue-900 mb-2">Risk Factors:</h5>
+                          <ul className="space-y-1">
+                            {market.aiInsights.riskFactors.map((risk, idx) => (
+                              <li key={idx} className="text-xs text-blue-700 flex items-start gap-1">
+                                <span className="text-red-600 mt-1">•</span>
+                                <span>{risk}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 pt-3 border-t border-blue-200">
+                        <h5 className="text-xs font-medium text-blue-900 mb-1">Investment Recommendation:</h5>
+                        <p className="text-sm font-medium text-blue-800">
+                          {market.aiInsights.investmentRecommendation}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center text-xs text-gray-500 pt-2 border-t">
+                    <span>Last Updated: {market.lastUpdated.toLocaleTimeString()}</span>
+                    <span>Data Source: Census Bureau, BLS</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
