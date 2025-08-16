@@ -20,10 +20,12 @@ import {
   Loader2,
   Copy,
   Check,
-  Download,
+  FileText,
+  Presentation,
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import type { ChatHistoryItem } from "@/lib/portfolio-types"
+import ReactMarkdown from "react-markdown"
 
 interface Message {
   id: string
@@ -140,7 +142,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     }
   }
 
-  const handleSendMessage = async (message?: string) => {
+  const handleSendMessage = async (message?: string, action?: string) => {
     const messageToSend = message || inputValue.trim()
     if (!messageToSend || isLoading) return
 
@@ -167,6 +169,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
             role: msg.sender === "user" ? "user" : "assistant",
             content: msg.content,
           })),
+          action: action,
         }),
       })
 
@@ -226,21 +229,37 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
 
   const handleDownload = (message: Message) => {
     if (message.actionData?.content && message.actionData?.filename) {
-      const blob = new Blob([message.actionData.content], { type: "text/html" })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = message.actionData.filename
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      try {
+        const blob = new Blob([message.actionData.content], {
+          type: message.actionData.filename.endsWith(".html") ? "text/html" : "text/plain",
+        })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = message.actionData.filename
+        a.style.display = "none"
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
 
-      toast({
-        title: "Download Started",
-        description: `${message.actionData.filename} is downloading...`,
-      })
+        toast({
+          title: "Download Started",
+          description: `${message.actionData.filename} is downloading...`,
+        })
+      } catch (error) {
+        toast({
+          title: "Download Failed",
+          description: "Failed to download file. Please try again.",
+          variant: "destructive",
+        })
+      }
     }
+  }
+
+  const handleReportFormat = (format: "pdf" | "docx") => {
+    const action = format === "pdf" ? "download_pdf" : "download_docx"
+    handleSendMessage(`Generate ${format.toUpperCase()} report`, action)
   }
 
   return (
@@ -323,7 +342,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                 className={`flex gap-3 ${message.sender === "user" ? "justify-end" : "justify-start"}`}
               >
                 {message.sender === "ai" && (
-                  <Avatar className="w-8 h-8">
+                  <Avatar className="w-8 h-8 flex-shrink-0">
                     <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white">
                       <Bot className="h-4 w-4" />
                     </AvatarFallback>
@@ -336,8 +355,45 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    <div className="flex-1 min-w-0">
+                      {message.sender === "ai" ? (
+                        <div className="prose prose-sm max-w-none">
+                          <ReactMarkdown
+                            components={{
+                              h1: ({ children }) => (
+                                <h1 className="text-xl font-bold text-blue-900 mb-3 border-b-2 border-blue-200 pb-2">
+                                  {children}
+                                </h1>
+                              ),
+                              h2: ({ children }) => (
+                                <h2 className="text-lg font-semibold text-blue-800 mb-2 mt-4">{children}</h2>
+                              ),
+                              h3: ({ children }) => (
+                                <h3 className="text-base font-medium text-blue-700 mb-2 mt-3">{children}</h3>
+                              ),
+                              ul: ({ children }) => <ul className="list-disc pl-5 space-y-1 my-2">{children}</ul>,
+                              ol: ({ children }) => <ol className="list-decimal pl-5 space-y-1 my-2">{children}</ol>,
+                              li: ({ children }) => <li className="text-sm">{children}</li>,
+                              p: ({ children }) => <p className="text-sm mb-2 last:mb-0">{children}</p>,
+                              strong: ({ children }) => (
+                                <strong className="font-semibold text-blue-900">{children}</strong>
+                              ),
+                              code: ({ children }) => (
+                                <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">{children}</code>
+                              ),
+                              blockquote: ({ children }) => (
+                                <blockquote className="border-l-4 border-blue-200 pl-3 italic text-gray-700 my-2">
+                                  {children}
+                                </blockquote>
+                              ),
+                            }}
+                          >
+                            {message.content}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      )}
 
                       {/* Action buttons for special responses */}
                       {message.action === "download_slides" && message.actionData && (
@@ -346,18 +402,50 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                           className="mt-3 bg-green-600 hover:bg-green-700 text-white"
                           size="sm"
                         >
-                          <Download className="h-4 w-4 mr-2" />
+                          <Presentation className="h-4 w-4 mr-2" />
                           Download Slides
                         </Button>
                       )}
 
+                      {message.action === "download_pdf" && message.actionData && (
+                        <Button
+                          onClick={() => handleDownload(message)}
+                          className="mt-3 bg-red-600 hover:bg-red-700 text-white"
+                          size="sm"
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Download PDF Report
+                        </Button>
+                      )}
+
+                      {message.action === "download_docx" && message.actionData && (
+                        <Button
+                          onClick={() => handleDownload(message)}
+                          className="mt-3 bg-blue-600 hover:bg-blue-700 text-white"
+                          size="sm"
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Download DOCX Report
+                        </Button>
+                      )}
+
                       {message.action === "ask_report_format" && (
-                        <div className="mt-3 space-y-2">
-                          <Button size="sm" variant="outline" className="mr-2 bg-transparent">
-                            📄 Download as PDF
+                        <div className="mt-3 space-x-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleReportFormat("pdf")}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                          >
+                            <FileText className="h-4 w-4 mr-1" />
+                            PDF
                           </Button>
-                          <Button size="sm" variant="outline">
-                            📝 Download as DOCX
+                          <Button
+                            size="sm"
+                            onClick={() => handleReportFormat("docx")}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            <FileText className="h-4 w-4 mr-1" />
+                            DOCX
                           </Button>
                         </div>
                       )}
@@ -367,7 +455,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                       variant="ghost"
                       size="sm"
                       onClick={() => copyToClipboard(message.content, message.id)}
-                      className="flex-shrink-0 h-6 w-6 p-0"
+                      className="flex-shrink-0 h-6 w-6 p-0 ml-2"
                     >
                       {copiedMessageId === message.id ? (
                         <Check className="h-3 w-3 text-green-600" />
@@ -377,13 +465,13 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                     </Button>
                   </div>
 
-                  <p className={`text-xs mt-1 ${message.sender === "user" ? "text-blue-100" : "text-gray-500"}`}>
+                  <p className={`text-xs mt-2 ${message.sender === "user" ? "text-blue-100" : "text-gray-500"}`}>
                     {new Date(message.timestamp).toLocaleTimeString()}
                   </p>
                 </div>
 
                 {message.sender === "user" && (
-                  <Avatar className="w-8 h-8">
+                  <Avatar className="w-8 h-8 flex-shrink-0">
                     <AvatarFallback className="bg-gray-600 text-white">
                       <User className="h-4 w-4" />
                     </AvatarFallback>
