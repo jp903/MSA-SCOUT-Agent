@@ -243,11 +243,11 @@ export function AppSidebar({
                   {user.company && <p className="text-xs text-gray-500">{user.company}</p>}
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onViewChange("profile-settings")}>
                   <User className="mr-2 h-4 w-4" />
                   Profile Settings
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onViewChange("preferences")}>
                   <Settings className="mr-2 h-4 w-4" />
                   Preferences
                 </DropdownMenuItem>

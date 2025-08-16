@@ -8,7 +8,20 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Send, Bot, User, Calculator, TrendingUp, Building2, Search, DollarSign, Loader2 } from "lucide-react"
+import {
+  Send,
+  Bot,
+  User,
+  Calculator,
+  TrendingUp,
+  Building2,
+  Search,
+  DollarSign,
+  Loader2,
+  Copy,
+  Check,
+  Download,
+} from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import type { ChatHistoryItem } from "@/lib/portfolio-types"
 
@@ -17,6 +30,8 @@ interface Message {
   content: string
   sender: "user" | "ai"
   timestamp: string
+  action?: string
+  actionData?: any
 }
 
 interface EnhancedChatProps {
@@ -64,17 +79,19 @@ const quickActions = [
 ]
 
 const suggestedQuestions = [
-  "What are the best markets for real estate investment in 2024?",
-  "How do I calculate cap rate for a rental property?",
-  "What should I look for when analyzing a potential investment property?",
-  "How much should I put down on an investment property?",
-  "What are the tax benefits of real estate investing?",
+  "What are the current market conditions for real estate investment?",
+  "How do interest rates affect property investment returns?",
+  "What markets are showing the best population growth right now?",
+  "Can you analyze unemployment trends in major metros?",
+  "Generate a market analysis report for Texas markets",
+  "Create slides on current investment opportunities",
 ]
 
 export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }: EnhancedChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Load current chat messages when currentChat changes
@@ -105,6 +122,24 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     return Date.now().toString() + Math.random().toString(36).substr(2, 9)
   }
 
+  const copyToClipboard = async (content: string, messageId: string) => {
+    try {
+      await navigator.clipboard.writeText(content)
+      setCopiedMessageId(messageId)
+      toast({
+        title: "Copied!",
+        description: "Message copied to clipboard",
+      })
+      setTimeout(() => setCopiedMessageId(null), 2000)
+    } catch (error) {
+      toast({
+        title: "Copy Failed",
+        description: "Failed to copy message to clipboard",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleSendMessage = async (message?: string) => {
     const messageToSend = message || inputValue.trim()
     if (!messageToSend || isLoading) return
@@ -122,14 +157,32 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     setIsLoading(true)
 
     try {
-      // Simulate AI response for now
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: newMessages.map((msg) => ({
+            role: msg.sender === "user" ? "user" : "assistant",
+            content: msg.content,
+          })),
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to get response")
+      }
+
+      const data = await response.json()
 
       const aiResponse: Message = {
         id: generateMessageId(),
-        content: generateAIResponse(messageToSend),
+        content: data.message,
         sender: "ai",
         timestamp: new Date().toISOString(),
+        action: data.action,
+        actionData: data,
       }
 
       const finalMessages = [...newMessages, aiResponse]
@@ -152,35 +205,8 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
   }
 
   const generateChatTitle = (firstMessage: string): string => {
-    // Generate a title based on the first message
     const words = firstMessage.split(" ").slice(0, 6).join(" ")
     return words.length > 30 ? words.substring(0, 30) + "..." : words
-  }
-
-  const generateAIResponse = (userMessage: string): string => {
-    const lowerMessage = userMessage.toLowerCase()
-
-    if (lowerMessage.includes("market") || lowerMessage.includes("investment")) {
-      return "Based on current market data, I can help you analyze investment opportunities. The top performing markets right now include Florida, Texas, and Arizona, which are showing strong population growth and job creation. Would you like me to provide detailed market insights for any specific region?"
-    }
-
-    if (lowerMessage.includes("cap rate") || lowerMessage.includes("calculate")) {
-      return "Cap rate (Capitalization Rate) is calculated as: Annual Net Operating Income ÷ Property Value × 100. For example, if a property generates $12,000 annually and costs $200,000, the cap rate is 6%. Generally, cap rates between 4-10% are considered good, depending on the market and property type. Would you like me to open the Investment Calculator for detailed analysis?"
-    }
-
-    if (lowerMessage.includes("property analysis") || lowerMessage.includes("analyze")) {
-      return "When analyzing investment properties, focus on these key factors: 1) Location and neighborhood trends, 2) Cash flow potential, 3) Cap rate and ROI, 4) Property condition and repair costs, 5) Local rental demand, 6) Future development plans. I can help you analyze specific properties using our Property Analysis tool. Would you like me to open it?"
-    }
-
-    if (lowerMessage.includes("down payment") || lowerMessage.includes("financing")) {
-      return "For investment properties, typical down payments range from 20-25% for conventional loans. Some options include: • Conventional loans: 20-25% down • Portfolio lenders: 15-20% down • Hard money: 10-15% down (short-term) • Cash purchases: 100% down. The amount depends on your financial situation, loan type, and investment strategy. Would you like help calculating different financing scenarios?"
-    }
-
-    if (lowerMessage.includes("tax") || lowerMessage.includes("benefit")) {
-      return "Real estate investing offers several tax benefits: 1) Depreciation deductions, 2) Mortgage interest deduction, 3) Property tax deductions, 4) Repair and maintenance expenses, 5) 1031 exchanges for deferring capital gains. These can significantly improve your overall returns. I recommend consulting with a tax professional for your specific situation."
-    }
-
-    return "I'm here to help with your real estate investment questions! I can assist with market analysis, property evaluation, financial calculations, and investment strategies. Feel free to ask about specific markets, properties, or use our specialized tools for detailed analysis."
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -198,6 +224,25 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     handleSendMessage(question)
   }
 
+  const handleDownload = (message: Message) => {
+    if (message.actionData?.content && message.actionData?.filename) {
+      const blob = new Blob([message.actionData.content], { type: "text/html" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = message.actionData.filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      toast({
+        title: "Download Started",
+        description: `${message.actionData.filename} is downloading...`,
+      })
+    }
+  }
+
   return (
     <div className="flex flex-col h-[calc(100vh-2rem)] max-w-4xl mx-auto">
       {/* Header */}
@@ -206,8 +251,8 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
           <Bot className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h2 className="font-semibold text-lg">AI Property Investment Assistant</h2>
-          <p className="text-sm text-gray-600">Get expert insights and analysis</p>
+          <h2 className="font-semibold text-lg">MSASCOUT AI Assistant</h2>
+          <p className="text-sm text-gray-600">Real-time market data • Investment analysis • Report generation</p>
         </div>
       </div>
 
@@ -222,8 +267,8 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-2">Welcome to MSASCOUT AI</h3>
               <p className="text-gray-600 max-w-md mx-auto">
-                I'm your AI property investment assistant. Ask me anything about real estate investing, market analysis,
-                or use our specialized tools.
+                I'm your AI property investment assistant with access to real-time Census, BLS, and FRED data. Ask me
+                about market conditions, generate reports, or use our specialized tools.
               </p>
             </div>
 
@@ -255,7 +300,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
 
             {/* Suggested Questions */}
             <div className="space-y-4">
-              <h4 className="font-semibold text-gray-900">Suggested Questions</h4>
+              <h4 className="font-semibold text-gray-900">Ask About Real-Time Market Data</h4>
               <div className="space-y-2">
                 {suggestedQuestions.map((question, index) => (
                   <Button
@@ -290,7 +335,48 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                     message.sender === "user" ? "bg-blue-600 text-white" : "bg-white border shadow-sm"
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+
+                      {/* Action buttons for special responses */}
+                      {message.action === "download_slides" && message.actionData && (
+                        <Button
+                          onClick={() => handleDownload(message)}
+                          className="mt-3 bg-green-600 hover:bg-green-700 text-white"
+                          size="sm"
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Download Slides
+                        </Button>
+                      )}
+
+                      {message.action === "ask_report_format" && (
+                        <div className="mt-3 space-y-2">
+                          <Button size="sm" variant="outline" className="mr-2 bg-transparent">
+                            📄 Download as PDF
+                          </Button>
+                          <Button size="sm" variant="outline">
+                            📝 Download as DOCX
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(message.content, message.id)}
+                      className="flex-shrink-0 h-6 w-6 p-0"
+                    >
+                      {copiedMessageId === message.id ? (
+                        <Check className="h-3 w-3 text-green-600" />
+                      ) : (
+                        <Copy className="h-3 w-3" />
+                      )}
+                    </Button>
+                  </div>
+
                   <p className={`text-xs mt-1 ${message.sender === "user" ? "text-blue-100" : "text-gray-500"}`}>
                     {new Date(message.timestamp).toLocaleTimeString()}
                   </p>
@@ -316,7 +402,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                 <div className="bg-white border shadow-sm rounded-lg p-3">
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm text-gray-600">AI is thinking...</span>
+                    <span className="text-sm text-gray-600">Analyzing market data...</span>
                   </div>
                 </div>
               </div>
@@ -334,7 +420,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Ask me about real estate investing..."
+            placeholder="Ask about market conditions, generate reports, or request analysis..."
             disabled={isLoading}
             className="flex-1"
           />

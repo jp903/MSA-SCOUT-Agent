@@ -15,19 +15,18 @@ import {
   PieChart,
   Target,
   AlertTriangle,
-  CheckCircle,
   Plus,
   Loader2,
   RefreshCw,
   Edit,
   Trash2,
   MoreHorizontal,
+  CheckCircle,
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import type { Property, PortfolioMetrics } from "@/lib/portfolio-types"
 import { PropertyForm } from "@/components/property-form"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 interface PortfolioAnalysis {
   totalProperties: number
@@ -78,7 +78,6 @@ export default function PortfolioTracker() {
 
   const loadPortfolio = async () => {
     try {
-      console.log("Loading portfolio data...")
       const response = await fetch("/api/portfolio")
 
       if (!response.ok) {
@@ -86,7 +85,6 @@ export default function PortfolioTracker() {
       }
 
       const data = await response.json()
-      console.log("Portfolio data received:", data)
 
       if (data.portfolio) {
         setPortfolio(data.portfolio)
@@ -261,7 +259,6 @@ export default function PortfolioTracker() {
 
   const handleAddProperty = async (propertyData: Omit<Property, "id" | "createdAt" | "updatedAt" | "images">) => {
     try {
-      console.log("Adding property:", propertyData)
       const response = await fetch("/api/portfolio", {
         method: "POST",
         headers: {
@@ -301,7 +298,6 @@ export default function PortfolioTracker() {
     if (!editingProperty) return
 
     try {
-      console.log("Editing property:", editingProperty.id, propertyData)
       const response = await fetch(`/api/portfolio/${editingProperty.id}`, {
         method: "PUT",
         headers: {
@@ -342,22 +338,16 @@ export default function PortfolioTracker() {
 
     setIsDeleting(true)
     try {
-      console.log("Deleting property:", deletingProperty.id, deletingProperty.name)
-
       const response = await fetch(`/api/portfolio/${deletingProperty.id}`, {
         method: "DELETE",
       })
 
-      console.log("Delete response status:", response.status)
-
       if (!response.ok) {
         const errorData = await response.json()
-        console.error("Delete error response:", errorData)
         throw new Error(errorData.error || `HTTP ${response.status}: Failed to delete property`)
       }
 
       const result = await response.json()
-      console.log("Delete result:", result)
 
       if (result.success) {
         toast({

@@ -8,6 +8,8 @@ import MarketInsights from "@/components/market-insights"
 import PropertyAnalysis from "@/components/property-analysis"
 import PortfolioTracker from "@/components/portfolio-tracker"
 import PropertyListings from "@/components/property-listings"
+import ProfileSettings from "@/components/profile-settings"
+import Preferences from "@/components/preferences"
 import AuthModal from "@/components/auth-modal"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -42,7 +44,15 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [activeView, setActiveView] = useState<
-    "home" | "chat" | "calculator" | "insights" | "property-analysis" | "portfolio-tracker" | "deal-finder"
+    | "home"
+    | "chat"
+    | "calculator"
+    | "insights"
+    | "property-analysis"
+    | "portfolio-tracker"
+    | "deal-finder"
+    | "profile-settings"
+    | "preferences"
   >("chat")
   const [liveMarketData, setLiveMarketData] = useState<LiveMarketData[]>([])
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
@@ -617,6 +627,63 @@ export default function HomePage() {
                         className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                       >
                         Sign In to Chat
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Profile Settings and Preferences - Require Authentication */}
+          {activeView === "profile-settings" && (
+            <>
+              {user ? (
+                <ProfileSettings user={user} onUserUpdate={setUser} />
+              ) : (
+                <div className="flex items-center justify-center min-h-[400px]">
+                  <Card className="w-full max-w-md">
+                    <CardHeader className="text-center">
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <Users className="h-8 w-8 text-white" />
+                      </div>
+                      <CardTitle className="text-2xl">Sign In Required</CardTitle>
+                      <p className="text-gray-600">Please sign in to access Profile Settings</p>
+                    </CardHeader>
+                    <CardContent className="text-center">
+                      <Button
+                        onClick={() => setShowAuthModal(true)}
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                      >
+                        Sign In
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </>
+          )}
+
+          {activeView === "preferences" && (
+            <>
+              {user ? (
+                <Preferences />
+              ) : (
+                <div className="flex items-center justify-center min-h-[400px]">
+                  <Card className="w-full max-w-md">
+                    <CardHeader className="text-center">
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <Users className="h-8 w-8 text-white" />
+                      </div>
+                      <CardTitle className="text-2xl">Sign In Required</CardTitle>
+                      <p className="text-gray-600">Please sign in to access Preferences</p>
+                    </CardHeader>
+                    <CardContent className="text-center">
+                      <Button
+                        onClick={() => setShowAuthModal(true)}
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                      >
+                        Sign In
                       </Button>
                     </CardContent>
                   </Card>
