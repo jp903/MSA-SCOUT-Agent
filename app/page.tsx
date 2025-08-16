@@ -1,15 +1,19 @@
 "use client"
 import { useState, useEffect } from "react"
-import { SidebarInset } from "@/components/ui/sidebar"
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import EnhancedChat from "@/components/enhanced-chat"
 import PropertyCalculator from "@/components/property-calculator"
 import MarketInsights from "@/components/market-insights"
+import PropertyAnalysis from "@/components/property-analysis"
+import PortfolioTracker from "@/components/portfolio-tracker"
+import PropertyListings from "@/components/property-listings"
+import AuthModal from "@/components/auth-modal"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calculator, TrendingUp, Building2, BarChart3, FileText, Users, DollarSign } from "lucide-react"
-import type { ChatHistoryItem } from "@/lib/portfolio-types"
+import { Calculator, TrendingUp, Building2, BarChart3, FileText, Users, DollarSign, Search } from "lucide-react"
+import type { ChatHistoryItem, User } from "@/lib/portfolio-types"
 import { chatManagerDB } from "@/lib/chat-manager-db"
 import { toast } from "@/hooks/use-toast"
 
@@ -34,18 +38,56 @@ interface LiveMarketData {
 }
 
 export default function HomePage() {
-  const [activeView, setActiveView] = useState<"home" | "chat" | "calculator" | "insights">("chat")
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [activeView, setActiveView] = useState<
+    "home" | "chat" | "calculator" | "insights" | "property-analysis" | "portfolio-tracker" | "deal-finder"
+  >("chat")
   const [liveMarketData, setLiveMarketData] = useState<LiveMarketData[]>([])
-  const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const [currentChat, setCurrentChat] = useState<ChatHistoryItem | null>(null)
 
-  // Initialize database and load chat history on component mount
+  // Check authentication on component mount
   useEffect(() => {
-    initializeApp()
+    checkAuth()
   }, [])
+
+  const checkAuth = async () => {
+    try {
+      console.log("Checking authentication...")
+      const response = await fetch("/api/auth/verify", {
+        method: "GET",
+        credentials: "include", // Include cookies
+      })
+
+      console.log("Auth check response status:", response.status)
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log("Auth check response data:", data)
+
+        if (data.valid && data.user) {
+          console.log("User is authenticated:", data.user)
+          setUser(data.user)
+          await initializeApp()
+        } else {
+          console.log("User is not authenticated")
+          setUser(null)
+        }
+      } else {
+        console.log("Auth check failed with status:", response.status)
+        setUser(null)
+      }
+    } catch (error) {
+      console.error("Auth check error:", error)
+      setUser(null)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const initializeApp = async () => {
     try {
@@ -55,6 +97,7 @@ export default function HomePage() {
       // Then load chat history
       await loadChatHistory()
     } catch (error) {
+      console.error("App initialization error:", error)
       toast({
         title: "Initialization Error",
         description: "Failed to initialize the application",
@@ -89,7 +132,58 @@ export default function HomePage() {
     }
   }
 
+  const handleStartChatting = () => {
+    if (!user) {
+      setShowAuthModal(true)
+    } else {
+      setActiveView("home")
+    }
+  }
+
+  const handleAuthSuccess = async () => {
+    console.log("Auth success callback triggered")
+    // Re-check authentication after successful login
+    await checkAuth()
+    setShowAuthModal(false)
+    setActiveView("home")
+
+    toast({
+      title: "Welcome!",
+      description: "You are now signed in and can access all features.",
+    })
+  }
+
+  const handleSignOut = async () => {
+    try {
+      await fetch("/api/auth/signout", {
+        method: "POST",
+        credentials: "include",
+      })
+      setUser(null)
+      setChatHistory([])
+      setCurrentChatId(null)
+      setCurrentChat(null)
+      setActiveView("chat")
+      toast({
+        title: "Signed Out",
+        description: "You have been signed out successfully.",
+      })
+    } catch (error) {
+      console.error("Sign out error:", error)
+      toast({
+        title: "Error",
+        description: "Failed to sign out properly",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleNewChat = async () => {
+    if (!user) {
+      setShowAuthModal(true)
+      return
+    }
+
     try {
       // Clear current chat state first
       setCurrentChatId(null)
@@ -112,6 +206,11 @@ export default function HomePage() {
   }
 
   const handleChatSelect = async (chatId: string) => {
+    if (!user) {
+      setShowAuthModal(true)
+      return
+    }
+
     try {
       const chat = await chatManagerDB.getChat(chatId)
       if (chat) {
@@ -137,6 +236,11 @@ export default function HomePage() {
   }
 
   const handleDeleteChat = async (chatId: string) => {
+    if (!user) {
+      setShowAuthModal(true)
+      return
+    }
+
     try {
       await chatManagerDB.deleteChat(chatId)
 
@@ -163,6 +267,11 @@ export default function HomePage() {
   }
 
   const handleChatUpdate = async (messages: any[], title?: string) => {
+    if (!user) {
+      setShowAuthModal(true)
+      return
+    }
+
     try {
       // If no current chat exists, create one
       if (!currentChatId && messages.length > 0) {
@@ -217,28 +326,28 @@ export default function HomePage() {
     }
   }
 
-  const getPageTitle = () => {
-    switch (activeView) {
-      case "home":
-        return "AI Chat Assistant"
-      case "chat":
-        return "Dashboard & Tools"
-      case "calculator":
-        return "Investment Calculator"
-      case "insights":
-        return "Market Research & Insights"
-      default:
-        return "MSASCOUT"
-    }
-  }
-
   const handleToolSelect = (toolId: string) => {
+    // Only chat requires authentication, other tools are free to use
+    if (toolId === "ai-chat" && !user) {
+      setShowAuthModal(true)
+      return
+    }
+
     switch (toolId) {
       case "investment-calculator":
         setActiveView("calculator")
         break
       case "market-insights":
         setActiveView("insights")
+        break
+      case "property-analysis":
+        setActiveView("property-analysis")
+        break
+      case "portfolio-tracker":
+        setActiveView("portfolio-tracker")
+        break
+      case "deal-finder":
+        setActiveView("deal-finder")
         break
       case "ai-chat":
         setActiveView("home")
@@ -432,15 +541,12 @@ export default function HomePage() {
   }
 
   const loadMarketData = async () => {
-    setLoading(true)
     try {
       const data = await generateLiveMarketData()
       setLiveMarketData(data)
       setLastRefresh(new Date())
     } catch (error) {
       console.error("Error loading market data:", error)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -451,8 +557,22 @@ export default function HomePage() {
     return () => clearInterval(interval)
   }, [])
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <Building2 className="h-6 w-6 text-white" />
+          </div>
+          <h2 className="text-xl font-semibold mb-2">Loading MSASCOUT...</h2>
+          <p className="text-gray-600">Please wait while we initialize your dashboard</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <>
+    <SidebarProvider>
       <AppSidebar
         activeView={activeView}
         onViewChange={setActiveView}
@@ -461,16 +581,54 @@ export default function HomePage() {
         currentChatId={currentChatId}
         onChatSelect={handleChatSelect}
         onDeleteChat={handleDeleteChat}
+        user={user}
+        onSignOut={handleSignOut}
       />
       <SidebarInset>
         {/* HEADER: icon & title removed per request */}
         <header className="h-4" />
 
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          {/* Chat Page - AI Assistant */}
+          {/* Auth Modal */}
+          <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onSuccess={handleAuthSuccess} />
+
+          {/* Chat Page - AI Assistant - Requires Authentication */}
           {activeView === "home" && (
-            <EnhancedChat onToolSelect={handleToolSelect} currentChat={currentChat} onChatUpdate={handleChatUpdate} />
+            <>
+              {user ? (
+                <EnhancedChat
+                  onToolSelect={handleToolSelect}
+                  currentChat={currentChat}
+                  onChatUpdate={handleChatUpdate}
+                />
+              ) : (
+                <div className="flex items-center justify-center min-h-[400px]">
+                  <Card className="w-full max-w-md">
+                    <CardHeader className="text-center">
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <Users className="h-8 w-8 text-white" />
+                      </div>
+                      <CardTitle className="text-2xl">Sign In Required</CardTitle>
+                      <p className="text-gray-600">Please sign in to access the AI Chat Assistant</p>
+                    </CardHeader>
+                    <CardContent className="text-center">
+                      <Button
+                        onClick={() => setShowAuthModal(true)}
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                      >
+                        Sign In to Chat
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </>
           )}
+
+          {/* All other tools are available without authentication */}
+          {activeView === "deal-finder" && <PropertyListings />}
+          {activeView === "property-analysis" && <PropertyAnalysis />}
+          {activeView === "portfolio-tracker" && <PortfolioTracker />}
 
           {/* Home Page - Dashboard & Tools */}
           {activeView === "chat" && (
@@ -481,7 +639,7 @@ export default function HomePage() {
                 <p className="text-xl text-gray-600 mb-6">Your AI-powered property investment platform</p>
                 <div className="flex justify-center gap-4">
                   <Button
-                    onClick={() => setActiveView("home")}
+                    onClick={handleStartChatting}
                     className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
                   >
                     Start Chatting
@@ -499,7 +657,7 @@ export default function HomePage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-gray-600">Total Chats</p>
-                        <p className="text-2xl font-bold text-gray-900">{chatHistory.length}</p>
+                        <p className="text-2xl font-bold text-gray-900">{user ? chatHistory.length : 0}</p>
                       </div>
                       <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                         <Users className="h-6 w-6 text-blue-600" />
@@ -513,7 +671,7 @@ export default function HomePage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-gray-600">Market Analysis</p>
-                        <p className="text-2xl font-bold text-gray-900">16</p>
+                        <p className="text-2xl font-bold text-gray-900">50</p>
                         <p className="text-xs text-green-600">States Tracked</p>
                       </div>
                       <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -528,7 +686,7 @@ export default function HomePage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-gray-600">AI Tools</p>
-                        <p className="text-2xl font-bold text-gray-900">8</p>
+                        <p className="text-2xl font-bold text-gray-900">7</p>
                         <p className="text-xs text-purple-600">Available</p>
                       </div>
                       <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -558,7 +716,7 @@ export default function HomePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <Card
                   className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
-                  onClick={() => setActiveView("home")}
+                  onClick={handleStartChatting}
                 >
                   <CardHeader>
                     <div className="flex items-center gap-3">
@@ -576,14 +734,39 @@ export default function HomePage() {
                       Chat with our AI agent for market analysis, property evaluation, and investment advice.
                     </p>
                     <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                      {chatHistory.length} conversations
+                      {user ? `${chatHistory.length} conversations` : "Advanced metrics"}
                     </Badge>
                   </CardContent>
                 </Card>
 
                 <Card
                   className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
-                  onClick={() => setActiveView("calculator")}
+                  onClick={() => handleToolSelect("deal-finder")}
+                >
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center">
+                        <Search className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">Deal Finder</CardTitle>
+                        <p className="text-sm text-gray-600">Find investment properties</p>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Search and analyze properties across US markets with detailed owner and listing information.
+                    </p>
+                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                      Live listings
+                    </Badge>
+                  </CardContent>
+                </Card>
+
+                <Card
+                  className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
+                  onClick={() => handleToolSelect("investment-calculator")}
                 >
                   <CardHeader>
                     <div className="flex items-center gap-3">
@@ -608,7 +791,7 @@ export default function HomePage() {
 
                 <Card
                   className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
-                  onClick={() => setActiveView("insights")}
+                  onClick={() => handleToolSelect("market-insights")}
                 >
                   <CardHeader>
                     <div className="flex items-center gap-3">
@@ -623,7 +806,7 @@ export default function HomePage() {
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-gray-600 mb-4">
-                      Access live market data, trends, and AI-powered analysis for 16+ states.
+                      Access live market data, trends, and AI-powered analysis for 50 states.
                     </p>
                     <Badge variant="secondary" className="bg-violet-100 text-violet-800">
                       Live data
@@ -631,7 +814,10 @@ export default function HomePage() {
                   </CardContent>
                 </Card>
 
-                <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105">
+                <Card
+                  className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
+                  onClick={() => handleToolSelect("property-analysis")}
+                >
                   <CardHeader>
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl flex items-center justify-center">
@@ -648,34 +834,15 @@ export default function HomePage() {
                       Get comprehensive analysis of any property with market comparisons and projections.
                     </p>
                     <Badge variant="secondary" className="bg-rose-100 text-rose-800">
-                      Coming soon
-                    </Badge>
-                  </CardContent>
-                </Card>
-
-                <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105">
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl flex items-center justify-center">
-                        <FileText className="h-6 w-6 text-white" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg">Generate Reports</CardTitle>
-                        <p className="text-sm text-gray-600">AI-powered documentation</p>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Generate professional investment reports, presentations, and documentation.
-                    </p>
-                    <Badge variant="secondary" className="bg-cyan-100 text-cyan-800">
                       AI-powered
                     </Badge>
                   </CardContent>
                 </Card>
 
-                <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105">
+                <Card
+                  className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
+                  onClick={() => handleToolSelect("portfolio-tracker")}
+                >
                   <CardHeader>
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl flex items-center justify-center">
@@ -692,14 +859,14 @@ export default function HomePage() {
                       Monitor your property portfolio performance and get optimization suggestions.
                     </p>
                     <Badge variant="secondary" className="bg-amber-100 text-amber-800">
-                      Coming soon
+                      AI-powered
                     </Badge>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Recent Activity */}
-              {chatHistory.length > 0 && (
+              {/* Recent Activity - Only show if user is logged in */}
+              {user && chatHistory.length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -737,6 +904,6 @@ export default function HomePage() {
           {activeView === "insights" && <MarketInsights />}
         </div>
       </SidebarInset>
-    </>
+    </SidebarProvider>
   )
 }

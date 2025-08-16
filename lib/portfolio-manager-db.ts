@@ -4,9 +4,10 @@ import type { Property, PortfolioMetrics, PropertyPerformance, PropertyImage } f
 export class PortfolioManagerDB {
   static async getPortfolio(): Promise<Property[]> {
     try {
+      console.log("Querying properties from database...")
       const properties = await sql`
         SELECT 
-          id,
+          id::text as id,
           name,
           address,
           state,
@@ -28,9 +29,18 @@ export class PortfolioManagerDB {
         ORDER BY created_at DESC
       `
 
+      console.log(`Found ${properties.length} properties in database`)
+
       const propertiesWithImages = await Promise.all(
         properties.map(async (property) => {
-          const images = await this.getPropertyImages(property.id)
+          let images: PropertyImage[] = []
+          try {
+            images = await this.getPropertyImages(property.id)
+          } catch (error) {
+            console.warn(`Failed to load images for property ${property.id}:`, error)
+            images = []
+          }
+
           return {
             ...property,
             purchaseDate: property.purchaseDate ? property.purchaseDate.toISOString().split("T")[0] : "",
@@ -44,7 +54,7 @@ export class PortfolioManagerDB {
       return propertiesWithImages
     } catch (error) {
       console.error("Error fetching portfolio:", error)
-      return []
+      throw error
     }
   }
 
@@ -52,20 +62,32 @@ export class PortfolioManagerDB {
     property: Omit<Property, "id" | "createdAt" | "updatedAt" | "images">,
   ): Promise<Property | null> {
     try {
+      console.log("Inserting property into database:", property)
+
       const result = await sql`
         INSERT INTO properties (
           name, address, state, purchase_price, purchase_date, current_value,
           monthly_rent, monthly_expenses, down_payment, loan_amount, interest_rate,
           loan_term_years, property_type, status, notes
         ) VALUES (
-          ${property.name}, ${property.address}, ${property.state}, ${property.purchasePrice},
-          ${property.purchaseDate || null}, ${property.currentValue}, ${property.monthlyRent},
-          ${property.monthlyExpenses}, ${property.downPayment}, ${property.loanAmount},
-          ${property.interestRate}, ${property.loanTermYears}, ${property.propertyType},
-          ${property.status}, ${property.notes || null}
+          ${property.name}, 
+          ${property.address}, 
+          ${property.state}, 
+          ${property.purchasePrice},
+          ${property.purchaseDate || null}, 
+          ${property.currentValue}, 
+          ${property.monthlyRent || 0},
+          ${property.monthlyExpenses || 0}, 
+          ${property.downPayment || 0}, 
+          ${property.loanAmount || 0},
+          ${property.interestRate || 0}, 
+          ${property.loanTermYears || 30}, 
+          ${property.propertyType},
+          ${property.status || "analyzing"}, 
+          ${property.notes || null}
         )
         RETURNING 
-          id,
+          id::text as id,
           name,
           address,
           state,
@@ -87,6 +109,8 @@ export class PortfolioManagerDB {
 
       if (result.length > 0) {
         const newProperty = result[0]
+        console.log("Property inserted successfully with ID:", newProperty.id)
+
         return {
           ...newProperty,
           purchaseDate: newProperty.purchaseDate ? newProperty.purchaseDate.toISOString().split("T")[0] : "",
@@ -95,15 +119,25 @@ export class PortfolioManagerDB {
           images: [],
         }
       }
+
+      console.error("No property returned from insert operation")
       return null
     } catch (error) {
-      console.error("Error adding property:", error)
-      return null
+      console.error("Error adding property to database:", error)
+      throw error
     }
   }
 
   static async updateProperty(id: string, updates: Partial<Property>): Promise<Property | null> {
     try {
+      console.log("Updating property:", id, updates)
+
+      // Validate UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (!uuidRegex.test(id)) {
+        throw new Error(`Invalid UUID format: ${id}`)
+      }
+
       const result = await sql`
         UPDATE properties SET
           name = COALESCE(${updates.name}, name),
@@ -120,10 +154,11 @@ export class PortfolioManagerDB {
           loan_term_years = COALESCE(${updates.loanTermYears}, loan_term_years),
           property_type = COALESCE(${updates.propertyType}, property_type),
           status = COALESCE(${updates.status}, status),
-          notes = COALESCE(${updates.notes}, notes)
-        WHERE id = ${id}
+          notes = COALESCE(${updates.notes}, notes),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${id}::uuid
         RETURNING 
-          id,
+          id::text as id,
           name,
           address,
           state,
@@ -145,7 +180,14 @@ export class PortfolioManagerDB {
 
       if (result.length > 0) {
         const updatedProperty = result[0]
-        const images = await this.getPropertyImages(id)
+        let images: PropertyImage[] = []
+        try {
+          images = await this.getPropertyImages(id)
+        } catch (error) {
+          console.warn(`Failed to load images for updated property ${id}:`, error)
+          images = []
+        }
+
         return {
           ...updatedProperty,
           purchaseDate: updatedProperty.purchaseDate ? updatedProperty.purchaseDate.toISOString().split("T")[0] : "",
@@ -157,26 +199,51 @@ export class PortfolioManagerDB {
       return null
     } catch (error) {
       console.error("Error updating property:", error)
-      return null
+      throw error
     }
   }
 
   static async deleteProperty(id: string): Promise<boolean> {
     try {
-      const result = await sql`DELETE FROM properties WHERE id = ${id}`
+      console.log("Deleting property with UUID:", id)
+
+      // Validate UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (!uuidRegex.test(id)) {
+        console.error("Invalid UUID format:", id)
+        throw new Error(`Invalid UUID format: ${id}`)
+      }
+
+      // Delete the property (CASCADE will handle images)
+      const result = await sql`DELETE FROM properties WHERE id = ${id}::uuid`
+
+      console.log("Property deleted, affected rows:", result.count)
       return result.count > 0
     } catch (error) {
       console.error("Error deleting property:", error)
-      return false
+      throw error
     }
   }
 
   static async getPropertyImages(propertyId: string): Promise<PropertyImage[]> {
     try {
+      // Check if property_images table exists first
+      const tableExists = await sql`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'property_images'
+        )
+      `
+
+      if (!tableExists[0].exists) {
+        console.log("property_images table does not exist, returning empty array")
+        return []
+      }
+
       const images = await sql`
         SELECT 
-          id,
-          property_id as "property_id",
+          id::text as id,
+          property_id::text as "propertyId",
           url,
           filename,
           size,
@@ -184,7 +251,7 @@ export class PortfolioManagerDB {
           is_primary as "isPrimary",
           uploaded_at as "uploadedAt"
         FROM property_images 
-        WHERE property_id = ${propertyId}
+        WHERE property_id = ${propertyId}::uuid
         ORDER BY is_primary DESC, uploaded_at ASC
       `
 
@@ -205,10 +272,10 @@ export class PortfolioManagerDB {
     try {
       const result = await sql`
         INSERT INTO property_images (property_id, url, filename, size, caption, is_primary)
-        VALUES (${propertyId}, ${image.url}, ${image.filename}, ${image.size}, ${image.caption || null}, ${image.isPrimary})
+        VALUES (${propertyId}::uuid, ${image.url}, ${image.filename}, ${image.size}, ${image.caption || null}, ${image.isPrimary})
         RETURNING 
-          id,
-          property_id as "property_id",
+          id::text as id,
+          property_id::text as "propertyId",
           url,
           filename,
           size,
@@ -227,13 +294,13 @@ export class PortfolioManagerDB {
       return null
     } catch (error) {
       console.error("Error adding property image:", error)
-      return null
+      throw error
     }
   }
 
   static async deletePropertyImage(imageId: string): Promise<boolean> {
     try {
-      const result = await sql`DELETE FROM property_images WHERE id = ${imageId}`
+      const result = await sql`DELETE FROM property_images WHERE id = ${imageId}::uuid`
       return result.count > 0
     } catch (error) {
       console.error("Error deleting property image:", error)
@@ -243,12 +310,12 @@ export class PortfolioManagerDB {
 
   static async setPrimaryImage(propertyId: string, imageId: string): Promise<boolean> {
     try {
-      await sql`UPDATE property_images SET is_primary = false WHERE property_id = ${propertyId}`
+      await sql`UPDATE property_images SET is_primary = false WHERE property_id = ${propertyId}::uuid`
 
       const result = await sql`
         UPDATE property_images 
         SET is_primary = true 
-        WHERE id = ${imageId} AND property_id = ${propertyId}
+        WHERE id = ${imageId}::uuid AND property_id = ${propertyId}::uuid
       `
 
       return result.count > 0

@@ -1,14 +1,3 @@
-export interface PropertyImage {
-  id: string
-  property_id?: string
-  url: string
-  filename: string
-  size: number
-  uploadedAt: string
-  caption?: string
-  isPrimary: boolean
-}
-
 export interface Property {
   id: string
   name: string
@@ -23,12 +12,23 @@ export interface Property {
   loanAmount: number
   interestRate: number
   loanTermYears: number
-  propertyType: "single-family" | "multi-family" | "condo" | "townhouse" | "commercial"
-  status: "owned" | "under-contract" | "analyzing" | "sold"
+  propertyType: string
+  status: string
   notes?: string
-  images: PropertyImage[]
   createdAt: string
   updatedAt: string
+  images: PropertyImage[]
+}
+
+export interface PropertyImage {
+  id: string
+  propertyId: string
+  url: string
+  filename: string
+  size: number
+  caption?: string
+  isPrimary: boolean
+  uploadedAt: string
 }
 
 export interface PortfolioMetrics {
@@ -53,17 +53,4 @@ export interface PropertyPerformance {
   totalReturn: number
   appreciation: number
   appreciationPercent: number
-}
-
-export interface ChatHistoryItem {
-  id: string
-  title: string
-  messages: Array<{
-    id: string
-    content: string
-    sender: "user" | "ai"
-    timestamp: string
-  }>
-  createdAt: string
-  updatedAt: string
 }

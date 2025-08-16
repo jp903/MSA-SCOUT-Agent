@@ -3,24 +3,93 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Save, X } from "lucide-react"
-import { format } from "date-fns"
-import { cn } from "@/lib/utils"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
+import { DollarSign, Home, Percent } from "lucide-react"
 import type { Property } from "@/lib/portfolio-types"
 
 interface PropertyFormProps {
   property?: Property
-  onSubmit: (data: Omit<Property, "id" | "createdAt" | "updatedAt" | "images">) => void
+  onSubmit: (data: Omit<Property, "id" | "createdAt" | "updatedAt" | "images">) => Promise<void>
   onCancel: () => void
 }
+
+const US_STATES = [
+  "AL",
+  "AK",
+  "AZ",
+  "AR",
+  "CA",
+  "CO",
+  "CT",
+  "DE",
+  "FL",
+  "GA",
+  "HI",
+  "ID",
+  "IL",
+  "IN",
+  "IA",
+  "KS",
+  "KY",
+  "LA",
+  "ME",
+  "MD",
+  "MA",
+  "MI",
+  "MN",
+  "MS",
+  "MO",
+  "MT",
+  "NE",
+  "NV",
+  "NH",
+  "NJ",
+  "NM",
+  "NY",
+  "NC",
+  "ND",
+  "OH",
+  "OK",
+  "OR",
+  "PA",
+  "RI",
+  "SC",
+  "SD",
+  "TN",
+  "TX",
+  "UT",
+  "VT",
+  "VA",
+  "WA",
+  "WV",
+  "WI",
+  "WY",
+]
+
+const PROPERTY_TYPES = [
+  { value: "single-family", label: "Single Family Home" },
+  { value: "multi-family", label: "Multi-Family Home" },
+  { value: "condo", label: "Condominium" },
+  { value: "townhouse", label: "Townhouse" },
+  { value: "apartment", label: "Apartment Building" },
+  { value: "commercial", label: "Commercial Property" },
+  { value: "land", label: "Land/Lot" },
+  { value: "other", label: "Other" },
+]
+
+const PROPERTY_STATUS = [
+  { value: "analyzing", label: "Analyzing" },
+  { value: "interested", label: "Interested" },
+  { value: "under-contract", label: "Under Contract" },
+  { value: "owned", label: "Owned" },
+  { value: "sold", label: "Sold" },
+]
 
 export function PropertyForm({ property, onSubmit, onCancel }: PropertyFormProps) {
   const [formData, setFormData] = useState({
@@ -41,314 +110,390 @@ export function PropertyForm({ property, onSubmit, onCancel }: PropertyFormProps
     notes: property?.notes || "",
   })
 
-  const [purchaseDate, setPurchaseDate] = useState<Date | undefined>(
-    property?.purchaseDate ? new Date(property.purchaseDate) : undefined,
-  )
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
 
-    const data = {
-      name: formData.name,
-      address: formData.address,
-      state: formData.state,
-      purchasePrice: Number.parseFloat(formData.purchasePrice) || 0,
-      purchaseDate: purchaseDate ? format(purchaseDate, "yyyy-MM-dd") : "",
-      currentValue: Number.parseFloat(formData.currentValue) || 0,
-      monthlyRent: Number.parseFloat(formData.monthlyRent) || 0,
-      monthlyExpenses: Number.parseFloat(formData.monthlyExpenses) || 0,
-      downPayment: Number.parseFloat(formData.downPayment) || 0,
-      loanAmount: Number.parseFloat(formData.loanAmount) || 0,
-      interestRate: Number.parseFloat(formData.interestRate) || 0,
-      loanTermYears: Number.parseInt(formData.loanTermYears) || 30,
-      propertyType: formData.propertyType as Property["propertyType"],
-      status: formData.status as Property["status"],
-      notes: formData.notes,
+    if (!formData.name.trim()) {
+      newErrors.name = "Property name is required"
     }
 
-    onSubmit(data)
+    if (!formData.address.trim()) {
+      newErrors.address = "Address is required"
+    }
+
+    if (!formData.state) {
+      newErrors.state = "State is required"
+    }
+
+    if (!formData.purchasePrice || Number.parseFloat(formData.purchasePrice) <= 0) {
+      newErrors.purchasePrice = "Valid purchase price is required"
+    }
+
+    if (!formData.currentValue || Number.parseFloat(formData.currentValue) <= 0) {
+      newErrors.currentValue = "Valid current value is required"
+    }
+
+    if (formData.monthlyRent && Number.parseFloat(formData.monthlyRent) < 0) {
+      newErrors.monthlyRent = "Monthly rent cannot be negative"
+    }
+
+    if (formData.monthlyExpenses && Number.parseFloat(formData.monthlyExpenses) < 0) {
+      newErrors.monthlyExpenses = "Monthly expenses cannot be negative"
+    }
+
+    if (formData.downPayment && Number.parseFloat(formData.downPayment) < 0) {
+      newErrors.downPayment = "Down payment cannot be negative"
+    }
+
+    if (formData.loanAmount && Number.parseFloat(formData.loanAmount) < 0) {
+      newErrors.loanAmount = "Loan amount cannot be negative"
+    }
+
+    if (
+      formData.interestRate &&
+      (Number.parseFloat(formData.interestRate) < 0 || Number.parseFloat(formData.interestRate) > 50)
+    ) {
+      newErrors.interestRate = "Interest rate must be between 0 and 50%"
+    }
+
+    if (
+      formData.loanTermYears &&
+      (Number.parseInt(formData.loanTermYears) < 1 || Number.parseInt(formData.loanTermYears) > 50)
+    ) {
+      newErrors.loanTermYears = "Loan term must be between 1 and 50 years"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
-  const US_STATES = [
-    "Alabama",
-    "Alaska",
-    "Arizona",
-    "Arkansas",
-    "California",
-    "Colorado",
-    "Connecticut",
-    "Delaware",
-    "Florida",
-    "Georgia",
-    "Hawaii",
-    "Idaho",
-    "Illinois",
-    "Indiana",
-    "Iowa",
-    "Kansas",
-    "Kentucky",
-    "Louisiana",
-    "Maine",
-    "Maryland",
-    "Massachusetts",
-    "Michigan",
-    "Minnesota",
-    "Mississippi",
-    "Missouri",
-    "Montana",
-    "Nebraska",
-    "Nevada",
-    "New Hampshire",
-    "New Jersey",
-    "New Mexico",
-    "New York",
-    "North Carolina",
-    "North Dakota",
-    "Ohio",
-    "Oklahoma",
-    "Oregon",
-    "Pennsylvania",
-    "Rhode Island",
-    "South Carolina",
-    "South Dakota",
-    "Tennessee",
-    "Texas",
-    "Utah",
-    "Vermont",
-    "Virginia",
-    "Washington",
-    "West Virginia",
-    "Wisconsin",
-    "Wyoming",
-  ]
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!validateForm()) {
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const submitData = {
+        name: formData.name.trim(),
+        address: formData.address.trim(),
+        state: formData.state,
+        purchasePrice: Number.parseFloat(formData.purchasePrice) || 0,
+        purchaseDate: formData.purchaseDate || "",
+        currentValue: Number.parseFloat(formData.currentValue) || 0,
+        monthlyRent: Number.parseFloat(formData.monthlyRent) || 0,
+        monthlyExpenses: Number.parseFloat(formData.monthlyExpenses) || 0,
+        downPayment: Number.parseFloat(formData.downPayment) || 0,
+        loanAmount: Number.parseFloat(formData.loanAmount) || 0,
+        interestRate: Number.parseFloat(formData.interestRate) || 0,
+        loanTermYears: Number.parseInt(formData.loanTermYears) || 30,
+        propertyType: formData.propertyType,
+        status: formData.status,
+        notes: formData.notes.trim(),
+      }
+
+      await onSubmit(submitData)
+    } catch (error) {
+      console.error("Error submitting form:", error)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: "" }))
+    }
+  }
 
   return (
-    <Card className="max-w-4xl mx-auto">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">{property ? "Edit Property" : "Add New Property"}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Basic Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Basic Information</h3>
-
-              <div>
-                <Label htmlFor="name">Property Name</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g., Sunset Villa"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="address">Address</Label>
-                <Input
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="123 Main St, City"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="state">State</Label>
-                <Select value={formData.state} onValueChange={(value) => setFormData({ ...formData, state: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select state" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {US_STATES.map((state) => (
-                      <SelectItem key={state} value={state}>
-                        {state}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="propertyType">Property Type</Label>
-                <Select
-                  value={formData.propertyType}
-                  onValueChange={(value) => setFormData({ ...formData, propertyType: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="single-family">Single Family</SelectItem>
-                    <SelectItem value="multi-family">Multi Family</SelectItem>
-                    <SelectItem value="condo">Condo</SelectItem>
-                    <SelectItem value="townhouse">Townhouse</SelectItem>
-                    <SelectItem value="commercial">Commercial</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="status">Status</Label>
-                <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="analyzing">Analyzing</SelectItem>
-                    <SelectItem value="under-contract">Under Contract</SelectItem>
-                    <SelectItem value="owned">Owned</SelectItem>
-                    <SelectItem value="sold">Sold</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Basic Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Home className="h-5 w-5" />
+            Basic Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Property Name *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => handleInputChange("name", e.target.value)}
+                placeholder="e.g., Sunset Villa, Downtown Condo"
+                className={errors.name ? "border-red-500" : ""}
+              />
+              {errors.name && <p className="text-sm text-red-600">{errors.name}</p>}
             </div>
 
-            {/* Financial Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Financial Information</h3>
-
-              <div>
-                <Label htmlFor="purchasePrice">Purchase Price ($)</Label>
-                <Input
-                  id="purchasePrice"
-                  type="number"
-                  value={formData.purchasePrice}
-                  onChange={(e) => setFormData({ ...formData, purchasePrice: e.target.value })}
-                  placeholder="500000"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label>Purchase Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !purchaseDate && "text-muted-foreground",
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {purchaseDate ? format(purchaseDate, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar mode="single" selected={purchaseDate} onSelect={setPurchaseDate} initialFocus />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div>
-                <Label htmlFor="currentValue">Current Value ($)</Label>
-                <Input
-                  id="currentValue"
-                  type="number"
-                  value={formData.currentValue}
-                  onChange={(e) => setFormData({ ...formData, currentValue: e.target.value })}
-                  placeholder="550000"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="monthlyRent">Monthly Rent ($)</Label>
-                <Input
-                  id="monthlyRent"
-                  type="number"
-                  value={formData.monthlyRent}
-                  onChange={(e) => setFormData({ ...formData, monthlyRent: e.target.value })}
-                  placeholder="2500"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="monthlyExpenses">Monthly Expenses ($)</Label>
-                <Input
-                  id="monthlyExpenses"
-                  type="number"
-                  value={formData.monthlyExpenses}
-                  onChange={(e) => setFormData({ ...formData, monthlyExpenses: e.target.value })}
-                  placeholder="800"
-                  required
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="propertyType">Property Type</Label>
+              <Select value={formData.propertyType} onValueChange={(value) => handleInputChange("propertyType", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select property type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PROPERTY_TYPES.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          {/* Loan Information */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Loan Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="downPayment">Down Payment ($)</Label>
-                <Input
-                  id="downPayment"
-                  type="number"
-                  value={formData.downPayment}
-                  onChange={(e) => setFormData({ ...formData, downPayment: e.target.value })}
-                  placeholder="100000"
-                />
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2 space-y-2">
+              <Label htmlFor="address">Address *</Label>
+              <Input
+                id="address"
+                value={formData.address}
+                onChange={(e) => handleInputChange("address", e.target.value)}
+                placeholder="123 Main Street, City"
+                className={errors.address ? "border-red-500" : ""}
+              />
+              {errors.address && <p className="text-sm text-red-600">{errors.address}</p>}
+            </div>
 
-              <div>
-                <Label htmlFor="interestRate">Interest Rate (%)</Label>
-                <Input
-                  id="interestRate"
-                  type="number"
-                  step="0.01"
-                  value={formData.interestRate}
-                  onChange={(e) => setFormData({ ...formData, interestRate: e.target.value })}
-                  placeholder="6.5"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="loanTermYears">Loan Term (Years)</Label>
-                <Input
-                  id="loanTermYears"
-                  type="number"
-                  value={formData.loanTermYears}
-                  onChange={(e) => setFormData({ ...formData, loanTermYears: e.target.value })}
-                  placeholder="30"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="state">State *</Label>
+              <Select value={formData.state} onValueChange={(value) => handleInputChange("state", value)}>
+                <SelectTrigger className={errors.state ? "border-red-500" : ""}>
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent>
+                  {US_STATES.map((state) => (
+                    <SelectItem key={state} value={state}>
+                      {state}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.state && <p className="text-sm text-red-600">{errors.state}</p>}
             </div>
           </div>
 
-          {/* Notes */}
-          <div>
+          <div className="space-y-2">
+            <Label htmlFor="status">Status</Label>
+            <Select value={formData.status} onValueChange={(value) => handleInputChange("status", value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                {PROPERTY_STATUS.map((status) => (
+                  <SelectItem key={status.value} value={status.value}>
+                    {status.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Financial Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            Financial Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="purchasePrice">Purchase Price *</Label>
+              <Input
+                id="purchasePrice"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.purchasePrice}
+                onChange={(e) => handleInputChange("purchasePrice", e.target.value)}
+                placeholder="450000"
+                className={errors.purchasePrice ? "border-red-500" : ""}
+              />
+              {errors.purchasePrice && <p className="text-sm text-red-600">{errors.purchasePrice}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="currentValue">Current Value *</Label>
+              <Input
+                id="currentValue"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.currentValue}
+                onChange={(e) => handleInputChange("currentValue", e.target.value)}
+                placeholder="475000"
+                className={errors.currentValue ? "border-red-500" : ""}
+              />
+              {errors.currentValue && <p className="text-sm text-red-600">{errors.currentValue}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="purchaseDate">Purchase Date</Label>
+              <Input
+                id="purchaseDate"
+                type="date"
+                value={formData.purchaseDate}
+                onChange={(e) => handleInputChange("purchaseDate", e.target.value)}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="monthlyRent">Monthly Rent</Label>
+              <Input
+                id="monthlyRent"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.monthlyRent}
+                onChange={(e) => handleInputChange("monthlyRent", e.target.value)}
+                placeholder="3200"
+                className={errors.monthlyRent ? "border-red-500" : ""}
+              />
+              {errors.monthlyRent && <p className="text-sm text-red-600">{errors.monthlyRent}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="monthlyExpenses">Monthly Expenses</Label>
+              <Input
+                id="monthlyExpenses"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.monthlyExpenses}
+                onChange={(e) => handleInputChange("monthlyExpenses", e.target.value)}
+                placeholder="1200"
+                className={errors.monthlyExpenses ? "border-red-500" : ""}
+              />
+              {errors.monthlyExpenses && <p className="text-sm text-red-600">{errors.monthlyExpenses}</p>}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Loan Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Percent className="h-5 w-5" />
+            Loan Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="downPayment">Down Payment</Label>
+              <Input
+                id="downPayment"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.downPayment}
+                onChange={(e) => handleInputChange("downPayment", e.target.value)}
+                placeholder="90000"
+                className={errors.downPayment ? "border-red-500" : ""}
+              />
+              {errors.downPayment && <p className="text-sm text-red-600">{errors.downPayment}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="loanAmount">Loan Amount</Label>
+              <Input
+                id="loanAmount"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.loanAmount}
+                onChange={(e) => handleInputChange("loanAmount", e.target.value)}
+                placeholder="360000"
+                className={errors.loanAmount ? "border-red-500" : ""}
+              />
+              {errors.loanAmount && <p className="text-sm text-red-600">{errors.loanAmount}</p>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="interestRate">Interest Rate (%)</Label>
+              <Input
+                id="interestRate"
+                type="number"
+                step="0.001"
+                min="0"
+                max="50"
+                value={formData.interestRate}
+                onChange={(e) => handleInputChange("interestRate", e.target.value)}
+                placeholder="6.5"
+                className={errors.interestRate ? "border-red-500" : ""}
+              />
+              {errors.interestRate && <p className="text-sm text-red-600">{errors.interestRate}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="loanTermYears">Loan Term (Years)</Label>
+              <Input
+                id="loanTermYears"
+                type="number"
+                min="1"
+                max="50"
+                value={formData.loanTermYears}
+                onChange={(e) => handleInputChange("loanTermYears", e.target.value)}
+                placeholder="30"
+                className={errors.loanTermYears ? "border-red-500" : ""}
+              />
+              {errors.loanTermYears && <p className="text-sm text-red-600">{errors.loanTermYears}</p>}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Notes */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Additional Notes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
             <Textarea
               id="notes"
               value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="Additional notes about this property..."
+              onChange={(e) => handleInputChange("notes", e.target.value)}
+              placeholder="Any additional information about this property..."
               rows={3}
             />
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Actions */}
-          <div className="flex gap-4 justify-end">
-            <Button type="button" variant="outline" onClick={onCancel}>
-              <X className="h-4 w-4 mr-2" />
-              Cancel
-            </Button>
-            <Button type="submit">
-              <Save className="h-4 w-4 mr-2" />
-              {property ? "Update Property" : "Add Property"}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+      {/* Form Actions */}
+      <div className="flex justify-end gap-4">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Saving..." : property ? "Update Property" : "Add Property"}
+        </Button>
+      </div>
+    </form>
   )
 }
-
-export default PropertyForm

@@ -1,199 +1,281 @@
 "use client"
+import {
+  Bot,
+  Calculator,
+  TrendingUp,
+  Building2,
+  BarChart3,
+  MessageSquare,
+  Plus,
+  Trash2,
+  Search,
+  DollarSign,
+  User,
+  LogOut,
+  Settings,
+} from "lucide-react"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Home, MessageSquare, Calculator, TrendingUp, Plus, Trash2, MoreHorizontal } from "lucide-react"
-import type { ChatHistoryItem } from "@/lib/portfolio-types"
+import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import type { ChatHistoryItem, User as UserType } from "@/lib/portfolio-types"
 
 interface AppSidebarProps {
-  activeView?: "home" | "chat" | "calculator" | "insights"
-  onViewChange?: (view: "home" | "chat" | "calculator" | "insights") => void
-  onNewChat?: () => void
-  chatHistory?: ChatHistoryItem[]
-  currentChatId?: string | null
-  onChatSelect?: (chatId: string) => void
-  onDeleteChat?: (chatId: string) => void
+  activeView: string
+  onViewChange: (view: string) => void
+  onNewChat: () => void
+  chatHistory: ChatHistoryItem[]
+  currentChatId: string | null
+  onChatSelect: (chatId: string) => void
+  onDeleteChat: (chatId: string) => void
+  user: UserType | null
+  onSignOut: () => void
 }
 
+const navigationItems = [
+  {
+    title: "Dashboard",
+    url: "chat",
+    icon: BarChart3,
+    description: "Overview & Tools",
+    requiresAuth: false,
+  },
+  {
+    title: "AI Chat",
+    url: "home",
+    icon: Bot,
+    description: "Chat Assistant",
+    requiresAuth: true,
+  },
+  {
+    title: "Deal Finder",
+    url: "deal-finder",
+    icon: Search,
+    description: "Find Properties",
+    requiresAuth: false,
+  },
+  {
+    title: "Calculator",
+    url: "calculator",
+    icon: Calculator,
+    description: "Investment Calculator",
+    requiresAuth: false,
+  },
+  {
+    title: "Market Insights",
+    url: "insights",
+    icon: TrendingUp,
+    description: "Market Analysis",
+    requiresAuth: false,
+  },
+  {
+    title: "Property Analysis",
+    url: "property-analysis",
+    icon: Building2,
+    description: "Property Reports",
+    requiresAuth: false,
+  },
+  {
+    title: "Portfolio Tracker",
+    url: "portfolio-tracker",
+    icon: DollarSign,
+    description: "Track Investments",
+    requiresAuth: false,
+  },
+]
+
 export function AppSidebar({
-  activeView = "home",
-  onViewChange = () => {},
-  onNewChat = () => {},
-  chatHistory = [],
-  currentChatId = null,
-  onChatSelect = () => {},
-  onDeleteChat = () => {},
+  activeView,
+  onViewChange,
+  onNewChat,
+  chatHistory,
+  currentChatId,
+  onChatSelect,
+  onDeleteChat,
+  user,
+  onSignOut,
 }: AppSidebarProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false)
-
-  /* ————————————————————— NAV ITEMS ————————————————————— */
-  const menuItems = [
-    {
-      id: "home" as const, // points to the dashboard page
-      label: "Chat",
-      icon: Home,
-      description: "AI Assistant Chat",
-    },
-    {
-      id: "chat" as const, // points to the chat page
-      label: "Home",
-      icon: MessageSquare,
-      description: "Dashboard & Tools",
-    },
-    {
-      id: "calculator" as const,
-      label: "Calculator",
-      icon: Calculator,
-      description: "Investment Calculator",
-    },
-    {
-      id: "insights" as const,
-      label: "Market Insights",
-      icon: TrendingUp,
-      description: "Market Analysis",
-    },
-  ]
-
-  /* ————————————————————— HELPERS ————————————————————— */
-  const formatChatTitle = (chat: ChatHistoryItem) => {
-    if (chat.title && chat.title !== "New Chat") {
-      return chat.title.length > 30 ? chat.title.slice(0, 30) + "…" : chat.title
-    }
-    const firstUserMsg = chat.messages?.find((m) => m.role === "user")
-    if (firstUserMsg?.content) {
-      const content = firstUserMsg.content.slice(0, 30)
-      return content.length > 30 ? content + "…" : content
-    }
-    return "New Chat"
+  const getUserInitials = (firstName: string, lastName: string) => {
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
   }
 
-  const formatChatDate = (date: Date) => {
-    const now = Date.now()
-    const diffHrs = (now - date.getTime()) / 3600000
-    if (diffHrs < 1) return "Just now"
-    if (diffHrs < 24) return `${Math.floor(diffHrs)}h ago`
-    if (diffHrs < 48) return "Yesterday"
-    return date.toLocaleDateString()
-  }
-
-  /* ————————————————————— RENDER ————————————————————— */
   return (
-    <Sidebar className="border-r bg-white" collapsible="icon">
-      {/* -------- Header -------- */}
-      <SidebarHeader className="border-b p-4">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-purple-600">
-            <span className="text-sm font-bold text-white">MS</span>
+    <Sidebar>
+      <SidebarHeader>
+        <div className="flex items-center gap-2 px-2 py-1">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+            <Building2 className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h2 className="font-semibold text-gray-900">MSASCOUT</h2>
-            <p className="text-xs text-gray-500">Property AI Agent</p>
+            <h2 className="font-bold text-lg">MSASCOUT</h2>
+            <p className="text-xs text-gray-600">AI Property Agent</p>
           </div>
         </div>
-
-        <Button
-          onClick={onNewChat}
-          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          New Chat
-        </Button>
       </SidebarHeader>
 
-      {/* -------- Content -------- */}
-      <SidebarContent className="p-4">
+      <SidebarContent>
         {/* Navigation */}
-        <div className="mb-6">
-          <h3 className="mb-3 text-sm font-medium text-gray-700">Navigation</h3>
-          <SidebarMenu>
-            {menuItems.map((item) => (
-              <SidebarMenuItem key={item.id}>
-                <SidebarMenuButton
-                  onClick={() => onViewChange(item.id)}
-                  isActive={activeView === item.id}
-                  className="w-full justify-start"
-                >
-                  <item.icon className="h-4 w-4" />
-                  <span>{item.label}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </div>
+        <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navigationItems.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange(item.url)}
+                    isActive={activeView === item.url}
+                    className="w-full"
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-        {/* Chat history */}
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-700">Recent Chats</h3>
-            <Badge variant="secondary" className="text-xs">
-              {chatHistory.length}
-            </Badge>
-          </div>
-
-          <div className="max-h-[400px] space-y-2 overflow-y-auto">
-            {chatHistory.length === 0 ? (
-              <Card className="border-dashed">
-                <CardContent className="p-4 text-center">
-                  <MessageSquare className="mx-auto mb-2 h-8 w-8 text-gray-400" />
-                  <p className="text-sm text-gray-500">No chats yet</p>
-                  <p className="text-xs text-gray-400">Start a conversation!</p>
-                </CardContent>
-              </Card>
-            ) : (
-              chatHistory.map((chat) => (
-                <Card
-                  key={chat.id}
-                  className={`cursor-pointer transition-all hover:shadow-md ${
-                    currentChatId === chat.id ? "bg-blue-50 ring-2 ring-blue-500" : "hover:bg-gray-50"
-                  }`}
-                >
-                  <CardContent className="p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1" onClick={() => onChatSelect(chat.id)}>
-                        <h4 className="truncate text-sm font-medium text-gray-900">{formatChatTitle(chat)}</h4>
-                        <div className="mt-1 flex items-center gap-2">
-                          <p className="text-xs text-gray-500">{chat.messages?.length ?? 0} messages</p>
-                          <span className="text-xs text-gray-400">•</span>
-                          <p className="text-xs text-gray-400">{formatChatDate(new Date(chat.updatedAt))}</p>
-                        </div>
+        {/* Chat History - Only show if user is authenticated */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="flex items-center justify-between">
+            <span>Chat History</span>
+            <Button size="sm" variant="ghost" onClick={onNewChat} className="h-6 w-6 p-0">
+              <Plus className="h-3 w-3" />
+            </Button>
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <ScrollArea className="h-[300px]">
+              <SidebarMenu>
+                {!user ? (
+                  <div className="px-2 py-4 text-center text-sm text-gray-500">Sign in to view chat history</div>
+                ) : chatHistory.length === 0 ? (
+                  <div className="px-2 py-4 text-center text-sm text-gray-500">
+                    No chat history yet.
+                    <br />
+                    Start a conversation!
+                  </div>
+                ) : (
+                  chatHistory.map((chat) => (
+                    <SidebarMenuItem key={chat.id}>
+                      <div className="group flex items-center gap-2 w-full">
+                        <SidebarMenuButton
+                          onClick={() => onChatSelect(chat.id)}
+                          isActive={currentChatId === chat.id}
+                          className="flex-1 justify-start"
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                          <span className="truncate">{chat.title}</span>
+                        </SidebarMenuButton>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onDeleteChat(chat.id)
+                          }}
+                          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
+                      <div className="px-6 pb-1">
+                        <p className="text-xs text-gray-500">
+                          {chat.messages?.length || 0} messages • {new Date(chat.updatedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </SidebarMenuItem>
+                  ))
+                )}
+              </SidebarMenu>
+            </ScrollArea>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
 
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-gray-200">
-                            <MoreHorizontal className="h-3 w-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => onDeleteChat(chat.id)}
-                            className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+      <SidebarFooter>
+        {/* User Profile - Show different content based on auth status */}
+        <div className="p-2">
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="w-full justify-start p-2 h-auto">
+                  <div className="flex items-center gap-3 w-full">
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white text-sm">
+                        {getUserInitials(user.firstName, user.lastName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-medium">
+                        {user.firstName} {user.lastName}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">{user.email}</p>
                     </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="px-2 py-1.5">
+                  <p className="text-sm font-medium">
+                    {user.firstName} {user.lastName}
+                  </p>
+                  <p className="text-xs text-gray-500">{user.email}</p>
+                  {user.company && <p className="text-xs text-gray-500">{user.company}</p>}
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <User className="mr-2 h-4 w-4" />
+                  Profile Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Preferences
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onSignOut} className="text-red-600">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <div className="text-center">
+              <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-2">
+                <User className="h-4 w-4 text-gray-500" />
+              </div>
+              <p className="text-xs text-gray-500 mb-2">Not signed in</p>
+              <p className="text-xs text-gray-400">Sign in for chat access</p>
+            </div>
+          )}
+        </div>
+
+        <div className="p-2">
+          <div className="text-xs text-gray-500 text-center">
+            <p>MSASCOUT v2.0</p>
+            <p>AI-Powered Property Investment</p>
           </div>
         </div>
-      </SidebarContent>
+      </SidebarFooter>
 
       <SidebarRail />
     </Sidebar>
