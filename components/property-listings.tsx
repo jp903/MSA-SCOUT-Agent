@@ -10,6 +10,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Search,
   Filter,
@@ -27,7 +29,7 @@ import {
   Star,
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import type { PropertyListing, PropertySearchFilters, MSAInfo } from "@/lib/property-research-agent"
+import type { PropertyListing, PropertySearchFilters, MSAInfo } from "@/lib/property-search-agent"
 
 const US_STATES = [
   "Alabama",
@@ -82,29 +84,6 @@ const US_STATES = [
   "Wyoming",
 ]
 
-const MSA_BY_STATE: Record<string, string[]> = {
-  Texas: [
-    "Dallas-Fort Worth-Arlington",
-    "Houston-The Woodlands-Sugar Land",
-    "San Antonio-New Braunfels",
-    "Austin-Round Rock",
-  ],
-  California: [
-    "Los Angeles-Long Beach-Anaheim",
-    "San Francisco-Oakland-Hayward",
-    "San Diego-Carlsbad",
-    "Sacramento-Roseville-Arden-Arcade",
-  ],
-  Florida: [
-    "Miami-Fort Lauderdale-West Palm Beach",
-    "Tampa-St. Petersburg-Clearwater",
-    "Orlando-Kissimmee-Sanford",
-    "Jacksonville",
-  ],
-  "New York": ["New York-Newark-Jersey City", "Buffalo-Cheektowaga-Niagara Falls", "Rochester", "Syracuse"],
-  // Add more states and MSAs as needed
-}
-
 const PROPERTY_TYPES = [
   { value: "residential", label: "Residential", icon: Home },
   { value: "commercial", label: "Commercial", icon: Building },
@@ -128,30 +107,33 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
     state: "",
     msa: "",
     propertyType: [],
-    minPrice: 0,
-    maxPrice: 2000000,
-    minBedrooms: 0,
+    minPrice: 100000,
+    maxPrice: 1000000,
+    minBedrooms: 1,
     maxBedrooms: 10,
+    minBathrooms: 1,
+    maxBathrooms: 10,
     sortBy: "price",
     sortOrder: "asc",
   })
 
-  const [priceRange, setPriceRange] = useState([0, 2000000])
-  const [bedroomRange, setBedroomRange] = useState([0, 10])
-
-  // Removed or commented out the useEffect that triggers search when state and MSA are entered
-  // useEffect(() => {
-  //   if (filters.state && filters.msa) {
-  //     searchProperties()
-  //     getMSAInfo()
-  //   }
-  // }, [filters.state, filters.msa])
+  const [priceRange, setPriceRange] = useState([100000, 1000000])
+  const [bedroomRange, setBedroomRange] = useState([1, 10])
 
   const searchProperties = async () => {
-    if (!filters.state || !filters.msa) return
+    if (!filters.state || !filters.msa) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter both state and MSA to search for properties",
+        variant: "destructive",
+      })
+      return
+    }
 
     setLoading(true)
     try {
+      console.log("🔍 Starting property search...")
+
       // Get MSA info first
       await getMSAInfo()
 
@@ -163,30 +145,44 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
         maxBedrooms: bedroomRange[1],
       }
 
-      console.log("Search filters being sent:", searchFilters)
+      console.log("📋 Search filters being sent:", searchFilters)
 
       const response = await fetch("/api/property-search", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         body: JSON.stringify(searchFilters),
       })
 
-      if (!response.ok) throw new Error("Failed to search properties")
+      console.log("📡 API response status:", response.status)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.details || errorData.error || `HTTP ${response.status}`)
+      }
 
       const data = await response.json()
-      setProperties(data.properties || [])
+      console.log("📊 API response data:", data)
 
-      toast({
-        title: "Search Complete",
-        description: `Found ${data.properties?.length || 0} properties`,
-      })
-    } catch (error) {
-      console.error("Error searching properties:", error)
+      if (data.success && Array.isArray(data.properties)) {
+        setProperties(data.properties)
+        toast({
+          title: "Search Complete",
+          description: `Found ${data.properties.length} properties matching your criteria`,
+        })
+      } else {
+        throw new Error(data.error || "Invalid response format")
+      }
+    } catch (error: any) {
+      console.error("❌ Property search error:", error)
       toast({
         title: "Search Error",
-        description: "Failed to search properties",
+        description: error.message || "Failed to search properties. Please try again.",
         variant: "destructive",
       })
+      setProperties([])
     } finally {
       setLoading(false)
     }
@@ -196,21 +192,33 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
     if (!filters.state || !filters.msa) return
 
     try {
+      console.log("📊 Getting MSA info...")
+
       const response = await fetch("/api/msa-info", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         body: JSON.stringify({
           msa: filters.msa,
           state: filters.state,
         }),
       })
 
-      if (!response.ok) throw new Error("Failed to get MSA info")
+      if (!response.ok) {
+        console.warn("⚠️ Failed to get MSA info, continuing without it")
+        return
+      }
 
       const data = await response.json()
-      setMsaInfo(data.msaInfo)
+      if (data.success && data.msaInfo) {
+        setMsaInfo(data.msaInfo)
+        console.log("✅ MSA info retrieved successfully")
+      }
     } catch (error) {
-      console.error("Error getting MSA info:", error)
+      console.warn("⚠️ Error getting MSA info:", error)
+      // Don't fail the entire search if MSA info fails
     }
   }
 
@@ -239,6 +247,13 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
     return colors[type as keyof typeof colors] || colors.residential
   }
 
+  const handlePropertyTypeChange = (type: string, checked: boolean) => {
+    setFilters((prev) => ({
+      ...prev,
+      propertyType: checked ? [...prev.propertyType, type] : prev.propertyType.filter((t) => t !== type),
+    }))
+  }
+
   return (
     <div className="flex h-[calc(100vh-8rem)] gap-6">
       {/* Filters Sidebar */}
@@ -255,44 +270,57 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
               {/* Location Selection */}
               <div className="space-y-3">
                 <h3 className="font-semibold text-sm">Location</h3>
-                <Input
-                  placeholder="Enter State (e.g., Texas, California)"
-                  value={filters.state}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, state: e.target.value, msa: "" }))}
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="state">State</Label>
+                  <Select
+                    value={filters.state}
+                    onValueChange={(value) => setFilters((prev) => ({ ...prev, state: value, msa: "" }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {US_STATES.map((state) => (
+                        <SelectItem key={state} value={state}>
+                          {state}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {filters.state && (
-                  <Input
-                    placeholder="Enter MSA (e.g., Dallas-Fort Worth-Arlington)"
-                    value={filters.msa}
-                    onChange={(e) => setFilters((prev) => ({ ...prev, msa: e.target.value }))}
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="msa">MSA (Metropolitan Statistical Area)</Label>
+                    <Input
+                      id="msa"
+                      placeholder="e.g., Austin-Round Rock, Dallas-Fort Worth-Arlington"
+                      value={filters.msa}
+                      onChange={(e) => setFilters((prev) => ({ ...prev, msa: e.target.value }))}
+                    />
+                  </div>
                 )}
               </div>
 
               {/* Property Type */}
               <div className="space-y-3">
                 <h3 className="font-semibold text-sm">Property Type</h3>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
                   {PROPERTY_TYPES.map((type) => {
                     const Icon = type.icon
-                    const isSelected = filters.propertyType?.includes(type.value)
+                    const isSelected = filters.propertyType.includes(type.value)
                     return (
-                      <Button
-                        key={type.value}
-                        variant={isSelected ? "default" : "outline"}
-                        size="sm"
-                        className="justify-start h-auto p-3"
-                        onClick={() => {
-                          const currentTypes = filters.propertyType || []
-                          const newTypes = isSelected
-                            ? currentTypes.filter((t) => t !== type.value)
-                            : [...currentTypes, type.value]
-                          setFilters((prev) => ({ ...prev, propertyType: newTypes }))
-                        }}
-                      >
-                        <Icon className="h-4 w-4 mr-2" />
-                        <span className="text-xs">{type.label}</span>
-                      </Button>
+                      <div key={type.value} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={type.value}
+                          checked={isSelected}
+                          onCheckedChange={(checked) => handlePropertyTypeChange(type.value, checked as boolean)}
+                        />
+                        <Label htmlFor={type.value} className="flex items-center gap-2 cursor-pointer">
+                          <Icon className="h-4 w-4" />
+                          {type.label}
+                        </Label>
+                      </div>
                     )
                   })}
                 </div>
@@ -306,7 +334,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                     value={priceRange}
                     onValueChange={setPriceRange}
                     max={2000000}
-                    min={0}
+                    min={50000}
                     step={25000}
                     className="w-full"
                   />
@@ -325,12 +353,12 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                     value={bedroomRange}
                     onValueChange={setBedroomRange}
                     max={10}
-                    min={0}
+                    min={1}
                     step={1}
                     className="w-full"
                   />
                   <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>{bedroomRange[0]}+ beds</span>
+                    <span>{bedroomRange[0]} bed</span>
                     <span>{bedroomRange[1]} beds</span>
                   </div>
                 </div>
@@ -341,16 +369,16 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                 <h3 className="font-semibold text-sm">Sort By</h3>
                 <Select
                   value={filters.sortBy}
-                  onValueChange={(value) => setFilters((prev) => ({ ...prev, sortBy: value as any }))}
+                  onValueChange={(value) => setFilters((prev) => ({ ...prev, sortBy: value }))}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="price">Price</SelectItem>
-                    <SelectItem value="date">Date Listed</SelectItem>
-                    <SelectItem value="size">Square Footage</SelectItem>
-                    <SelectItem value="roi">ROI Potential</SelectItem>
+                    <SelectItem value="bedrooms">Bedrooms</SelectItem>
+                    <SelectItem value="squareFootage">Square Footage</SelectItem>
+                    <SelectItem value="yearBuilt">Year Built</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -417,15 +445,31 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
           </CardHeader>
           <CardContent className="p-0">
             <ScrollArea className="h-[calc(100vh-20rem)]">
-              {properties.length === 0 ? (
+              {loading ? (
+                <div className="flex flex-col items-center justify-center h-64 text-center p-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Searching Properties...</h3>
+                  <p className="text-gray-600">Using AI to find the best investment opportunities</p>
+                </div>
+              ) : properties.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-center p-8">
                   <MapPin className="h-12 w-12 text-gray-400 mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No Properties Found</h3>
                   <p className="text-gray-600 mb-4">
                     {!filters.state || !filters.msa
-                      ? "Please select a state and MSA to search for properties"
+                      ? "Please select a state and enter an MSA to search for properties"
                       : "Try adjusting your search filters to find more properties"}
                   </p>
+                  {!filters.state || !filters.msa ? (
+                    <div className="text-sm text-gray-500">
+                      <p>Example MSAs:</p>
+                      <ul className="mt-1">
+                        <li>• Austin-Round Rock (Texas)</li>
+                        <li>• Dallas-Fort Worth-Arlington (Texas)</li>
+                        <li>• Miami-Fort Lauderdale-West Palm Beach (Florida)</li>
+                      </ul>
+                    </div>
+                  ) : null}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 p-4">
@@ -690,7 +734,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                                       <span>{property.listingSource.website}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                      <span>MLS ID:</span>
+                                      <span>Listing ID:</span>
                                       <span>{property.listingSource.listingId}</span>
                                     </div>
                                     <div className="flex justify-between">

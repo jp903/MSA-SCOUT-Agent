@@ -3,70 +3,92 @@ import { PropertySearchAgent, type PropertySearchFilters } from "@/lib/property-
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("Property search API called")
+    console.log("🔍 Property search API endpoint called")
 
     const body = await request.json()
-    console.log("Search filters received:", body)
+    console.log("📋 Received search filters:", body)
 
     // Validate required fields
-    if (!body.location || !body.propertyType || !body.minPrice || !body.maxPrice) {
+    if (!body.state || !body.msa) {
+      console.log("❌ Missing required fields: state or msa")
       return NextResponse.json(
-        { error: "Missing required fields: location, propertyType, minPrice, maxPrice" },
+        {
+          error: "Missing required fields",
+          details: "Both state and msa are required",
+          success: false,
+        },
         { status: 400 },
       )
     }
 
-    // Create search filters
+    // Build search filters with defaults
     const filters: PropertySearchFilters = {
-      location: body.location,
-      propertyType: body.propertyType,
-      minPrice: Number.parseInt(body.minPrice),
-      maxPrice: Number.parseInt(body.maxPrice),
-      minBedrooms: body.minBedrooms ? Number.parseInt(body.minBedrooms) : undefined,
-      maxBedrooms: body.maxBedrooms ? Number.parseInt(body.maxBedrooms) : undefined,
-      minBathrooms: body.minBathrooms ? Number.parseInt(body.minBathrooms) : undefined,
-      maxBathrooms: body.maxBathrooms ? Number.parseInt(body.maxBathrooms) : undefined,
-      minSquareFeet: body.minSquareFeet ? Number.parseInt(body.minSquareFeet) : undefined,
-      maxSquareFeet: body.maxSquareFeet ? Number.parseInt(body.maxSquareFeet) : undefined,
-      yearBuilt: body.yearBuilt
-        ? {
-            min: body.yearBuilt.min ? Number.parseInt(body.yearBuilt.min) : undefined,
-            max: body.yearBuilt.max ? Number.parseInt(body.yearBuilt.max) : undefined,
-          }
-        : undefined,
-      lotSize: body.lotSize
-        ? {
-            min: body.lotSize.min ? Number.parseFloat(body.lotSize.min) : undefined,
-            max: body.lotSize.max ? Number.parseFloat(body.lotSize.max) : undefined,
-          }
-        : undefined,
-      features: body.features || [],
-      investmentType: body.investmentType || "buy-and-hold",
+      state: body.state,
+      msa: body.msa,
+      propertyType: Array.isArray(body.propertyType) ? body.propertyType : ["residential"],
+      minPrice: Number(body.minPrice) || 100000,
+      maxPrice: Number(body.maxPrice) || 1000000,
+      minBedrooms: Number(body.minBedrooms) || 1,
+      maxBedrooms: Number(body.maxBedrooms) || 10,
+      minBathrooms: Number(body.minBathrooms) || 1,
+      maxBathrooms: Number(body.maxBathrooms) || 10,
+      sortBy: body.sortBy || "price",
+      sortOrder: body.sortOrder || "asc",
     }
 
-    console.log("Processed filters:", filters)
+    console.log("🎯 Processed search filters:", filters)
 
-    // Search for properties
-    const properties = await PropertySearchAgent.searchProperties(filters)
+    // Create search agent and search for properties
+    const searchAgent = new PropertySearchAgent()
+    const properties = await searchAgent.searchProperties(filters)
 
-    console.log(`Found ${properties.length} properties`)
+    console.log(`✅ Search completed successfully. Found ${properties.length} properties`)
+
+    // Sort properties if needed
+    const sortedProperties = properties.sort((a, b) => {
+      const aValue = a[filters.sortBy as keyof typeof a] as number
+      const bValue = b[filters.sortBy as keyof typeof b] as number
+
+      if (filters.sortOrder === "desc") {
+        return bValue - aValue
+      }
+      return aValue - bValue
+    })
 
     return NextResponse.json({
       success: true,
-      properties,
-      count: properties.length,
+      properties: sortedProperties,
+      count: sortedProperties.length,
       filters: filters,
+      timestamp: new Date().toISOString(),
+      message: `Found ${sortedProperties.length} properties matching your criteria`,
     })
   } catch (error: any) {
-    console.error("Property search API error:", error)
+    console.error("❌ Property search API error:", error)
 
     return NextResponse.json(
       {
-        error: "Failed to search properties",
-        details: error.message,
         success: false,
+        error: "Failed to search properties",
+        details: error.message || "Unknown error occurred",
+        properties: [],
+        count: 0,
+        timestamp: new Date().toISOString(),
       },
       { status: 500 },
     )
   }
+}
+
+export async function GET() {
+  return NextResponse.json({
+    message: "Property Search API",
+    version: "2.0.0",
+    status: "active",
+    endpoints: {
+      "POST /api/property-search": "Search for investment properties with filters",
+    },
+    requiredFields: ["state", "msa"],
+    optionalFields: ["propertyType", "minPrice", "maxPrice", "minBedrooms", "maxBedrooms", "sortBy", "sortOrder"],
+  })
 }
