@@ -1,7 +1,7 @@
-import { openai } from "@ai-sdk/openai"
 import { generateText } from "ai"
+import { openai } from "@ai-sdk/openai"
 
-export interface PropertySearchFilters {
+interface PropertySearchFilters {
   location: string
   minPrice?: number
   maxPrice?: number
@@ -10,12 +10,9 @@ export interface PropertySearchFilters {
   bathrooms?: number
   minSquareFeet?: number
   maxSquareFeet?: number
-  yearBuilt?: number
-  lotSize?: number
-  features?: string[]
 }
 
-export interface Property {
+interface Property {
   id: string
   address: string
   city: string
@@ -25,9 +22,9 @@ export interface Property {
   bedrooms: number
   bathrooms: number
   squareFeet: number
-  lotSize: number
-  yearBuilt: number
   propertyType: string
+  yearBuilt: number
+  lotSize: number
   description: string
   features: string[]
   images: string[]
@@ -44,13 +41,6 @@ export interface Property {
       price: number
       event: string
     }>
-    comparables: Array<{
-      address: string
-      price: number
-      squareFeet: number
-      pricePerSqFt: number
-      soldDate: string
-    }>
   }
   investmentMetrics: {
     estimatedRent: number
@@ -58,252 +48,124 @@ export interface Property {
     cashFlow: number
     roi: number
   }
-  neighborhood: {
-    walkScore: number
-    crimeRate: string
-    schools: Array<{
-      name: string
-      rating: number
-      type: string
-    }>
-    amenities: string[]
-  }
 }
 
-export class PropertySearchAgent {
-  private model = openai("gpt-4o")
-
-  async searchProperties(filters: PropertySearchFilters): Promise<Property[]> {
+class PropertySearchAgent {
+  private async generatePropertiesWithAI(filters: PropertySearchFilters): Promise<Property[]> {
     try {
-      console.log("🔍 Starting property search with filters:", filters)
+      const prompt = `Generate 25 realistic property listings for ${filters.location} with the following criteria:
+      - Price range: $${filters.minPrice || 0} - $${filters.maxPrice || 2000000}
+      - Property type: ${filters.propertyType || "any"}
+      - Bedrooms: ${filters.bedrooms || "any"}
+      - Bathrooms: ${filters.bathrooms || "any"}
+      - Square feet: ${filters.minSquareFeet || 0} - ${filters.maxSquareFeet || 10000}
 
-      const prompt = this.buildSearchPrompt(filters)
-      console.log("📝 Generated search prompt")
+      For each property, provide:
+      1. Realistic address in the specified location
+      2. Market-appropriate pricing
+      3. Detailed property features
+      4. Investment metrics (estimated rent, cap rate, cash flow, ROI)
+      5. Property description and amenities
+
+      Format as JSON array with properties matching the Property interface structure.
+      Make sure all properties strictly match the specified filters.
+      Include realistic market data, price history, and investment calculations.`
 
       const { text } = await generateText({
-        model: this.model,
+        model: openai("gpt-4o"),
         prompt,
         temperature: 0.7,
-        maxTokens: 8000,
       })
 
-      console.log("🤖 AI response received, parsing properties...")
+      // Parse the AI response
+      const aiProperties = JSON.parse(text)
 
-      const properties = this.parsePropertiesFromText(text, filters)
-      console.log(`✅ Successfully generated ${properties.length} properties`)
-
-      return properties
+      // Validate and ensure all properties match filters
+      return aiProperties
+        .filter((property: Property) => {
+          return this.validatePropertyAgainstFilters(property, filters)
+        })
+        .slice(0, 25)
     } catch (error) {
-      console.error("❌ Error in AI property search:", error)
-      console.log("🔄 Falling back to generated properties...")
+      console.error("AI property generation failed:", error)
       return this.generateFallbackProperties(filters)
     }
   }
 
-  private buildSearchPrompt(filters: PropertySearchFilters): string {
-    const location = filters.location || "Austin, TX"
-    const priceRange =
-      filters.minPrice && filters.maxPrice
-        ? `between $${filters.minPrice.toLocaleString()} and $${filters.maxPrice.toLocaleString()}`
-        : filters.minPrice
-          ? `starting from $${filters.minPrice.toLocaleString()}`
-          : filters.maxPrice
-            ? `up to $${filters.maxPrice.toLocaleString()}`
-            : "in various price ranges"
+  private validatePropertyAgainstFilters(property: Property, filters: PropertySearchFilters): boolean {
+    if (filters.minPrice && property.price < filters.minPrice) return false
+    if (filters.maxPrice && property.price > filters.maxPrice) return false
+    if (filters.bedrooms && property.bedrooms !== filters.bedrooms) return false
+    if (filters.bathrooms && property.bathrooms !== filters.bathrooms) return false
+    if (filters.minSquareFeet && property.squareFeet < filters.minSquareFeet) return false
+    if (filters.maxSquareFeet && property.squareFeet > filters.maxSquareFeet) return false
+    if (filters.propertyType && property.propertyType.toLowerCase() !== filters.propertyType.toLowerCase()) return false
 
-    return `Generate 25 realistic property listings for ${location} ${priceRange}.
-
-REQUIREMENTS:
-- All properties must be in or near ${location}
-- Price range: ${priceRange}
-- Property type: ${filters.propertyType || "any type"}
-- Bedrooms: ${filters.bedrooms ? `${filters.bedrooms}+` : "any"}
-- Bathrooms: ${filters.bathrooms ? `${filters.bathrooms}+` : "any"}
-- Square feet: ${filters.minSquareFeet ? `${filters.minSquareFeet}+` : "any size"}
-
-For each property, provide:
-1. Realistic address in ${location}
-2. Market-appropriate pricing for the area
-3. Detailed property specifications
-4. Investment metrics (estimated rent, cap rate, cash flow, ROI)
-5. Neighborhood information
-6. Comparable sales data
-7. Property features and amenities
-
-Format as JSON array with this structure:
-[
-  {
-    "id": "unique-id",
-    "address": "123 Main St",
-    "city": "Austin",
-    "state": "TX",
-    "zipCode": "78701",
-    "price": 450000,
-    "bedrooms": 3,
-    "bathrooms": 2,
-    "squareFeet": 1800,
-    "lotSize": 0.25,
-    "yearBuilt": 2015,
-    "propertyType": "Single Family",
-    "description": "Beautiful home with...",
-    "features": ["Hardwood floors", "Updated kitchen"],
-    "images": ["/modern-house-exterior.png", "/cozy-living-room.png"],
-    "listingAgent": {
-      "name": "John Smith",
-      "phone": "(512) 555-0123",
-      "email": "john@realty.com"
-    },
-    "marketData": {
-      "pricePerSqFt": 250,
-      "daysOnMarket": 15,
-      "priceHistory": [
-        {"date": "2024-01-15", "price": 450000, "event": "Listed"}
-      ],
-      "comparables": [
-        {
-          "address": "456 Oak St",
-          "price": 440000,
-          "squareFeet": 1750,
-          "pricePerSqFt": 251,
-          "soldDate": "2024-01-10"
-        }
-      ]
-    },
-    "investmentMetrics": {
-      "estimatedRent": 2800,
-      "capRate": 7.5,
-      "cashFlow": 450,
-      "roi": 12.3
-    },
-    "neighborhood": {
-      "walkScore": 85,
-      "crimeRate": "Low",
-      "schools": [
-        {"name": "Austin Elementary", "rating": 9, "type": "Elementary"}
-      ],
-      "amenities": ["Parks", "Shopping", "Restaurants"]
-    }
-  }
-]
-
-Make all data realistic for ${location} market conditions. Ensure investment metrics are calculated properly and make sense for the property price and estimated rent.`
-  }
-
-  private parsePropertiesFromText(text: string, filters: PropertySearchFilters): Property[] {
-    try {
-      // Try to extract JSON from the response
-      const jsonMatch = text.match(/\[[\s\S]*\]/)
-      if (jsonMatch) {
-        const properties = JSON.parse(jsonMatch[0])
-        if (Array.isArray(properties) && properties.length > 0) {
-          return properties.map((prop, index) => ({
-            ...prop,
-            id: prop.id || `ai-prop-${Date.now()}-${index}`,
-            images: prop.images || [
-              "/modern-house-exterior.png",
-              "/cozy-living-room.png",
-              "/modern-kitchen-interior.png",
-            ],
-          }))
-        }
-      }
-
-      // If JSON parsing fails, generate fallback
-      console.log("⚠️ Could not parse AI response as JSON, using fallback")
-      return this.generateFallbackProperties(filters)
-    } catch (error) {
-      console.error("❌ Error parsing AI response:", error)
-      return this.generateFallbackProperties(filters)
-    }
+    return true
   }
 
   private generateFallbackProperties(filters: PropertySearchFilters): Property[] {
-    const location = filters.location || "Austin, TX"
-    const [city, state] = location.split(", ")
-
     const properties: Property[] = []
-    const propertyTypes = ["Single Family", "Townhouse", "Condo", "Duplex"]
-    const streetNames = ["Main St", "Oak Ave", "Pine Dr", "Elm St", "Cedar Ln", "Maple Way", "Park Blvd", "Hill Rd"]
-    const features = [
-      "Hardwood floors",
-      "Updated kitchen",
-      "Granite countertops",
-      "Stainless appliances",
-      "Master suite",
-      "Walk-in closets",
-      "Fireplace",
-      "Patio",
-      "Garage",
-      "Central AC",
-      "New roof",
-      "Fresh paint",
-      "Landscaped yard",
-      "Storage space",
-    ]
+    const propertyTypes = ["Single Family", "Condo", "Townhouse", "Multi-Family"]
+    const streetNames = ["Main St", "Oak Ave", "Pine Rd", "Maple Dr", "Cedar Ln", "Elm St", "Park Ave", "First St"]
 
-    for (let i = 0; i < 25; i++) {
-      const basePrice = filters.minPrice || 300000
-      const maxPrice = filters.maxPrice || 800000
-      const price = Math.floor(Math.random() * (maxPrice - basePrice) + basePrice)
-
+    for (let i = 1; i <= 25; i++) {
       const bedrooms = filters.bedrooms || Math.floor(Math.random() * 4) + 2
       const bathrooms = filters.bathrooms || Math.floor(Math.random() * 3) + 1
-      const squareFeet = filters.minSquareFeet || Math.floor(Math.random() * 2000) + 1200
-      const yearBuilt = filters.yearBuilt || Math.floor(Math.random() * 30) + 1995
+      const squareFeet = filters.minSquareFeet || 800 + Math.floor(Math.random() * 2200)
+      const propertyType = filters.propertyType || propertyTypes[Math.floor(Math.random() * propertyTypes.length)]
 
-      const estimatedRent = Math.floor(price * 0.006) // 0.6% of price as monthly rent
+      // Generate price within range
+      const minPrice = filters.minPrice || 150000
+      const maxPrice = filters.maxPrice || 800000
+      const price = Math.floor(Math.random() * (maxPrice - minPrice)) + minPrice
+
+      const pricePerSqFt = Math.floor(price / squareFeet)
+      const estimatedRent = Math.floor(price * 0.008) // 0.8% rule
       const capRate = ((estimatedRent * 12) / price) * 100
-      const monthlyPayment = Math.floor(price * 0.004) // Rough mortgage payment
-      const cashFlow = estimatedRent - monthlyPayment - 500 // Minus expenses
-      const roi = ((cashFlow * 12) / (price * 0.2)) * 100 // 20% down payment assumption
+      const monthlyExpenses = Math.floor(estimatedRent * 0.3)
+      const cashFlow = estimatedRent - monthlyExpenses
+      const roi = ((cashFlow * 12) / (price * 0.2)) * 100 // Assuming 20% down
 
       const property: Property = {
-        id: `prop-${Date.now()}-${i}`,
-        address: `${Math.floor(Math.random() * 9999) + 100} ${streetNames[i % streetNames.length]}`,
-        city: city || "Austin",
-        state: state || "TX",
-        zipCode: `${Math.floor(Math.random() * 90000) + 10000}`,
+        id: `prop_${i.toString().padStart(3, "0")}`,
+        address: `${100 + i * 10} ${streetNames[i % streetNames.length]}`,
+        city: filters.location.split(",")[0] || "Unknown City",
+        state: filters.location.split(",")[1]?.trim() || "Unknown State",
+        zipCode: `${10000 + Math.floor(Math.random() * 89999)}`,
         price,
         bedrooms,
         bathrooms,
         squareFeet,
-        lotSize: Math.round((Math.random() * 0.5 + 0.1) * 100) / 100,
-        yearBuilt,
-        propertyType: filters.propertyType || propertyTypes[Math.floor(Math.random() * propertyTypes.length)],
-        description: `Beautiful ${bedrooms} bedroom, ${bathrooms} bathroom home in ${city}. This well-maintained property features modern amenities and is perfect for investors or homeowners.`,
-        features: features.slice(0, Math.floor(Math.random() * 6) + 4),
+        propertyType,
+        yearBuilt: 1980 + Math.floor(Math.random() * 44),
+        lotSize: 5000 + Math.floor(Math.random() * 10000),
+        description: `Beautiful ${bedrooms} bedroom, ${bathrooms} bathroom ${propertyType.toLowerCase()} in ${filters.location}. This property features modern amenities and is perfect for investment or primary residence.`,
+        features: ["Updated Kitchen", "Hardwood Floors", "Central Air", "Garage", "Fenced Yard", "New Roof"].slice(
+          0,
+          3 + Math.floor(Math.random() * 3),
+        ),
         images: [
           "/modern-house-exterior.png",
           "/cozy-living-room.png",
           "/modern-kitchen-interior.png",
           "/cozy-bedroom.png",
           "/modern-bathroom-interior.png",
+          "/cozy-backyard.png",
         ],
         listingAgent: {
-          name: `Agent ${String.fromCharCode(65 + Math.floor(Math.random() * 26))}. Smith`,
-          phone: `(${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
+          name: `Agent ${i}`,
+          phone: `(555) ${String(Math.floor(Math.random() * 900) + 100)}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
           email: `agent${i}@realty.com`,
         },
         marketData: {
-          pricePerSqFt: Math.floor(price / squareFeet),
-          daysOnMarket: Math.floor(Math.random() * 60) + 1,
+          pricePerSqFt,
+          daysOnMarket: Math.floor(Math.random() * 120) + 1,
           priceHistory: [
             {
-              date: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-              price,
+              date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+              price: price + Math.floor(Math.random() * 20000) - 10000,
               event: "Listed",
-            },
-          ],
-          comparables: [
-            {
-              address: `${Math.floor(Math.random() * 9999) + 100} ${streetNames[Math.floor(Math.random() * streetNames.length)]}`,
-              price: price + Math.floor(Math.random() * 40000) - 20000,
-              squareFeet: squareFeet + Math.floor(Math.random() * 400) - 200,
-              pricePerSqFt: Math.floor(
-                (price + Math.floor(Math.random() * 40000) - 20000) /
-                  (squareFeet + Math.floor(Math.random() * 400) - 200),
-              ),
-              soldDate: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
             },
           ],
         },
@@ -313,21 +175,6 @@ Make all data realistic for ${location} market conditions. Ensure investment met
           cashFlow,
           roi: Math.round(roi * 100) / 100,
         },
-        neighborhood: {
-          walkScore: Math.floor(Math.random() * 40) + 60,
-          crimeRate: ["Low", "Medium", "Low", "Low"][Math.floor(Math.random() * 4)],
-          schools: [
-            {
-              name: `${city} Elementary`,
-              rating: Math.floor(Math.random() * 4) + 7,
-              type: "Elementary",
-            },
-          ],
-          amenities: ["Parks", "Shopping", "Restaurants", "Schools", "Public Transit"].slice(
-            0,
-            Math.floor(Math.random() * 3) + 3,
-          ),
-        },
       }
 
       properties.push(property)
@@ -335,7 +182,31 @@ Make all data realistic for ${location} market conditions. Ensure investment met
 
     return properties
   }
+
+  async searchProperties(filters: PropertySearchFilters): Promise<Property[]> {
+    try {
+      console.log("Searching properties with filters:", filters)
+
+      // Try AI generation first
+      const aiProperties = await this.generatePropertiesWithAI(filters)
+
+      if (aiProperties.length > 0) {
+        console.log(`Generated ${aiProperties.length} properties with AI`)
+        return aiProperties
+      }
+
+      // Fallback to generated properties
+      console.log("Using fallback property generation")
+      return this.generateFallbackProperties(filters)
+    } catch (error) {
+      console.error("Property search failed:", error)
+      return this.generateFallbackProperties(filters)
+    }
+  }
 }
 
 // Create and export instance
-export const propertySearchAgent = new PropertySearchAgent()
+const propertySearchAgent = new PropertySearchAgent()
+
+export { PropertySearchAgent, propertySearchAgent }
+export type { Property, PropertySearchFilters }

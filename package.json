@@ -28,6 +28,7 @@
     "@radix-ui/react-label": "latest",
     "@radix-ui/react-menubar": "latest",
     "@radix-ui/react-navigation-menu": "latest",
+    "@radix-ui/react-pagination": "^1.1.0",
     "@radix-ui/react-popover": "latest",
     "@radix-ui/react-progress": "latest",
     "@radix-ui/react-radio-group": "latest",

@@ -295,5 +295,8 @@ const PropertyCalculator = () => {
   )
 }
 
+// Default export
+export default PropertyCalculator
+
 // Named export for compatibility
 export { PropertyCalculator }
