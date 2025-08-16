@@ -179,7 +179,7 @@ async function fetchCensusData(metric: string): Promise<any> {
 async function generateSlides(messages: any[]) {
   try {
     const { text } = await generateText({
-      model: openai("gpt-4o"),
+      model: openai("gpt-5"),
       messages: messages.map((msg: any) => ({
         role: msg.role,
         content: msg.content,
@@ -242,7 +242,7 @@ Use professional styling with CSS embedded in the HTML. Make it suitable for dow
 async function generateReport(messages: any[]) {
   try {
     const { text } = await generateText({
-      model: openai("gpt-4o"),
+      model: openai("gpt-5"),
       messages: messages.map((msg: any) => ({
         role: msg.role,
         content: msg.content,
