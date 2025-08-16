@@ -5,8 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Calculator, DollarSign, Percent, TrendingUp } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Calculator, DollarSign, TrendingUp, Home } from "lucide-react"
 
 interface CalculationResults {
   monthlyPayment: number
@@ -14,63 +14,51 @@ interface CalculationResults {
   totalPayment: number
   monthlyRental: number
   monthlyCashFlow: number
+  annualCashFlow: number
+  roi: number
   capRate: number
-  cashOnCashReturn: number
-  totalROI: number
+  breakEvenRatio: number
 }
 
 const PropertyCalculator = () => {
-  const [purchasePrice, setPurchasePrice] = useState<string>("")
-  const [downPayment, setDownPayment] = useState<string>("")
-  const [interestRate, setInterestRate] = useState<string>("")
-  const [loanTerm, setLoanTerm] = useState<string>("30")
-  const [monthlyRent, setMonthlyRent] = useState<string>("")
-  const [monthlyExpenses, setMonthlyExpenses] = useState<string>("")
+  const [purchasePrice, setPurchasePrice] = useState<number>(300000)
+  const [downPayment, setDownPayment] = useState<number>(60000)
+  const [interestRate, setInterestRate] = useState<number>(6.5)
+  const [loanTerm, setLoanTerm] = useState<number>(30)
+  const [monthlyRent, setMonthlyRent] = useState<number>(2500)
+  const [monthlyExpenses, setMonthlyExpenses] = useState<number>(800)
   const [results, setResults] = useState<CalculationResults | null>(null)
 
   const calculateMortgage = () => {
-    const price = Number.parseFloat(purchasePrice) || 0
-    const down = Number.parseFloat(downPayment) || 0
-    const rate = Number.parseFloat(interestRate) || 0
-    const term = Number.parseFloat(loanTerm) || 30
-    const rent = Number.parseFloat(monthlyRent) || 0
-    const expenses = Number.parseFloat(monthlyExpenses) || 0
+    const principal = purchasePrice - downPayment
+    const monthlyRate = interestRate / 100 / 12
+    const numberOfPayments = loanTerm * 12
 
-    if (price <= 0 || down < 0 || rate < 0 || term <= 0) {
-      return
-    }
+    // Monthly payment calculation
+    const monthlyPayment =
+      (principal * (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments))) /
+      (Math.pow(1 + monthlyRate, numberOfPayments) - 1)
 
-    const loanAmount = price - down
-    const monthlyRate = rate / 100 / 12
-    const numPayments = term * 12
+    const totalPayment = monthlyPayment * numberOfPayments
+    const totalInterest = totalPayment - principal
 
-    let monthlyPayment = 0
-    if (monthlyRate > 0) {
-      monthlyPayment =
-        (loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments))) /
-        (Math.pow(1 + monthlyRate, numPayments) - 1)
-    } else {
-      monthlyPayment = loanAmount / numPayments
-    }
-
-    const totalPayment = monthlyPayment * numPayments
-    const totalInterest = totalPayment - loanAmount
-    const monthlyCashFlow = rent - monthlyPayment - expenses
-    const annualRent = rent * 12
-    const capRate = price > 0 ? ((annualRent - expenses * 12) / price) * 100 : 0
+    // Investment calculations
+    const monthlyCashFlow = monthlyRent - monthlyPayment - monthlyExpenses
     const annualCashFlow = monthlyCashFlow * 12
-    const cashOnCashReturn = down > 0 ? (annualCashFlow / down) * 100 : 0
-    const totalROI = down > 0 ? ((annualCashFlow + price * 0.03) / down) * 100 : 0 // Assuming 3% appreciation
+    const roi = (annualCashFlow / downPayment) * 100
+    const capRate = ((monthlyRent * 12 - monthlyExpenses * 12) / purchasePrice) * 100
+    const breakEvenRatio = (monthlyPayment + monthlyExpenses) / monthlyRent
 
     setResults({
       monthlyPayment,
       totalInterest,
       totalPayment,
-      monthlyRental: rent,
+      monthlyRental: monthlyRent,
       monthlyCashFlow,
+      annualCashFlow,
+      roi,
       capRate,
-      cashOnCashReturn,
-      totalROI,
+      breakEvenRatio,
     })
   }
 
@@ -83,98 +71,114 @@ const PropertyCalculator = () => {
     }).format(amount)
   }
 
-  const formatPercent = (percent: number) => {
-    return `${percent.toFixed(2)}%`
+  const formatPercentage = (percentage: number) => {
+    return `${percentage.toFixed(2)}%`
+  }
+
+  const getRoiColor = (roi: number) => {
+    if (roi >= 15) return "text-green-600"
+    if (roi >= 10) return "text-yellow-600"
+    return "text-red-600"
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
-          <Calculator className="h-8 w-8" />
-          Property Investment Calculator
-        </h1>
-        <p className="text-muted-foreground">
-          Calculate mortgage payments, cash flow, and investment returns for your property
-        </p>
+    <div className="max-w-6xl mx-auto p-6 space-y-6">
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Property Investment Calculator</h1>
+        <p className="text-gray-600">Calculate mortgage payments and investment returns</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Input Form */}
+        {/* Input Section */}
         <Card>
           <CardHeader>
-            <CardTitle>Property Details</CardTitle>
-            <CardDescription>Enter your property and loan information</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <Calculator className="h-5 w-5" />
+              Property Details
+            </CardTitle>
+            <CardDescription>Enter your property and financing information</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="purchase-price">Purchase Price</Label>
-              <Input
-                id="purchase-price"
-                type="number"
-                placeholder="500000"
-                value={purchasePrice}
-                onChange={(e) => setPurchasePrice(e.target.value)}
-              />
-            </div>
+            <Tabs defaultValue="purchase" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="purchase">Purchase Info</TabsTrigger>
+                <TabsTrigger value="rental">Rental Info</TabsTrigger>
+              </TabsList>
 
-            <div className="space-y-2">
-              <Label htmlFor="down-payment">Down Payment</Label>
-              <Input
-                id="down-payment"
-                type="number"
-                placeholder="100000"
-                value={downPayment}
-                onChange={(e) => setDownPayment(e.target.value)}
-              />
-            </div>
+              <TabsContent value="purchase" className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="purchasePrice">Purchase Price</Label>
+                    <Input
+                      id="purchasePrice"
+                      type="number"
+                      value={purchasePrice}
+                      onChange={(e) => setPurchasePrice(Number(e.target.value))}
+                      placeholder="300000"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="downPayment">Down Payment</Label>
+                    <Input
+                      id="downPayment"
+                      type="number"
+                      value={downPayment}
+                      onChange={(e) => setDownPayment(Number(e.target.value))}
+                      placeholder="60000"
+                    />
+                  </div>
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="interest-rate">Interest Rate (%)</Label>
-              <Input
-                id="interest-rate"
-                type="number"
-                step="0.01"
-                placeholder="6.5"
-                value={interestRate}
-                onChange={(e) => setInterestRate(e.target.value)}
-              />
-            </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="interestRate">Interest Rate (%)</Label>
+                    <Input
+                      id="interestRate"
+                      type="number"
+                      step="0.1"
+                      value={interestRate}
+                      onChange={(e) => setInterestRate(Number(e.target.value))}
+                      placeholder="6.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="loanTerm">Loan Term (years)</Label>
+                    <Input
+                      id="loanTerm"
+                      type="number"
+                      value={loanTerm}
+                      onChange={(e) => setLoanTerm(Number(e.target.value))}
+                      placeholder="30"
+                    />
+                  </div>
+                </div>
+              </TabsContent>
 
-            <div className="space-y-2">
-              <Label htmlFor="loan-term">Loan Term (years)</Label>
-              <Input
-                id="loan-term"
-                type="number"
-                placeholder="30"
-                value={loanTerm}
-                onChange={(e) => setLoanTerm(e.target.value)}
-              />
-            </div>
-
-            <Separator />
-
-            <div className="space-y-2">
-              <Label htmlFor="monthly-rent">Monthly Rent</Label>
-              <Input
-                id="monthly-rent"
-                type="number"
-                placeholder="3000"
-                value={monthlyRent}
-                onChange={(e) => setMonthlyRent(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="monthly-expenses">Monthly Expenses</Label>
-              <Input
-                id="monthly-expenses"
-                type="number"
-                placeholder="500"
-                value={monthlyExpenses}
-                onChange={(e) => setMonthlyExpenses(e.target.value)}
-              />
-            </div>
+              <TabsContent value="rental" className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="monthlyRent">Monthly Rent</Label>
+                    <Input
+                      id="monthlyRent"
+                      type="number"
+                      value={monthlyRent}
+                      onChange={(e) => setMonthlyRent(Number(e.target.value))}
+                      placeholder="2500"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="monthlyExpenses">Monthly Expenses</Label>
+                    <Input
+                      id="monthlyExpenses"
+                      type="number"
+                      value={monthlyExpenses}
+                      onChange={(e) => setMonthlyExpenses(Number(e.target.value))}
+                      placeholder="800"
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
 
             <Button onClick={calculateMortgage} className="w-full">
               Calculate Investment Returns
@@ -182,110 +186,105 @@ const PropertyCalculator = () => {
           </CardContent>
         </Card>
 
-        {/* Results */}
+        {/* Results Section */}
         <Card>
           <CardHeader>
-            <CardTitle>Investment Analysis</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Investment Analysis
+            </CardTitle>
             <CardDescription>Your property investment breakdown</CardDescription>
           </CardHeader>
           <CardContent>
             {results ? (
               <div className="space-y-6">
-                {/* Mortgage Details */}
+                {/* Mortgage Information */}
                 <div>
-                  <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    <DollarSign className="h-4 w-4" />
+                  <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                    <Home className="h-4 w-4" />
                     Mortgage Details
                   </h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>Monthly Payment:</span>
-                      <span className="font-medium">{formatCurrency(results.monthlyPayment)}</span>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <p className="text-blue-600 font-medium">Monthly Payment</p>
+                      <p className="text-xl font-bold text-blue-800">{formatCurrency(results.monthlyPayment)}</p>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Total Interest:</span>
-                      <span className="font-medium">{formatCurrency(results.totalInterest)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Total Payment:</span>
-                      <span className="font-medium">{formatCurrency(results.totalPayment)}</span>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-gray-600 font-medium">Total Interest</p>
+                      <p className="text-xl font-bold text-gray-800">{formatCurrency(results.totalInterest)}</p>
                     </div>
                   </div>
                 </div>
 
-                <Separator />
-
-                {/* Cash Flow */}
+                {/* Cash Flow Analysis */}
                 <div>
-                  <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4" />
+                  <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" />
                     Cash Flow Analysis
                   </h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>Monthly Rent:</span>
-                      <span className="font-medium text-green-600">{formatCurrency(results.monthlyRental)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Monthly Cash Flow:</span>
-                      <span
-                        className={`font-medium ${results.monthlyCashFlow >= 0 ? "text-green-600" : "text-red-600"}`}
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className={`p-3 rounded-lg ${results.monthlyCashFlow >= 0 ? "bg-green-50" : "bg-red-50"}`}>
+                      <p className={`font-medium ${results.monthlyCashFlow >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        Monthly Cash Flow
+                      </p>
+                      <p
+                        className={`text-xl font-bold ${results.monthlyCashFlow >= 0 ? "text-green-800" : "text-red-800"}`}
                       >
                         {formatCurrency(results.monthlyCashFlow)}
-                      </span>
+                      </p>
+                    </div>
+                    <div className={`p-3 rounded-lg ${results.annualCashFlow >= 0 ? "bg-green-50" : "bg-red-50"}`}>
+                      <p className={`font-medium ${results.annualCashFlow >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        Annual Cash Flow
+                      </p>
+                      <p
+                        className={`text-xl font-bold ${results.annualCashFlow >= 0 ? "text-green-800" : "text-red-800"}`}
+                      >
+                        {formatCurrency(results.annualCashFlow)}
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                <Separator />
-
-                {/* Investment Returns */}
+                {/* Investment Metrics */}
                 <div>
-                  <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    <Percent className="h-4 w-4" />
-                    Investment Returns
-                  </h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>Cap Rate:</span>
-                      <span className="font-medium">{formatPercent(results.capRate)}</span>
+                  <h3 className="font-semibold text-lg mb-3">Investment Metrics</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
+                      <span className="font-medium text-yellow-700">Return on Investment (ROI)</span>
+                      <span className={`text-xl font-bold ${getRoiColor(results.roi)}`}>
+                        {formatPercentage(results.roi)}
+                      </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Cash-on-Cash Return:</span>
-                      <span className="font-medium">{formatPercent(results.cashOnCashReturn)}</span>
+                    <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
+                      <span className="font-medium text-purple-700">Cap Rate</span>
+                      <span className="text-xl font-bold text-purple-800">{formatPercentage(results.capRate)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Total ROI (with appreciation):</span>
-                      <span className="font-medium">{formatPercent(results.totalROI)}</span>
+                    <div className="flex justify-between items-center p-3 bg-indigo-50 rounded-lg">
+                      <span className="font-medium text-indigo-700">Break-even Ratio</span>
+                      <span className="text-xl font-bold text-indigo-800">{results.breakEvenRatio.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Investment Quality Indicator */}
-                <div className="mt-4 p-3 rounded-lg bg-muted">
-                  <div className="text-sm">
-                    <strong>Investment Quality:</strong>
-                    <span
-                      className={`ml-2 ${
-                        results.cashOnCashReturn >= 8
-                          ? "text-green-600"
-                          : results.cashOnCashReturn >= 5
-                            ? "text-yellow-600"
-                            : "text-red-600"
-                      }`}
-                    >
-                      {results.cashOnCashReturn >= 8 ? "Excellent" : results.cashOnCashReturn >= 5 ? "Good" : "Poor"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Based on cash-on-cash return. Good investments typically yield 8%+ returns.
-                  </p>
+                <div className="mt-6 p-4 rounded-lg border-2 border-dashed">
+                  <h4 className="font-semibold mb-2">Investment Quality</h4>
+                  {results.roi >= 15 ? (
+                    <p className="text-green-600 font-medium">🎯 Excellent Investment - High ROI potential</p>
+                  ) : results.roi >= 10 ? (
+                    <p className="text-yellow-600 font-medium">⚡ Good Investment - Moderate returns</p>
+                  ) : results.roi >= 5 ? (
+                    <p className="text-orange-600 font-medium">⚠️ Fair Investment - Consider other options</p>
+                  ) : (
+                    <p className="text-red-600 font-medium">❌ Poor Investment - High risk, low returns</p>
+                  )}
                 </div>
               </div>
             ) : (
-              <div className="text-center text-muted-foreground py-8">
+              <div className="text-center py-12 text-gray-500">
                 <Calculator className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Enter property details to see investment analysis</p>
+                <p>Enter property details and click calculate to see your investment analysis</p>
               </div>
             )}
           </CardContent>
@@ -295,8 +294,8 @@ const PropertyCalculator = () => {
   )
 }
 
-// Default export
-export default PropertyCalculator
-
 // Named export for compatibility
 export { PropertyCalculator }
+
+// Default export
+export default PropertyCalculator
