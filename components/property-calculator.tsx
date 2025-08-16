@@ -6,174 +6,177 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Calculator, TrendingUp, RefreshCw } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
+import { Calculator, TrendingUp, DollarSign, PieChart } from "lucide-react"
 
 interface CalculationResults {
-  monthlyPayment: number
-  totalInterest: number
-  totalPayment: number
-  monthlyRental: number
-  effectiveMonthlyRent: number
+  monthlyMortgage: number
+  monthlyRent: number
+  monthlyExpenses: number
   monthlyCashFlow: number
   annualCashFlow: number
-  roi: number
+  totalInvestment: number
   capRate: number
-  breakEvenRatio: number
-  totalCashInvested: number
-  projectedSellPrice: number
-  totalReturn: number
+  cashOnCashReturn: number
+  totalROI: number
+  sellPrice: number
+  totalProfit: number
   annualizedReturn: number
 }
 
-const PropertyCalculator = () => {
+function PropertyCalculator() {
   // Purchase inputs
-  const [purchasePrice, setPurchasePrice] = useState<number>(200000)
-  const [useLoan, setUseLoan] = useState<string>("yes")
-  const [downPaymentPercent, setDownPaymentPercent] = useState<number>(20)
-  const [interestRate, setInterestRate] = useState<number>(6)
-  const [loanTerm, setLoanTerm] = useState<number>(30)
-  const [closingCost, setClosingCost] = useState<number>(6000)
-  const [needRepairs, setNeedRepairs] = useState<string>("no")
-  const [repairCost, setRepairCost] = useState<number>(20000)
-  const [valueAfterRepairs, setValueAfterRepairs] = useState<number>(260000)
+  const [purchasePrice, setPurchasePrice] = useState(200000)
+  const [useLoan, setUseLoan] = useState(true)
+  const [downPaymentPercent, setDownPaymentPercent] = useState(20)
+  const [interestRate, setInterestRate] = useState(6)
+  const [loanTerm, setLoanTerm] = useState(30)
+  const [closingCost, setClosingCost] = useState(6000)
+  const [needRepairs, setNeedRepairs] = useState(false)
+  const [repairCost, setRepairCost] = useState(0)
+  const [valueAfterRepairs, setValueAfterRepairs] = useState(purchasePrice)
 
   // Income inputs
-  const [monthlyRent, setMonthlyRent] = useState<number>(2000)
-  const [rentAnnualIncrease, setRentAnnualIncrease] = useState<number>(3)
-  const [otherMonthlyIncome, setOtherMonthlyIncome] = useState<number>(0)
-  const [otherIncomeAnnualIncrease, setOtherIncomeAnnualIncrease] = useState<number>(3)
-  const [vacancyRate, setVacancyRate] = useState<number>(5)
-  const [managementFee, setManagementFee] = useState<number>(0)
+  const [monthlyRent, setMonthlyRent] = useState(2000)
+  const [rentIncreasePercent, setRentIncreasePercent] = useState(3)
+  const [otherMonthlyIncome, setOtherMonthlyIncome] = useState(0)
+  const [otherIncomeIncreasePercent, setOtherIncomeIncreasePercent] = useState(3)
+  const [vacancyRate, setVacancyRate] = useState(5)
+  const [managementFee, setManagementFee] = useState(0)
 
   // Operating expenses
-  const [propertyTax, setPropertyTax] = useState<number>(3000)
-  const [taxAnnualIncrease, setTaxAnnualIncrease] = useState<number>(3)
-  const [totalInsurance, setTotalInsurance] = useState<number>(1200)
-  const [insuranceAnnualIncrease, setInsuranceAnnualIncrease] = useState<number>(3)
-  const [hoaFee, setHoaFee] = useState<number>(0)
-  const [hoaAnnualIncrease, setHoaAnnualIncrease] = useState<number>(3)
-  const [maintenance, setMaintenance] = useState<number>(2000)
-  const [maintenanceAnnualIncrease, setMaintenanceAnnualIncrease] = useState<number>(3)
-  const [otherCosts, setOtherCosts] = useState<number>(500)
-  const [otherCostsAnnualIncrease, setOtherCostsAnnualIncrease] = useState<number>(3)
+  const [propertyTax, setPropertyTax] = useState(3000)
+  const [propertyTaxIncreasePercent, setPropertyTaxIncreasePercent] = useState(3)
+  const [totalInsurance, setTotalInsurance] = useState(1200)
+  const [insuranceIncreasePercent, setInsuranceIncreasePercent] = useState(3)
+  const [hoaFee, setHoaFee] = useState(0)
+  const [hoaIncreasePercent, setHoaIncreasePercent] = useState(3)
+  const [maintenance, setMaintenance] = useState(2000)
+  const [maintenanceIncreasePercent, setMaintenanceIncreasePercent] = useState(3)
+  const [otherCosts, setOtherCosts] = useState(500)
+  const [otherCostsIncreasePercent, setOtherCostsIncreasePercent] = useState(3)
 
   // Sell inputs
-  const [knowSellPrice, setKnowSellPrice] = useState<string>("no")
-  const [sellPrice, setSellPrice] = useState<number>(400000)
-  const [valueAppreciation, setValueAppreciation] = useState<number>(3)
-  const [holdingLength, setHoldingLength] = useState<number>(20)
-  const [costToSell, setCostToSell] = useState<number>(8)
+  const [knowSellPrice, setKnowSellPrice] = useState(false)
+  const [sellPrice, setSellPrice] = useState(400000)
+  const [valueAppreciation, setValueAppreciation] = useState(3)
+  const [holdingLength, setHoldingLength] = useState(20)
+  const [costToSell, setCostToSell] = useState(8)
 
   const [results, setResults] = useState<CalculationResults | null>(null)
 
-  const calculateInvestment = () => {
-    const downPayment = useLoan === "yes" ? (purchasePrice * downPaymentPercent) / 100 : 0
-    const loanAmount = useLoan === "yes" ? purchasePrice - downPayment : 0
-    const totalInitialInvestment = downPayment + closingCost + (needRepairs === "yes" ? repairCost : 0)
+  const calculateResults = () => {
+    // Calculate down payment and loan amount
+    const downPayment = (purchasePrice * downPaymentPercent) / 100
+    const loanAmount = useLoan ? purchasePrice - downPayment : 0
 
-    // Monthly payment calculation
-    let monthlyPayment = 0
-    let totalInterest = 0
+    // Calculate monthly mortgage payment
+    const monthlyInterestRate = interestRate / 100 / 12
+    const numberOfPayments = loanTerm * 12
+    let monthlyMortgage = 0
 
-    if (useLoan === "yes" && loanAmount > 0) {
-      const monthlyRate = interestRate / 100 / 12
-      const numberOfPayments = loanTerm * 12
-
-      monthlyPayment =
-        (loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments))) /
-        (Math.pow(1 + monthlyRate, numberOfPayments) - 1)
-
-      totalInterest = monthlyPayment * numberOfPayments - loanAmount
+    if (useLoan && loanAmount > 0) {
+      monthlyMortgage =
+        (loanAmount * monthlyInterestRate * Math.pow(1 + monthlyInterestRate, numberOfPayments)) /
+        (Math.pow(1 + monthlyInterestRate, numberOfPayments) - 1)
     }
 
-    // Income calculations
+    // Calculate effective monthly rent (accounting for vacancy)
     const effectiveMonthlyRent = monthlyRent * (1 - vacancyRate / 100)
     const effectiveOtherIncome = otherMonthlyIncome * (1 - vacancyRate / 100)
     const totalMonthlyIncome = effectiveMonthlyRent + effectiveOtherIncome
-    const managementFeeAmount = (totalMonthlyIncome * managementFee) / 100
 
-    // Operating expenses
+    // Calculate monthly expenses
     const monthlyPropertyTax = propertyTax / 12
     const monthlyInsurance = totalInsurance / 12
     const monthlyHoa = hoaFee / 12
     const monthlyMaintenance = maintenance / 12
     const monthlyOtherCosts = otherCosts / 12
+    const monthlyManagementFee = (totalMonthlyIncome * managementFee) / 100
 
     const totalMonthlyExpenses =
-      monthlyPropertyTax + monthlyInsurance + monthlyHoa + monthlyMaintenance + monthlyOtherCosts + managementFeeAmount
+      monthlyMortgage +
+      monthlyPropertyTax +
+      monthlyInsurance +
+      monthlyHoa +
+      monthlyMaintenance +
+      monthlyOtherCosts +
+      monthlyManagementFee
 
-    // Cash flow
-    const monthlyCashFlow = totalMonthlyIncome - monthlyPayment - totalMonthlyExpenses
+    // Calculate cash flow
+    const monthlyCashFlow = totalMonthlyIncome - totalMonthlyExpenses
     const annualCashFlow = monthlyCashFlow * 12
 
-    // ROI calculations
-    const roi = totalInitialInvestment > 0 ? (annualCashFlow / totalInitialInvestment) * 100 : 0
-    const currentValue = needRepairs === "yes" ? valueAfterRepairs : purchasePrice
-    const capRate = ((totalMonthlyIncome * 12 - totalMonthlyExpenses * 12) / currentValue) * 100
-    const breakEvenRatio = totalMonthlyExpenses / totalMonthlyIncome
+    // Calculate total investment
+    const totalInvestment = downPayment + closingCost + (needRepairs ? repairCost : 0)
 
-    // Projected sell price
-    const projectedSellPrice =
-      knowSellPrice === "yes" ? sellPrice : currentValue * Math.pow(1 + valueAppreciation / 100, holdingLength)
+    // Calculate returns
+    const propertyValue = needRepairs ? valueAfterRepairs : purchasePrice
+    const capRate = (annualCashFlow / propertyValue) * 100
+    const cashOnCashReturn = (annualCashFlow / totalInvestment) * 100
 
-    const sellCosts = projectedSellPrice * (costToSell / 100)
-    const netSellProceeds = projectedSellPrice - sellCosts
-    const remainingLoanBalance =
-      useLoan === "yes" ? Math.max(0, loanAmount - (monthlyPayment * 12 * holdingLength - totalInterest)) : 0
+    // Calculate sell scenario
+    let finalSellPrice = sellPrice
+    if (!knowSellPrice) {
+      finalSellPrice = propertyValue * Math.pow(1 + valueAppreciation / 100, holdingLength)
+    }
 
-    const totalCashFromSale = netSellProceeds - remainingLoanBalance
-    const totalCashFlow = annualCashFlow * holdingLength
-    const totalReturn = totalCashFromSale + totalCashFlow - totalInitialInvestment
-    const annualizedReturn =
-      totalInitialInvestment > 0
-        ? Math.pow((totalReturn + totalInitialInvestment) / totalInitialInvestment, 1 / holdingLength) - 1
-        : 0
+    const sellingCosts = (finalSellPrice * costToSell) / 100
+    const remainingLoanBalance = useLoan
+      ? loanAmount * Math.pow(1 + monthlyInterestRate, numberOfPayments - holdingLength * 12) -
+        monthlyMortgage *
+          ((Math.pow(1 + monthlyInterestRate, numberOfPayments - holdingLength * 12) - 1) / monthlyInterestRate)
+      : 0
+
+    const netSaleProceeds = finalSellPrice - sellingCosts - Math.max(0, remainingLoanBalance)
+    const totalCashFlowOverHolding = annualCashFlow * holdingLength
+    const totalProfit = netSaleProceeds - totalInvestment + totalCashFlowOverHolding
+    const totalROI = (totalProfit / totalInvestment) * 100
+    const annualizedReturn = Math.pow(1 + totalROI / 100, 1 / holdingLength) - 1
 
     setResults({
-      monthlyPayment,
-      totalInterest,
-      totalPayment: monthlyPayment * loanTerm * 12,
-      monthlyRental: monthlyRent,
-      effectiveMonthlyRent,
+      monthlyMortgage,
+      monthlyRent: totalMonthlyIncome,
+      monthlyExpenses: totalMonthlyExpenses,
       monthlyCashFlow,
       annualCashFlow,
-      roi,
+      totalInvestment,
       capRate,
-      breakEvenRatio,
-      totalCashInvested: totalInitialInvestment,
-      projectedSellPrice,
-      totalReturn,
+      cashOnCashReturn,
+      totalROI,
+      sellPrice: finalSellPrice,
+      totalProfit,
       annualizedReturn: annualizedReturn * 100,
     })
   }
 
-  const clearInputs = () => {
+  const clearForm = () => {
     setPurchasePrice(200000)
-    setUseLoan("yes")
+    setUseLoan(true)
     setDownPaymentPercent(20)
     setInterestRate(6)
     setLoanTerm(30)
     setClosingCost(6000)
-    setNeedRepairs("no")
-    setRepairCost(20000)
-    setValueAfterRepairs(260000)
+    setNeedRepairs(false)
+    setRepairCost(0)
+    setValueAfterRepairs(200000)
     setMonthlyRent(2000)
-    setRentAnnualIncrease(3)
+    setRentIncreasePercent(3)
     setOtherMonthlyIncome(0)
-    setOtherIncomeAnnualIncrease(3)
+    setOtherIncomeIncreasePercent(3)
     setVacancyRate(5)
     setManagementFee(0)
     setPropertyTax(3000)
-    setTaxAnnualIncrease(3)
+    setPropertyTaxIncreasePercent(3)
     setTotalInsurance(1200)
-    setInsuranceAnnualIncrease(3)
+    setInsuranceIncreasePercent(3)
     setHoaFee(0)
-    setHoaAnnualIncrease(3)
+    setHoaIncreasePercent(3)
     setMaintenance(2000)
-    setMaintenanceAnnualIncrease(3)
+    setMaintenanceIncreasePercent(3)
     setOtherCosts(500)
-    setOtherCostsAnnualIncrease(3)
-    setKnowSellPrice("no")
+    setOtherCostsIncreasePercent(3)
+    setKnowSellPrice(false)
     setSellPrice(400000)
     setValueAppreciation(3)
     setHoldingLength(20)
@@ -181,39 +184,23 @@ const PropertyCalculator = () => {
     setResults(null)
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)
-  }
-
-  const formatPercentage = (percentage: number) => {
-    return `${percentage.toFixed(2)}%`
-  }
-
-  const getRoiColor = (roi: number) => {
-    if (roi >= 15) return "text-green-600"
-    if (roi >= 10) return "text-yellow-600"
-    return "text-red-600"
-  }
-
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-6 space-y-6">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Advanced Property Investment Calculator</h1>
-        <p className="text-gray-600">Comprehensive analysis with purchase, income, expenses, and sale projections</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Property Investment Calculator</h1>
+        <p className="text-gray-600">Modify the values and click the Calculate button to analyze your investment</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Purchase Section */}
         <Card>
           <CardHeader className="bg-blue-600 text-white">
-            <CardTitle>Purchase</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Calculator className="h-5 w-5" />
+              Purchase
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 pt-4">
+          <CardContent className="p-6 space-y-4">
             <div>
               <Label htmlFor="purchasePrice">Purchase Price</Label>
               <Input
@@ -221,13 +208,17 @@ const PropertyCalculator = () => {
                 type="number"
                 value={purchasePrice}
                 onChange={(e) => setPurchasePrice(Number(e.target.value))}
-                className="text-lg font-medium"
+                className="mt-1"
               />
             </div>
 
             <div>
               <Label>Use Loan?</Label>
-              <RadioGroup value={useLoan} onValueChange={setUseLoan} className="flex space-x-4">
+              <RadioGroup
+                value={useLoan ? "yes" : "no"}
+                onValueChange={(value) => setUseLoan(value === "yes")}
+                className="flex gap-4 mt-2"
+              >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="yes" id="loan-yes" />
                   <Label htmlFor="loan-yes">Yes</Label>
@@ -239,25 +230,26 @@ const PropertyCalculator = () => {
               </RadioGroup>
             </div>
 
-            {useLoan === "yes" && (
+            {useLoan && (
               <>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
+                <div className="flex gap-2">
+                  <div className="flex-1">
                     <Label htmlFor="downPayment">Down Payment</Label>
                     <Input
                       id="downPayment"
                       type="number"
                       value={downPaymentPercent}
                       onChange={(e) => setDownPaymentPercent(Number(e.target.value))}
+                      className="mt-1"
                     />
                   </div>
                   <div className="flex items-end">
-                    <span className="text-sm text-gray-600 mb-2">%</span>
+                    <span className="text-sm text-gray-500 mb-2">%</span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
+                <div className="flex gap-2">
+                  <div className="flex-1">
                     <Label htmlFor="interestRate">Interest Rate</Label>
                     <Input
                       id="interestRate"
@@ -265,25 +257,27 @@ const PropertyCalculator = () => {
                       step="0.1"
                       value={interestRate}
                       onChange={(e) => setInterestRate(Number(e.target.value))}
+                      className="mt-1"
                     />
                   </div>
                   <div className="flex items-end">
-                    <span className="text-sm text-gray-600 mb-2">%</span>
+                    <span className="text-sm text-gray-500 mb-2">%</span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
+                <div className="flex gap-2">
+                  <div className="flex-1">
                     <Label htmlFor="loanTerm">Loan Term</Label>
                     <Input
                       id="loanTerm"
                       type="number"
                       value={loanTerm}
                       onChange={(e) => setLoanTerm(Number(e.target.value))}
+                      className="mt-1"
                     />
                   </div>
                   <div className="flex items-end">
-                    <span className="text-sm text-gray-600 mb-2">years</span>
+                    <span className="text-sm text-gray-500 mb-2">years</span>
                   </div>
                 </div>
               </>
@@ -296,12 +290,17 @@ const PropertyCalculator = () => {
                 type="number"
                 value={closingCost}
                 onChange={(e) => setClosingCost(Number(e.target.value))}
+                className="mt-1"
               />
             </div>
 
             <div>
               <Label>Need Repairs?</Label>
-              <RadioGroup value={needRepairs} onValueChange={setNeedRepairs} className="flex space-x-4">
+              <RadioGroup
+                value={needRepairs ? "yes" : "no"}
+                onValueChange={(value) => setNeedRepairs(value === "yes")}
+                className="flex gap-4 mt-2"
+              >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="yes" id="repairs-yes" />
                   <Label htmlFor="repairs-yes">Yes</Label>
@@ -313,7 +312,7 @@ const PropertyCalculator = () => {
               </RadioGroup>
             </div>
 
-            {needRepairs === "yes" && (
+            {needRepairs && (
               <>
                 <div>
                   <Label htmlFor="repairCost">Repair Cost</Label>
@@ -322,6 +321,7 @@ const PropertyCalculator = () => {
                     type="number"
                     value={repairCost}
                     onChange={(e) => setRepairCost(Number(e.target.value))}
+                    className="mt-1"
                   />
                 </div>
                 <div>
@@ -331,6 +331,7 @@ const PropertyCalculator = () => {
                     type="number"
                     value={valueAfterRepairs}
                     onChange={(e) => setValueAfterRepairs(Number(e.target.value))}
+                    className="mt-1"
                   />
                 </div>
               </>
@@ -338,164 +339,96 @@ const PropertyCalculator = () => {
           </CardContent>
         </Card>
 
-        {/* Income and Expenses Section */}
+        {/* Income Section */}
         <Card>
-          <CardContent className="p-0 space-y-0">
-            {/* Income Section */}
-            <div>
-              <div className="bg-blue-600 text-white p-4">
-                <h3 className="font-semibold text-lg">Income</h3>
+          <CardHeader className="bg-blue-600 text-white">
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Income
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Label htmlFor="monthlyRent">Monthly Rent</Label>
+                <Input
+                  id="monthlyRent"
+                  type="number"
+                  value={monthlyRent}
+                  onChange={(e) => setMonthlyRent(Number(e.target.value))}
+                  className="mt-1"
+                />
               </div>
-              <div className="p-4 space-y-4">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label htmlFor="monthlyRent">Monthly Rent</Label>
-                    <Input
-                      id="monthlyRent"
-                      type="number"
-                      value={monthlyRent}
-                      onChange={(e) => setMonthlyRent(Number(e.target.value))}
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Annual Increase</Label>
-                    <div className="flex items-center gap-1">
-                      <Input
-                        type="number"
-                        value={rentAnnualIncrease}
-                        onChange={(e) => setRentAnnualIncrease(Number(e.target.value))}
-                        className="text-sm"
-                      />
-                      <span className="text-sm">%</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label htmlFor="otherIncome">Other Monthly Income</Label>
-                    <Input
-                      id="otherIncome"
-                      type="number"
-                      value={otherMonthlyIncome}
-                      onChange={(e) => setOtherMonthlyIncome(Number(e.target.value))}
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Annual Increase</Label>
-                    <div className="flex items-center gap-1">
-                      <Input
-                        type="number"
-                        value={otherIncomeAnnualIncrease}
-                        onChange={(e) => setOtherIncomeAnnualIncrease(Number(e.target.value))}
-                        className="text-sm"
-                      />
-                      <span className="text-sm">%</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label htmlFor="vacancyRate">Vacancy Rate</Label>
-                    <div className="flex items-center gap-1">
-                      <Input
-                        id="vacancyRate"
-                        type="number"
-                        value={vacancyRate}
-                        onChange={(e) => setVacancyRate(Number(e.target.value))}
-                      />
-                      <span className="text-sm">%</span>
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="managementFee">Management Fee</Label>
-                    <div className="flex items-center gap-1">
-                      <Input
-                        id="managementFee"
-                        type="number"
-                        value={managementFee}
-                        onChange={(e) => setManagementFee(Number(e.target.value))}
-                      />
-                      <span className="text-sm">%</span>
-                    </div>
-                  </div>
+              <div className="w-20">
+                <Label htmlFor="rentIncrease">Annual Increase</Label>
+                <div className="flex gap-1 mt-1">
+                  <Input
+                    id="rentIncrease"
+                    type="number"
+                    value={rentIncreasePercent}
+                    onChange={(e) => setRentIncreasePercent(Number(e.target.value))}
+                    className="w-12"
+                  />
+                  <span className="text-sm text-gray-500 mt-2">%</span>
                 </div>
               </div>
             </div>
 
-            {/* Operating Expenses Section */}
-            <div>
-              <div className="bg-blue-600 text-white p-4">
-                <h3 className="font-semibold text-lg">Recurring Operating Expenses</h3>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Label htmlFor="otherIncome">Other Monthly Income</Label>
+                <Input
+                  id="otherIncome"
+                  type="number"
+                  value={otherMonthlyIncome}
+                  onChange={(e) => setOtherMonthlyIncome(Number(e.target.value))}
+                  className="mt-1"
+                />
               </div>
-              <div className="p-4 space-y-4">
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <span></span>
-                  <div className="grid grid-cols-2 gap-1">
-                    <span className="text-center font-medium">Annual</span>
-                    <span className="text-center font-medium">Annual Increase</span>
-                  </div>
+              <div className="w-20">
+                <Label htmlFor="otherIncomeIncrease">Annual Increase</Label>
+                <div className="flex gap-1 mt-1">
+                  <Input
+                    id="otherIncomeIncrease"
+                    type="number"
+                    value={otherIncomeIncreasePercent}
+                    onChange={(e) => setOtherIncomeIncreasePercent(Number(e.target.value))}
+                    className="w-12"
+                  />
+                  <span className="text-sm text-gray-500 mt-2">%</span>
                 </div>
+              </div>
+            </div>
 
-                {[
-                  {
-                    label: "Property Tax",
-                    value: propertyTax,
-                    setValue: setPropertyTax,
-                    increase: taxAnnualIncrease,
-                    setIncrease: setTaxAnnualIncrease,
-                  },
-                  {
-                    label: "Total Insurance",
-                    value: totalInsurance,
-                    setValue: setTotalInsurance,
-                    increase: insuranceAnnualIncrease,
-                    setIncrease: setInsuranceAnnualIncrease,
-                  },
-                  {
-                    label: "HOA Fee",
-                    value: hoaFee,
-                    setValue: setHoaFee,
-                    increase: hoaAnnualIncrease,
-                    setIncrease: setHoaAnnualIncrease,
-                  },
-                  {
-                    label: "Maintenance",
-                    value: maintenance,
-                    setValue: setMaintenance,
-                    increase: maintenanceAnnualIncrease,
-                    setIncrease: setMaintenanceAnnualIncrease,
-                  },
-                  {
-                    label: "Other Costs",
-                    value: otherCosts,
-                    setValue: setOtherCosts,
-                    increase: otherCostsAnnualIncrease,
-                    setIncrease: setOtherCostsAnnualIncrease,
-                  },
-                ].map((item, index) => (
-                  <div key={index} className="grid grid-cols-2 gap-2">
-                    <Label className="self-center">{item.label}</Label>
-                    <div className="grid grid-cols-2 gap-1">
-                      <Input
-                        type="number"
-                        value={item.value}
-                        onChange={(e) => item.setValue(Number(e.target.value))}
-                        className="text-sm"
-                      />
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          value={item.increase}
-                          onChange={(e) => item.setIncrease(Number(e.target.value))}
-                          className="text-sm"
-                        />
-                        <span className="text-xs">%</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Label htmlFor="vacancyRate">Vacancy Rate</Label>
+                <Input
+                  id="vacancyRate"
+                  type="number"
+                  value={vacancyRate}
+                  onChange={(e) => setVacancyRate(Number(e.target.value))}
+                  className="mt-1"
+                />
+              </div>
+              <div className="flex items-end">
+                <span className="text-sm text-gray-500 mb-2">%</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Label htmlFor="managementFee">Management Fee</Label>
+                <Input
+                  id="managementFee"
+                  type="number"
+                  value={managementFee}
+                  onChange={(e) => setManagementFee(Number(e.target.value))}
+                  className="mt-1"
+                />
+              </div>
+              <div className="flex items-end">
+                <span className="text-sm text-gray-500 mb-2">%</span>
               </div>
             </div>
           </CardContent>
@@ -504,24 +437,31 @@ const PropertyCalculator = () => {
         {/* Sell Section */}
         <Card>
           <CardHeader className="bg-blue-600 text-white">
-            <CardTitle>Sell</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Sell
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 pt-4">
+          <CardContent className="p-6 space-y-4">
             <div>
               <Label>Do You Know the Sell Price?</Label>
-              <RadioGroup value={knowSellPrice} onValueChange={setKnowSellPrice} className="flex space-x-4">
+              <RadioGroup
+                value={knowSellPrice ? "yes" : "no"}
+                onValueChange={(value) => setKnowSellPrice(value === "yes")}
+                className="flex gap-4 mt-2"
+              >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="yes" id="sell-yes" />
-                  <Label htmlFor="sell-yes">Yes</Label>
+                  <RadioGroupItem value="yes" id="know-price-yes" />
+                  <Label htmlFor="know-price-yes">Yes</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="no" id="sell-no" />
-                  <Label htmlFor="sell-no">No</Label>
+                  <RadioGroupItem value="no" id="know-price-no" />
+                  <Label htmlFor="know-price-no">No</Label>
                 </div>
               </RadioGroup>
             </div>
 
-            {knowSellPrice === "yes" ? (
+            {knowSellPrice ? (
               <div>
                 <Label htmlFor="sellPrice">Sell Price</Label>
                 <Input
@@ -529,142 +469,318 @@ const PropertyCalculator = () => {
                   type="number"
                   value={sellPrice}
                   onChange={(e) => setSellPrice(Number(e.target.value))}
+                  className="mt-1"
                 />
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-2">
-                <div>
+              <div className="flex gap-2">
+                <div className="flex-1">
                   <Label htmlFor="valueAppreciation">Value Appreciation</Label>
                   <Input
                     id="valueAppreciation"
                     type="number"
+                    step="0.1"
                     value={valueAppreciation}
                     onChange={(e) => setValueAppreciation(Number(e.target.value))}
+                    className="mt-1"
                   />
                 </div>
                 <div className="flex items-end">
-                  <span className="text-sm text-gray-600 mb-2">% per year</span>
+                  <span className="text-sm text-gray-500 mb-2">% per year</span>
                 </div>
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
+            <div className="flex gap-2">
+              <div className="flex-1">
                 <Label htmlFor="holdingLength">Holding Length</Label>
                 <Input
                   id="holdingLength"
                   type="number"
                   value={holdingLength}
                   onChange={(e) => setHoldingLength(Number(e.target.value))}
+                  className="mt-1"
                 />
               </div>
               <div className="flex items-end">
-                <span className="text-sm text-gray-600 mb-2">years</span>
+                <span className="text-sm text-gray-500 mb-2">years</span>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
+            <div className="flex gap-2">
+              <div className="flex-1">
                 <Label htmlFor="costToSell">Cost to Sell</Label>
                 <Input
                   id="costToSell"
                   type="number"
                   value={costToSell}
                   onChange={(e) => setCostToSell(Number(e.target.value))}
+                  className="mt-1"
                 />
               </div>
               <div className="flex items-end">
-                <span className="text-sm text-gray-600 mb-2">%</span>
+                <span className="text-sm text-gray-500 mb-2">%</span>
               </div>
-            </div>
-
-            <div className="flex gap-2 pt-4">
-              <Button onClick={calculateInvestment} className="flex-1 bg-green-600 hover:bg-green-700">
-                <Calculator className="mr-2 h-4 w-4" />
-                Calculate
-              </Button>
-              <Button onClick={clearInputs} variant="outline" className="flex-1 bg-transparent">
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Clear
-              </Button>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Results Section */}
-      {results && (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Investment Analysis Results
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-blue-600 font-medium text-sm">Monthly Cash Flow</p>
-                <p className={`text-2xl font-bold ${results.monthlyCashFlow >= 0 ? "text-green-600" : "text-red-600"}`}>
-                  {formatCurrency(results.monthlyCashFlow)}
-                </p>
-              </div>
-
-              <div className="bg-green-50 p-4 rounded-lg">
-                <p className="text-green-600 font-medium text-sm">Annual Cash Flow</p>
-                <p className={`text-2xl font-bold ${results.annualCashFlow >= 0 ? "text-green-600" : "text-red-600"}`}>
-                  {formatCurrency(results.annualCashFlow)}
-                </p>
-              </div>
-
-              <div className="bg-yellow-50 p-4 rounded-lg">
-                <p className="text-yellow-600 font-medium text-sm">ROI</p>
-                <p className={`text-2xl font-bold ${getRoiColor(results.roi)}`}>{formatPercentage(results.roi)}</p>
-              </div>
-
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <p className="text-purple-600 font-medium text-sm">Cap Rate</p>
-                <p className="text-2xl font-bold text-purple-800">{formatPercentage(results.capRate)}</p>
-              </div>
-
-              <div className="bg-indigo-50 p-4 rounded-lg">
-                <p className="text-indigo-600 font-medium text-sm">Total Cash Invested</p>
-                <p className="text-2xl font-bold text-indigo-800">{formatCurrency(results.totalCashInvested)}</p>
-              </div>
-
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-gray-600 font-medium text-sm">Projected Sell Price</p>
-                <p className="text-2xl font-bold text-gray-800">{formatCurrency(results.projectedSellPrice)}</p>
-              </div>
-
-              <div className="bg-emerald-50 p-4 rounded-lg">
-                <p className="text-emerald-600 font-medium text-sm">Total Return</p>
-                <p className={`text-2xl font-bold ${results.totalReturn >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                  {formatCurrency(results.totalReturn)}
-                </p>
-              </div>
-
-              <div className="bg-orange-50 p-4 rounded-lg">
-                <p className="text-orange-600 font-medium text-sm">Annualized Return</p>
-                <p className={`text-2xl font-bold ${getRoiColor(results.annualizedReturn)}`}>
-                  {formatPercentage(results.annualizedReturn)}
-                </p>
+      {/* Recurring Operating Expenses Section */}
+      <Card>
+        <CardHeader className="bg-blue-600 text-white">
+          <CardTitle className="flex items-center gap-2">
+            <PieChart className="h-5 w-5" />
+            Recurring Operating Expenses
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Label htmlFor="propertyTax">Property Tax</Label>
+                  <Input
+                    id="propertyTax"
+                    type="number"
+                    value={propertyTax}
+                    onChange={(e) => setPropertyTax(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Annual</p>
+                </div>
+                <div className="w-20">
+                  <Label htmlFor="propertyTaxIncrease">Annual Increase</Label>
+                  <div className="flex gap-1 mt-1">
+                    <Input
+                      id="propertyTaxIncrease"
+                      type="number"
+                      value={propertyTaxIncreasePercent}
+                      onChange={(e) => setPropertyTaxIncreasePercent(Number(e.target.value))}
+                      className="w-12"
+                    />
+                    <span className="text-sm text-gray-500 mt-2">%</span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="mt-6 p-4 rounded-lg border-2 border-dashed">
-              <h4 className="font-semibold mb-2">Investment Quality Assessment</h4>
-              {results.annualizedReturn >= 15 ? (
-                <p className="text-green-600 font-medium">
-                  🎯 Excellent Investment - High returns with strong cash flow
-                </p>
-              ) : results.annualizedReturn >= 10 ? (
-                <p className="text-yellow-600 font-medium">⚡ Good Investment - Solid returns and reasonable risk</p>
-              ) : results.annualizedReturn >= 5 ? (
-                <p className="text-orange-600 font-medium">⚠️ Fair Investment - Consider market alternatives</p>
-              ) : (
-                <p className="text-red-600 font-medium">❌ Poor Investment - High risk with low returns</p>
-              )}
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Label htmlFor="totalInsurance">Total Insurance</Label>
+                  <Input
+                    id="totalInsurance"
+                    type="number"
+                    value={totalInsurance}
+                    onChange={(e) => setTotalInsurance(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Annual</p>
+                </div>
+                <div className="w-20">
+                  <Label htmlFor="insuranceIncrease">Annual Increase</Label>
+                  <div className="flex gap-1 mt-1">
+                    <Input
+                      id="insuranceIncrease"
+                      type="number"
+                      value={insuranceIncreasePercent}
+                      onChange={(e) => setInsuranceIncreasePercent(Number(e.target.value))}
+                      className="w-12"
+                    />
+                    <span className="text-sm text-gray-500 mt-2">%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Label htmlFor="hoaFee">HOA Fee</Label>
+                  <Input
+                    id="hoaFee"
+                    type="number"
+                    value={hoaFee}
+                    onChange={(e) => setHoaFee(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Annual</p>
+                </div>
+                <div className="w-20">
+                  <Label htmlFor="hoaIncrease">Annual Increase</Label>
+                  <div className="flex gap-1 mt-1">
+                    <Input
+                      id="hoaIncrease"
+                      type="number"
+                      value={hoaIncreasePercent}
+                      onChange={(e) => setHoaIncreasePercent(Number(e.target.value))}
+                      className="w-12"
+                    />
+                    <span className="text-sm text-gray-500 mt-2">%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Label htmlFor="maintenance">Maintenance</Label>
+                  <Input
+                    id="maintenance"
+                    type="number"
+                    value={maintenance}
+                    onChange={(e) => setMaintenance(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Annual</p>
+                </div>
+                <div className="w-20">
+                  <Label htmlFor="maintenanceIncrease">Annual Increase</Label>
+                  <div className="flex gap-1 mt-1">
+                    <Input
+                      id="maintenanceIncrease"
+                      type="number"
+                      value={maintenanceIncreasePercent}
+                      onChange={(e) => setMaintenanceIncreasePercent(Number(e.target.value))}
+                      className="w-12"
+                    />
+                    <span className="text-sm text-gray-500 mt-2">%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Label htmlFor="otherCosts">Other Costs</Label>
+                  <Input
+                    id="otherCosts"
+                    type="number"
+                    value={otherCosts}
+                    onChange={(e) => setOtherCosts(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Annual</p>
+                </div>
+                <div className="w-20">
+                  <Label htmlFor="otherCostsIncrease">Annual Increase</Label>
+                  <div className="flex gap-1 mt-1">
+                    <Input
+                      id="otherCostsIncrease"
+                      type="number"
+                      value={otherCostsIncreasePercent}
+                      onChange={(e) => setOtherCostsIncreasePercent(Number(e.target.value))}
+                      className="w-12"
+                    />
+                    <span className="text-sm text-gray-500 mt-2">%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Action Buttons */}
+      <div className="flex justify-center gap-4">
+        <Button onClick={calculateResults} className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg">
+          <Calculator className="h-5 w-5 mr-2" />
+          Calculate
+        </Button>
+        <Button onClick={clearForm} variant="outline" className="px-8 py-3 text-lg bg-transparent">
+          Clear
+        </Button>
+      </div>
+
+      {/* Results Section */}
+      {results && (
+        <Card className="mt-8">
+          <CardHeader className="bg-green-600 text-white">
+            <CardTitle className="text-xl">Investment Analysis Results</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg text-gray-900">Monthly Cash Flow</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Monthly Income:</span>
+                    <span className="font-medium">${results.monthlyRent.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Monthly Expenses:</span>
+                    <span className="font-medium">${results.monthlyExpenses.toLocaleString()}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between">
+                    <span className="font-semibold">Net Cash Flow:</span>
+                    <span className={`font-bold ${results.monthlyCashFlow >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      ${results.monthlyCashFlow.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg text-gray-900">Annual Returns</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Annual Cash Flow:</span>
+                    <span className="font-medium">${results.annualCashFlow.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Cap Rate:</span>
+                    <span className="font-medium">{results.capRate.toFixed(2)}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Cash-on-Cash Return:</span>
+                    <span className="font-medium">{results.cashOnCashReturn.toFixed(2)}%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg text-gray-900">Investment Summary</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Investment:</span>
+                    <span className="font-medium">${results.totalInvestment.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Projected Sell Price:</span>
+                    <span className="font-medium">${results.sellPrice.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Profit:</span>
+                    <span className={`font-medium ${results.totalProfit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      ${results.totalProfit.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg text-gray-900">Total Returns</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total ROI:</span>
+                    <span className={`font-bold text-lg ${results.totalROI >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      {results.totalROI.toFixed(2)}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Annualized Return:</span>
+                    <span
+                      className={`font-bold text-lg ${results.annualizedReturn >= 0 ? "text-green-600" : "text-red-600"}`}
+                    >
+                      {results.annualizedReturn.toFixed(2)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -673,5 +789,6 @@ const PropertyCalculator = () => {
   )
 }
 
+// Export both named and default exports
 export { PropertyCalculator }
 export default PropertyCalculator

@@ -5,45 +5,111 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { useToast } from "@/hooks/use-toast"
 import {
   Send,
-  User,
   Bot,
+  User,
+  Calculator,
+  TrendingUp,
+  Building2,
+  Search,
+  DollarSign,
+  Loader2,
   Copy,
   Check,
-  Download,
   FileText,
   Presentation,
-  TrendingUp,
-  DollarSign,
-  Home,
 } from "lucide-react"
-import ReactMarkdown from "react-markdown"
+import { toast } from "@/hooks/use-toast"
+import type { ChatHistoryItem } from "@/lib/portfolio-types"
 
 interface Message {
   id: string
-  role: "user" | "assistant"
   content: string
-  timestamp: Date
+  sender: "user" | "ai"
+  timestamp: string
+  action?: string
+  actionData?: any
 }
 
 interface EnhancedChatProps {
-  onSuggestedQuestion?: (question: string) => void
+  onToolSelect: (toolId: string) => void
+  currentChat: ChatHistoryItem | null
+  onChatUpdate: (messages: Message[], title?: string) => void
 }
 
-export default function EnhancedChat({ onSuggestedQuestion }: EnhancedChatProps) {
+const quickActions = [
+  {
+    id: "investment-calculator",
+    title: "Investment Calculator",
+    description: "Calculate ROI and cash flow",
+    icon: Calculator,
+    color: "bg-emerald-500",
+  },
+  {
+    id: "market-insights",
+    title: "Market Insights",
+    description: "Real-time market data",
+    icon: TrendingUp,
+    color: "bg-violet-500",
+  },
+  {
+    id: "property-analysis",
+    title: "Property Analysis",
+    description: "Detailed property reports",
+    icon: Building2,
+    color: "bg-rose-500",
+  },
+  {
+    id: "portfolio-tracker",
+    title: "Portfolio Tracker",
+    description: "Track your investments",
+    icon: DollarSign,
+    color: "bg-amber-500",
+  },
+  {
+    id: "deal-finder",
+    title: "Deal Finder",
+    description: "Find investment properties",
+    icon: Search,
+    color: "bg-green-500",
+  },
+]
+
+const suggestedQuestions = [
+  "What are the current market conditions for real estate investment?",
+  "How do interest rates affect property investment returns?",
+  "What markets are showing the best population growth right now?",
+  "Can you analyze unemployment trends in major metros?",
+  "Generate a market analysis report for Texas markets",
+  "Create slides on current investment opportunities",
+]
+
+export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }: EnhancedChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState("")
+  const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const { toast } = useToast()
+
+  // Load current chat messages when currentChat changes
+  useEffect(() => {
+    if (currentChat && currentChat.messages) {
+      setMessages(
+        currentChat.messages.map((msg) => ({
+          id: msg.id,
+          content: msg.content,
+          sender: msg.sender,
+          timestamp: msg.timestamp,
+        })),
+      )
+    } else {
+      setMessages([])
+    }
+  }, [currentChat])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -52,6 +118,10 @@ export default function EnhancedChat({ onSuggestedQuestion }: EnhancedChatProps)
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  const generateMessageId = () => {
+    return Date.now().toString() + Math.random().toString(36).substr(2, 9)
+  }
 
   const copyToClipboard = async (content: string, messageId: string) => {
     try {
@@ -62,226 +132,93 @@ export default function EnhancedChat({ onSuggestedQuestion }: EnhancedChatProps)
         description: "Message copied to clipboard",
       })
       setTimeout(() => setCopiedMessageId(null), 2000)
-    } catch (err) {
-      toast({
-        title: "Copy failed",
-        description: "Unable to copy message",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const downloadFile = (content: string, filename: string, type: string) => {
-    try {
-      let fileContent = content
-      let mimeType = "text/plain"
-
-      if (type === "slides") {
-        // Convert markdown to HTML for slides
-        fileContent = `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Real Estate Investment Presentation</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
-        h1 { color: #2563eb; border-bottom: 3px solid #2563eb; padding-bottom: 10px; }
-        h2 { color: #1d4ed8; margin-top: 30px; }
-        h3 { color: #1e40af; }
-        ul { margin: 10px 0; }
-        li { margin: 5px 0; }
-        .slide { page-break-after: always; margin-bottom: 50px; }
-    </style>
-</head>
-<body>
-    ${content.replace(/\n/g, "<br>").replace(/#{1,3}\s/g, (match) => {
-      const level = match.trim().length
-      return level === 1 ? "<h1>" : level === 2 ? "<h2>" : "<h3>"
-    })}
-</body>
-</html>`
-        mimeType = "text/html"
-        filename = filename.replace(".txt", ".html")
-      } else if (type === "pdf") {
-        // Format for PDF-ready content
-        fileContent = `REAL ESTATE INVESTMENT REPORT\n\n${content}`
-        filename = filename.replace(".txt", ".pdf.txt")
-      } else if (type === "docx") {
-        // Format for DOCX-ready content
-        fileContent = content
-        filename = filename.replace(".txt", ".docx.txt")
-      }
-
-      const blob = new Blob([fileContent], { type: mimeType })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-
-      toast({
-        title: "Download started",
-        description: `${filename} is being downloaded`,
-      })
     } catch (error) {
       toast({
-        title: "Download failed",
-        description: "Unable to download file",
+        title: "Copy Failed",
+        description: "Failed to copy message to clipboard",
         variant: "destructive",
       })
     }
   }
 
-  const handleDownloadClick = (content: string, type: string) => {
-    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-")
-    const filename = `real-estate-${type}-${timestamp}.txt`
-    downloadFile(content, filename, type)
-  }
-
-  const processMessageContent = (content: string) => {
-    // Replace download links with actual download buttons
-    return content.replace(
-      /\[Download (.*?)\]$$download-(.*?)$$/g,
-      (match, text, type) => `__DOWNLOAD_BUTTON_${type}_${text}__`,
-    )
-  }
-
-  const renderMessageContent = (content: string, messageId: string) => {
-    const processedContent = processMessageContent(content)
-
-    return (
-      <div className="space-y-4">
-        <ReactMarkdown
-          className="prose prose-sm max-w-none"
-          components={{
-            h1: ({ children }) => (
-              <h1 className="text-xl font-bold text-blue-600 border-b-2 border-blue-600 pb-2 mb-4">{children}</h1>
-            ),
-            h2: ({ children }) => <h2 className="text-lg font-semibold text-blue-700 mt-6 mb-3">{children}</h2>,
-            h3: ({ children }) => <h3 className="text-md font-medium text-blue-800 mt-4 mb-2">{children}</h3>,
-            ul: ({ children }) => <ul className="list-disc list-inside space-y-1 ml-4">{children}</ul>,
-            ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 ml-4">{children}</ol>,
-            li: ({ children }) => <li className="text-gray-700">{children}</li>,
-            strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
-            p: ({ children }) => <p className="mb-3 text-gray-700">{children}</p>,
-          }}
-        >
-          {processedContent}
-        </ReactMarkdown>
-
-        {/* Render download buttons */}
-        {processedContent.includes("__DOWNLOAD_BUTTON_") && (
-          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t">
-            {processedContent.match(/__DOWNLOAD_BUTTON_(.*?)_(.*?)__/g)?.map((match, index) => {
-              const [, type, text] = match.match(/__DOWNLOAD_BUTTON_(.*?)_(.*?)__/) || []
-              const buttonText = text?.replace(/_/g, " ") || "Download"
-
-              let icon = <Download className="w-4 h-4" />
-              let variant: "default" | "secondary" | "destructive" = "default"
-
-              if (type === "slides") {
-                icon = <Presentation className="w-4 h-4" />
-                variant = "default"
-              } else if (type === "pdf") {
-                icon = <FileText className="w-4 h-4" />
-                variant = "destructive"
-              } else if (type === "docx") {
-                icon = <FileText className="w-4 h-4" />
-                variant = "secondary"
-              }
-
-              return (
-                <Button
-                  key={index}
-                  variant={variant}
-                  size="sm"
-                  onClick={() => handleDownloadClick(content, type)}
-                  className="flex items-center gap-2"
-                >
-                  {icon}
-                  {buttonText}
-                </Button>
-              )
-            })}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() || isLoading) return
+  const handleSendMessage = async (message?: string, action?: string) => {
+    const messageToSend = message || inputValue.trim()
+    if (!messageToSend || isLoading) return
 
     const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: input,
-      timestamp: new Date(),
+      id: generateMessageId(),
+      content: messageToSend,
+      sender: "user",
+      timestamp: new Date().toISOString(),
     }
 
-    setMessages((prev) => [...prev, userMessage])
-    setInput("")
+    const newMessages = [...messages, userMessage]
+    setMessages(newMessages)
+    setInputValue("")
     setIsLoading(true)
 
     try {
+      console.log("🚀 Sending message to API...")
+
       const response = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          messages: [...messages, userMessage].map((m) => ({
-            role: m.role,
-            content: m.content,
+          messages: newMessages.map((msg) => ({
+            role: msg.sender === "user" ? "user" : "assistant",
+            content: msg.content,
           })),
+          action: action,
         }),
       })
 
-      if (!response.ok) throw new Error("Failed to get response")
+      console.log("📡 Response status:", response.status)
 
-      const reader = response.body?.getReader()
-      if (!reader) throw new Error("No reader available")
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: "",
-        timestamp: new Date(),
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error("❌ API Error:", errorData)
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`)
       }
 
-      setMessages((prev) => [...prev, assistantMessage])
+      const data = await response.json()
+      console.log("✅ Response received:", data)
 
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = new TextDecoder().decode(value)
-        const lines = chunk.split("\n")
-
-        for (const line of lines) {
-          if (line.startsWith("0:")) {
-            try {
-              const data = JSON.parse(line.slice(2))
-              if (data.type === "text-delta") {
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === assistantMessage.id ? { ...msg, content: msg.content + data.textDelta } : msg,
-                  ),
-                )
-              }
-            } catch (e) {
-              // Ignore parsing errors
-            }
-          }
-        }
+      const aiResponse: Message = {
+        id: generateMessageId(),
+        content: data.message,
+        sender: "ai",
+        timestamp: new Date().toISOString(),
+        action: data.action,
+        actionData: data,
       }
+
+      const finalMessages = [...newMessages, aiResponse]
+      setMessages(finalMessages)
+
+      // Generate title from first message if this is a new chat
+      const title = messages.length === 0 ? generateChatTitle(messageToSend) : undefined
+
+      // Update chat in parent component
+      onChatUpdate(finalMessages, title)
     } catch (error) {
-      console.error("Chat error:", error)
+      console.error("❌ Chat error:", error)
+
+      // Add error message to chat
+      const errorMessage: Message = {
+        id: generateMessageId(),
+        content: `I apologize, but I encountered an error: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.`,
+        sender: "ai",
+        timestamp: new Date().toISOString(),
+      }
+
+      const finalMessages = [...newMessages, errorMessage]
+      setMessages(finalMessages)
+
       toast({
         title: "Error",
-        description: "Failed to get response. Please try again.",
+        description: "Failed to send message. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -289,149 +226,337 @@ export default function EnhancedChat({ onSuggestedQuestion }: EnhancedChatProps)
     }
   }
 
-  const suggestedQuestions = [
-    "Analyze current mortgage rates and their impact on real estate investments",
-    "Create a market analysis report for residential properties",
-    "Generate investment slides for a rental property presentation",
-    "What are the current housing market trends based on latest data?",
-    "Calculate ROI for a $300,000 rental property with 20% down payment",
-  ]
+  const generateChatTitle = (firstMessage: string): string => {
+    const words = firstMessage.split(" ").slice(0, 6).join(" ")
+    return words.length > 30 ? words.substring(0, 30) + "..." : words
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      handleSendMessage()
+    }
+  }
+
+  const handleQuickAction = (actionId: string) => {
+    onToolSelect(actionId)
+  }
+
+  const handleSuggestedQuestion = (question: string) => {
+    handleSendMessage(question)
+  }
+
+  const handleDownload = (message: Message) => {
+    if (message.actionData?.content && message.actionData?.filename) {
+      try {
+        const blob = new Blob([message.actionData.content], {
+          type: message.actionData.filename.endsWith(".html") ? "text/html" : "text/plain",
+        })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = message.actionData.filename
+        a.style.display = "none"
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+
+        toast({
+          title: "Download Started",
+          description: `${message.actionData.filename} is downloading...`,
+        })
+      } catch (error) {
+        console.error("Download error:", error)
+        toast({
+          title: "Download Failed",
+          description: "Failed to download file. Please try again.",
+          variant: "destructive",
+        })
+      }
+    }
+  }
+
+  const handleReportFormat = (format: "pdf" | "docx") => {
+    const action = format === "pdf" ? "download_pdf" : "download_docx"
+    handleSendMessage(`Generate ${format.toUpperCase()} report`, action)
+  }
+
+  const formatMessage = (content: string) => {
+    // Convert markdown-style formatting to HTML
+    const formatted = content
+      // Headers
+      .replace(/^# (.*$)/gm, '<h1 class="text-xl font-bold text-blue-600 border-b-2 border-blue-600 pb-2 mb-4">$1</h1>')
+      .replace(/^## (.*$)/gm, '<h2 class="text-lg font-semibold text-blue-700 mt-6 mb-3">$1</h2>')
+      .replace(/^### (.*$)/gm, '<h3 class="text-md font-medium text-blue-800 mt-4 mb-2">$1</h3>')
+      // Bold text
+      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
+      // Code blocks
+      .replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">$1</code>')
+      // Line breaks
+      .replace(/\n/g, "<br>")
+
+    // Handle bullet points
+    const lines = content.split("\n")
+    let inList = false
+    let result = ""
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim()
+
+      if (line.startsWith("- ")) {
+        if (!inList) {
+          result += '<ul class="list-disc list-inside space-y-1 ml-4 my-2">'
+          inList = true
+        }
+        result += `<li class="text-gray-700">${line.substring(2)}</li>`
+      } else {
+        if (inList) {
+          result += "</ul>"
+          inList = false
+        }
+        if (line) {
+          result += `<p class="mb-3 text-gray-700">${line}</p>`
+        }
+      }
+    }
+
+    if (inList) {
+      result += "</ul>"
+    }
+
+    return result
+  }
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2">
-          <Bot className="w-5 h-5 text-blue-600" />
-          AI Real Estate Investment Advisor
-        </CardTitle>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Badge variant="secondary" className="text-xs">
-            <TrendingUp className="w-3 h-3 mr-1" />
-            Live Market Data
-          </Badge>
-          <Badge variant="secondary" className="text-xs">
-            <DollarSign className="w-3 h-3 mr-1" />
-            Financial Analysis
-          </Badge>
-          <Badge variant="secondary" className="text-xs">
-            <Home className="w-3 h-3 mr-1" />
-            Property Insights
-          </Badge>
+    <div className="flex flex-col h-[calc(100vh-2rem)] max-w-4xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center gap-3 p-4 border-b bg-white rounded-t-lg">
+        <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+          <Bot className="h-5 w-5 text-white" />
         </div>
-      </CardHeader>
+        <div>
+          <h2 className="font-semibold text-lg">MSASCOUT AI Assistant</h2>
+          <p className="text-sm text-gray-600">Real-time market data • Investment analysis • Report generation</p>
+        </div>
+      </div>
 
-      <CardContent className="flex-1 flex flex-col p-0">
-        <ScrollArea className="flex-1 px-6">
-          <div className="space-y-4 pb-4">
-            {messages.length === 0 && (
-              <div className="text-center py-8">
-                <Bot className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Welcome to Your AI Real Estate Advisor</h3>
-                <p className="text-muted-foreground mb-6">
-                  Get expert insights with real-time market data from Census, BLS, and FRED APIs
-                </p>
-                <div className="grid gap-2 max-w-2xl mx-auto">
-                  <p className="text-sm font-medium text-left">Try asking:</p>
-                  {suggestedQuestions.map((question, index) => (
-                    <Button
-                      key={index}
-                      variant="outline"
-                      className="text-left justify-start h-auto p-3 text-sm bg-transparent"
-                      onClick={() => {
-                        setInput(question)
-                        onSuggestedQuestion?.(question)
-                      }}
-                    >
-                      {question}
-                    </Button>
-                  ))}
-                </div>
+      {/* Messages Area */}
+      <ScrollArea className="flex-1 p-4 bg-gray-50">
+        {messages.length === 0 ? (
+          <div className="space-y-6">
+            {/* Welcome Message */}
+            <div className="text-center py-8">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Bot className="h-8 w-8 text-white" />
               </div>
-            )}
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Welcome to MSASCOUT AI</h3>
+              <p className="text-gray-600 max-w-md mx-auto">
+                I'm your AI property investment assistant with access to real-time Census, BLS, and FRED data. Ask me
+                about market conditions, generate reports, or use our specialized tools.
+              </p>
+            </div>
 
+            {/* Quick Actions */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-gray-900">Quick Actions</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {quickActions.map((action) => (
+                  <Card
+                    key={action.id}
+                    className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-105"
+                    onClick={() => handleQuickAction(action.id)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 ${action.color} rounded-lg flex items-center justify-center`}>
+                          <action.icon className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-sm">{action.title}</h5>
+                          <p className="text-xs text-gray-600">{action.description}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            {/* Suggested Questions */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-gray-900">Ask About Real-Time Market Data</h4>
+              <div className="space-y-2">
+                {suggestedQuestions.map((question, index) => (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    className="w-full text-left justify-start h-auto p-3 text-wrap bg-transparent"
+                    onClick={() => handleSuggestedQuestion(question)}
+                  >
+                    {question}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
             {messages.map((message) => (
-              <div key={message.id} className="flex gap-3 group">
-                <Avatar className="w-8 h-8 mt-1">
-                  <AvatarFallback>
-                    {message.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-                  </AvatarFallback>
-                </Avatar>
+              <div
+                key={message.id}
+                className={`flex gap-3 ${message.sender === "user" ? "justify-end" : "justify-start"}`}
+              >
+                {message.sender === "ai" && (
+                  <Avatar className="w-8 h-8 flex-shrink-0">
+                    <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white">
+                      <Bot className="h-4 w-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                )}
 
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{message.role === "user" ? "You" : "AI Advisor"}</span>
-                    <span className="text-xs text-muted-foreground">{message.timestamp.toLocaleTimeString()}</span>
+                <div
+                  className={`max-w-[80%] rounded-lg p-3 ${
+                    message.sender === "user" ? "bg-blue-600 text-white" : "bg-white border shadow-sm"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      {message.sender === "ai" ? (
+                        <div
+                          className="prose prose-sm max-w-none"
+                          dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }}
+                        />
+                      ) : (
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      )}
+
+                      {/* Action buttons for special responses */}
+                      {message.action === "download_slides" && message.actionData && (
+                        <Button
+                          onClick={() => handleDownload(message)}
+                          className="mt-3 bg-green-600 hover:bg-green-700 text-white"
+                          size="sm"
+                        >
+                          <Presentation className="h-4 w-4 mr-2" />
+                          Download Slides
+                        </Button>
+                      )}
+
+                      {message.action === "download_pdf" && message.actionData && (
+                        <Button
+                          onClick={() => handleDownload(message)}
+                          className="mt-3 bg-red-600 hover:bg-red-700 text-white"
+                          size="sm"
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Download PDF Report
+                        </Button>
+                      )}
+
+                      {message.action === "download_docx" && message.actionData && (
+                        <Button
+                          onClick={() => handleDownload(message)}
+                          className="mt-3 bg-blue-600 hover:bg-blue-700 text-white"
+                          size="sm"
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Download DOCX Report
+                        </Button>
+                      )}
+
+                      {message.action === "ask_report_format" && (
+                        <div className="mt-3 space-x-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleReportFormat("pdf")}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                          >
+                            <FileText className="h-4 w-4 mr-1" />
+                            PDF
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleReportFormat("docx")}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            <FileText className="h-4 w-4 mr-1" />
+                            DOCX
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
                       onClick={() => copyToClipboard(message.content, message.id)}
+                      className="flex-shrink-0 h-6 w-6 p-0 ml-2"
                     >
                       {copiedMessageId === message.id ? (
-                        <Check className="w-3 h-3 text-green-600" />
+                        <Check className="h-3 w-3 text-green-600" />
                       ) : (
-                        <Copy className="w-3 h-3" />
+                        <Copy className="h-3 w-3" />
                       )}
                     </Button>
                   </div>
 
-                  <div className="bg-muted/50 rounded-lg p-3">
-                    {message.role === "assistant" ? (
-                      renderMessageContent(message.content, message.id)
-                    ) : (
-                      <p className="text-sm">{message.content}</p>
-                    )}
-                  </div>
+                  <p className={`text-xs mt-2 ${message.sender === "user" ? "text-blue-100" : "text-gray-500"}`}>
+                    {new Date(message.timestamp).toLocaleTimeString()}
+                  </p>
                 </div>
+
+                {message.sender === "user" && (
+                  <Avatar className="w-8 h-8 flex-shrink-0">
+                    <AvatarFallback className="bg-gray-600 text-white">
+                      <User className="h-4 w-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                )}
               </div>
             ))}
 
             {isLoading && (
-              <div className="flex gap-3">
-                <Avatar className="w-8 h-8 mt-1">
-                  <AvatarFallback>
-                    <Bot className="w-4 h-4" />
+              <div className="flex gap-3 justify-start">
+                <Avatar className="w-8 h-8">
+                  <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white">
+                    <Bot className="h-4 w-4" />
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex-1">
-                  <div className="bg-muted/50 rounded-lg p-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" />
-                      <div
-                        className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"
-                        style={{ animationDelay: "0.1s" }}
-                      />
-                      <div
-                        className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"
-                        style={{ animationDelay: "0.2s" }}
-                      />
-                      <span className="text-sm text-muted-foreground ml-2">Analyzing with real-time data...</span>
-                    </div>
+                <div className="bg-white border shadow-sm rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm text-gray-600">Analyzing market data...</span>
                   </div>
                 </div>
               </div>
             )}
-          </div>
-          <div ref={messagesEndRef} />
-        </ScrollArea>
 
-        <Separator />
-
-        <form onSubmit={handleSubmit} className="p-6 pt-4">
-          <div className="flex gap-2">
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about real estate investments, market analysis, or request reports..."
-              disabled={isLoading}
-              className="flex-1"
-            />
-            <Button type="submit" disabled={isLoading || !input.trim()}>
-              <Send className="w-4 h-4" />
-            </Button>
+            <div ref={messagesEndRef} />
           </div>
-        </form>
-      </CardContent>
-    </Card>
+        )}
+      </ScrollArea>
+
+      {/* Input Area */}
+      <div className="p-4 border-t bg-white rounded-b-lg">
+        <div className="flex gap-2">
+          <Input
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Ask about market conditions, generate reports, or request analysis..."
+            disabled={isLoading}
+            className="flex-1"
+          />
+          <Button
+            onClick={() => handleSendMessage()}
+            disabled={!inputValue.trim() || isLoading}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+          >
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
+        </div>
+      </div>
+    </div>
   )
 }
