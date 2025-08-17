@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Search,
   Filter,
@@ -32,7 +33,9 @@ import {
   Wifi,
   WifiOff,
   Loader2,
+  AlertTriangle,
   CheckCircle,
+  Key,
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import type { PropertyListing, PropertySearchFilters, MSAInfo, APIStatus } from "@/lib/property-search-agent"
@@ -107,10 +110,11 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
   const [msaInfo, setMsaInfo] = useState<MSAInfo | null>(null)
   const [loading, setLoading] = useState(false)
   const [selectedProperty, setSelectedProperty] = useState<PropertyListing | null>(null)
+  const [apiConfigError, setApiConfigError] = useState<string | null>(null)
   const [apiStatus, setApiStatus] = useState<APIStatus>({
-    rentspree: "connecting",
     loopnet: "connecting",
     zillow: "connecting",
+    rentcast: "connecting",
   })
 
   // Filter states
@@ -126,7 +130,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
     maxBathrooms: 10,
     sortBy: "price",
     sortOrder: "asc",
-    listingStatus: "for_sale", // Only show properties for sale
+    listingStatus: "for_sale",
   })
 
   const [priceRange, setPriceRange] = useState([100000, 1000000])
@@ -163,8 +167,10 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
     }
 
     setLoading(true)
+    setApiConfigError(null)
+
     try {
-      console.log("🔍 Starting property search for FOR SALE properties only...")
+      console.log("🔍 Starting REAL API property search...")
 
       // Get MSA info first
       await getMSAInfo()
@@ -175,7 +181,6 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
         maxPrice: priceRange[1],
         minBedrooms: bedroomRange[0],
         maxBedrooms: bedroomRange[1],
-        listingStatus: "for_sale", // Ensure we only get for sale properties
       }
 
       console.log("📋 Search filters being sent:", searchFilters)
@@ -193,21 +198,35 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
 
       if (!response.ok) {
         const errorData = await response.json()
+
+        // Check if it's an API configuration error
+        if (errorData.missingKeys) {
+          setApiConfigError(
+            `Missing API Keys: ${errorData.missingKeys.join(", ")}. Please configure these environment variables to access real property data.`,
+          )
+        }
+
         throw new Error(errorData.details || errorData.error || `HTTP ${response.status}`)
       }
 
       const data = await response.json()
-      console.log("📊 API response data:", data)
+      console.log("📊 REAL API response data:", data)
 
       if (data.success && Array.isArray(data.properties)) {
-        // Double-check that all properties are for sale
-        const forSaleProperties = data.properties.filter((prop: PropertyListing) => prop.listingStatus === "for_sale")
-        setProperties(forSaleProperties)
+        setProperties(data.properties)
         setApiStatus(data.apiStatus || apiStatus)
-        toast({
-          title: "Search Complete",
-          description: `Found ${forSaleProperties.length} properties FOR SALE from live APIs`,
-        })
+
+        if (data.dataSource === "REAL_API_DATA") {
+          toast({
+            title: "Real Data Retrieved!",
+            description: `Found ${data.properties.length} REAL properties from live APIs`,
+          })
+        } else {
+          toast({
+            title: "Search Complete",
+            description: `Found ${data.properties.length} properties`,
+          })
+        }
       } else {
         throw new Error(data.error || "Invalid response format")
       }
@@ -318,18 +337,29 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5" />
-            Property Search Filters
+            Real Property Search
           </CardTitle>
         </CardHeader>
         <CardContent className="flex-1">
           <ScrollArea className="h-full pr-4">
             <div className="space-y-6">
+              {/* API Configuration Alert */}
+              {apiConfigError && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    <div className="font-semibold mb-1">API Configuration Required</div>
+                    {apiConfigError}
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* API Status */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-sm flex items-center gap-2">
                     <Database className="h-4 w-4" />
-                    API Status
+                    Real API Status
                   </h3>
                   <Button
                     variant="outline"
@@ -342,10 +372,10 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs">RentSpree:</span>
-                    <Badge variant="outline" className={`text-xs ${getStatusColor(apiStatus.rentspree)}`}>
-                      {getStatusIcon(apiStatus.rentspree)}
-                      <span className="ml-1">{apiStatus.rentspree}</span>
+                    <span className="text-xs">RentCast:</span>
+                    <Badge variant="outline" className={`text-xs ${getStatusColor(apiStatus.rentcast)}`}>
+                      {getStatusIcon(apiStatus.rentcast)}
+                      <span className="ml-1">{apiStatus.rentcast}</span>
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between">
@@ -362,20 +392,6 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                       <span className="ml-1">{apiStatus.zillow}</span>
                     </Badge>
                   </div>
-                </div>
-              </div>
-
-              {/* Listing Status Filter */}
-              <div className="space-y-3">
-                <h3 className="font-semibold text-sm">Listing Status</h3>
-                <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <span className="text-sm font-medium text-green-800">For Sale Only</span>
-                  </div>
-                  <p className="text-xs text-green-600 mt-1">
-                    Showing only properties currently available for purchase
-                  </p>
                 </div>
               </div>
 
@@ -502,7 +518,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                 className="w-full"
               >
                 <Search className="h-4 w-4 mr-2" />
-                {loading ? "Searching..." : "Search Properties"}
+                {loading ? "Searching Real APIs..." : "Search Real Properties"}
               </Button>
             </div>
           </ScrollArea>
@@ -547,7 +563,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
         <Card className="flex-1">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Properties For Sale ({properties.length})</CardTitle>
+              <CardTitle>Real Properties Found ({properties.length})</CardTitle>
               {properties.length > 0 && (
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary">
@@ -555,10 +571,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                   </Badge>
                   <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
                     <CheckCircle className="h-3 w-3 mr-1" />
-                    For Sale Only
-                  </Badge>
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
-                    Live API Data
+                    Real API Data
                   </Badge>
                 </div>
               )}
@@ -569,18 +582,37 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
               {loading ? (
                 <div className="flex flex-col items-center justify-center h-64 text-center p-8">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Searching Properties...</h3>
-                  <p className="text-gray-600">Fetching FOR SALE properties from RentSpree, LoopNet, and Zillow APIs</p>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Searching Real APIs...</h3>
+                  <p className="text-gray-600">Fetching live data from RentCast, LoopNet, and Zillow APIs</p>
+                  <div className="mt-4 text-sm text-gray-500">
+                    <p>• RentCast: Single Family, Condo, Townhouse, Multi-Family, Apartment, Land</p>
+                    <p>• LoopNet: Commercial Properties</p>
+                    <p>• Zillow: Residential Sales</p>
+                  </div>
                 </div>
               ) : properties.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-center p-8">
                   <MapPin className="h-12 w-12 text-gray-400 mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Properties For Sale Found</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Real Properties Found</h3>
                   <p className="text-gray-600 mb-4">
                     {!filters.state || !filters.msa
-                      ? "Please select a state and enter an MSA to search for properties"
-                      : "Try adjusting your search filters to find more properties for sale"}
+                      ? "Please select a state and enter an MSA to search for real properties"
+                      : apiConfigError
+                        ? "API configuration required to access real property data"
+                        : "Try adjusting your search filters to find more properties"}
                   </p>
+                  {apiConfigError && (
+                    <div className="text-sm text-orange-600 bg-orange-50 p-3 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Key className="h-4 w-4" />
+                        <span className="font-semibold">API Keys Required</span>
+                      </div>
+                      <p>
+                        Configure RENTCAST_API_KEY, LOOPNET_API_KEY, and ZILLOW_API_KEY environment variables to access
+                        real property data.
+                      </p>
+                    </div>
+                  )}
                   {!filters.state || !filters.msa ? (
                     <div className="text-sm text-gray-500">
                       <p>Example MSAs:</p>
@@ -618,7 +650,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                               </Badge>
                               <Badge className="absolute bottom-2 right-2 bg-green-600 text-white">
                                 <CheckCircle className="h-3 w-3 mr-1" />
-                                For Sale
+                                Real Data
                               </Badge>
                             </div>
                             <CardContent className="p-4">
@@ -652,7 +684,13 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                         {/* Property Details Modal */}
                         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                           <DialogHeader>
-                            <DialogTitle className="text-xl">{property.title}</DialogTitle>
+                            <DialogTitle className="text-xl flex items-center gap-2">
+                              {property.title}
+                              <Badge className="bg-green-100 text-green-800">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Real Data
+                              </Badge>
+                            </DialogTitle>
                           </DialogHeader>
 
                           <Tabs defaultValue="overview" className="w-full">
@@ -674,10 +712,15 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                                   <div>
                                     <h3 className="text-2xl font-bold text-green-600">{formatPrice(property.price)}</h3>
                                     <p className="text-gray-600">${property.marketData.pricePerSqFt}/sqft</p>
-                                    <Badge className="mt-2 bg-green-100 text-green-800">
-                                      <CheckCircle className="h-3 w-3 mr-1" />
-                                      For Sale
-                                    </Badge>
+                                    <div className="flex gap-2 mt-2">
+                                      <Badge className="bg-green-100 text-green-800">
+                                        <CheckCircle className="h-3 w-3 mr-1" />
+                                        For Sale
+                                      </Badge>
+                                      <Badge className="bg-blue-100 text-blue-800">
+                                        {property.listingSource.website}
+                                      </Badge>
+                                    </div>
                                   </div>
 
                                   <div className="space-y-2">
