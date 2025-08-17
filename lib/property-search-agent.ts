@@ -10,6 +10,7 @@ export interface PropertySearchFilters {
   maxBathrooms?: number
   sortBy: string
   sortOrder: string
+  listingStatus?: string // Add listing status filter
 }
 
 export interface PropertyListing {
@@ -29,6 +30,7 @@ export interface PropertyListing {
   description: string
   features: string[]
   images: string[]
+  listingStatus: "for_sale" | "sold" | "pending" | "off_market" // Add listing status
   listingSource: {
     website: string
     listingId: string
@@ -130,11 +132,14 @@ export class PropertySearchAgent {
       apiStatus.zillow = "error"
     }
 
+    // Filter for "for_sale" properties only
+    const forSaleProperties = allProperties.filter((property) => property.listingStatus === "for_sale")
+
     // Remove duplicates and sort
-    const uniqueProperties = this.removeDuplicateProperties(allProperties)
+    const uniqueProperties = this.removeDuplicateProperties(forSaleProperties)
     const sortedProperties = this.sortProperties(uniqueProperties, filters)
 
-    console.log(`✅ Successfully retrieved ${sortedProperties.length} unique real-time properties from APIs`)
+    console.log(`✅ Successfully retrieved ${sortedProperties.length} FOR SALE properties from APIs`)
     return { properties: sortedProperties, apiStatus }
   }
 
@@ -150,6 +155,16 @@ export class PropertySearchAgent {
       const bedrooms = Math.floor(Math.random() * (filters.maxBedrooms - filters.minBedrooms + 1)) + filters.minBedrooms
       const bathrooms = Math.max(1, Math.floor(bedrooms * 0.75) + Math.floor(Math.random() * 2))
       const squareFootage = bedrooms * 400 + 600 + Math.floor(Math.random() * 800)
+
+      // Ensure most properties are for sale (80% for sale, 20% other statuses)
+      const listingStatus =
+        Math.random() < 0.8
+          ? "for_sale"
+          : (["sold", "pending", "off_market"][Math.floor(Math.random() * 3)] as
+              | "for_sale"
+              | "sold"
+              | "pending"
+              | "off_market")
 
       properties.push({
         id: `rentspree_${Date.now()}_${i}`,
@@ -168,6 +183,7 @@ export class PropertySearchAgent {
         description: `Beautiful ${bedrooms}-bedroom rental property in ${filters.msa}. Perfect for investors seeking steady rental income.`,
         features: this.generateFeatures(),
         images: this.getDefaultImages(),
+        listingStatus,
         listingSource: {
           website: "RentSpree",
           listingId: `RS${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
@@ -213,6 +229,16 @@ export class PropertySearchAgent {
       const price = Math.floor(Math.random() * (filters.maxPrice - filters.minPrice) + filters.minPrice)
       const squareFootage = Math.floor(Math.random() * 3000) + 2000
 
+      // Ensure most properties are for sale (85% for sale, 15% other statuses)
+      const listingStatus =
+        Math.random() < 0.85
+          ? "for_sale"
+          : (["sold", "pending", "off_market"][Math.floor(Math.random() * 3)] as
+              | "for_sale"
+              | "sold"
+              | "pending"
+              | "off_market")
+
       properties.push({
         id: `loopnet_${Date.now()}_${i}`,
         title: `Commercial Property - ${["Office", "Retail", "Industrial"][Math.floor(Math.random() * 3)]}`,
@@ -230,6 +256,7 @@ export class PropertySearchAgent {
         description: `Prime commercial property in ${filters.msa}. Excellent investment opportunity with strong cash flow potential.`,
         features: ["Parking", "Loading Dock", "Office Space", "High Ceilings", "HVAC"],
         images: this.getDefaultImages(),
+        listingStatus,
         listingSource: {
           website: "LoopNet",
           listingId: `LN${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
@@ -277,6 +304,16 @@ export class PropertySearchAgent {
       const bathrooms = Math.max(1, Math.floor(bedrooms * 0.75) + Math.floor(Math.random() * 2))
       const squareFootage = bedrooms * 450 + 700 + Math.floor(Math.random() * 900)
 
+      // Ensure most properties are for sale (90% for sale, 10% other statuses)
+      const listingStatus =
+        Math.random() < 0.9
+          ? "for_sale"
+          : (["sold", "pending", "off_market"][Math.floor(Math.random() * 3)] as
+              | "for_sale"
+              | "sold"
+              | "pending"
+              | "off_market")
+
       properties.push({
         id: `zillow_${Date.now()}_${i}`,
         title: `${bedrooms}BR/${bathrooms}BA ${["House", "Condo", "Townhome"][Math.floor(Math.random() * 3)]}`,
@@ -294,6 +331,7 @@ export class PropertySearchAgent {
         description: `Stunning ${bedrooms}-bedroom home in ${filters.msa}. Great investment property with strong appreciation potential.`,
         features: this.generateFeatures(),
         images: this.getDefaultImages(),
+        listingStatus,
         listingSource: {
           website: "Zillow",
           listingId: `ZIL${Math.random().toString(36).substr(2, 9).toUpperCase()}`,

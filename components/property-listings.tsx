@@ -32,6 +32,7 @@ import {
   Wifi,
   WifiOff,
   Loader2,
+  CheckCircle,
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import type { PropertyListing, PropertySearchFilters, MSAInfo, APIStatus } from "@/lib/property-search-agent"
@@ -125,6 +126,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
     maxBathrooms: 10,
     sortBy: "price",
     sortOrder: "asc",
+    listingStatus: "for_sale", // Only show properties for sale
   })
 
   const [priceRange, setPriceRange] = useState([100000, 1000000])
@@ -162,7 +164,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
 
     setLoading(true)
     try {
-      console.log("🔍 Starting property search...")
+      console.log("🔍 Starting property search for FOR SALE properties only...")
 
       // Get MSA info first
       await getMSAInfo()
@@ -173,6 +175,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
         maxPrice: priceRange[1],
         minBedrooms: bedroomRange[0],
         maxBedrooms: bedroomRange[1],
+        listingStatus: "for_sale", // Ensure we only get for sale properties
       }
 
       console.log("📋 Search filters being sent:", searchFilters)
@@ -197,11 +200,13 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
       console.log("📊 API response data:", data)
 
       if (data.success && Array.isArray(data.properties)) {
-        setProperties(data.properties)
+        // Double-check that all properties are for sale
+        const forSaleProperties = data.properties.filter((prop: PropertyListing) => prop.listingStatus === "for_sale")
+        setProperties(forSaleProperties)
         setApiStatus(data.apiStatus || apiStatus)
         toast({
           title: "Search Complete",
-          description: `Found ${data.properties.length} properties from live APIs`,
+          description: `Found ${forSaleProperties.length} properties FOR SALE from live APIs`,
         })
       } else {
         throw new Error(data.error || "Invalid response format")
@@ -357,6 +362,20 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                       <span className="ml-1">{apiStatus.zillow}</span>
                     </Badge>
                   </div>
+                </div>
+              </div>
+
+              {/* Listing Status Filter */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-sm">Listing Status</h3>
+                <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-800">For Sale Only</span>
+                  </div>
+                  <p className="text-xs text-green-600 mt-1">
+                    Showing only properties currently available for purchase
+                  </p>
                 </div>
               </div>
 
@@ -528,13 +547,17 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
         <Card className="flex-1">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Properties Found ({properties.length})</CardTitle>
+              <CardTitle>Properties For Sale ({properties.length})</CardTitle>
               {properties.length > 0 && (
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary">
                     {filters.msa}, {filters.state}
                   </Badge>
                   <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    For Sale Only
+                  </Badge>
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
                     Live API Data
                   </Badge>
                 </div>
@@ -547,16 +570,16 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                 <div className="flex flex-col items-center justify-center h-64 text-center p-8">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Searching Properties...</h3>
-                  <p className="text-gray-600">Fetching live data from RentSpree, LoopNet, and Zillow APIs</p>
+                  <p className="text-gray-600">Fetching FOR SALE properties from RentSpree, LoopNet, and Zillow APIs</p>
                 </div>
               ) : properties.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-center p-8">
                   <MapPin className="h-12 w-12 text-gray-400 mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Properties Found</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Properties For Sale Found</h3>
                   <p className="text-gray-600 mb-4">
                     {!filters.state || !filters.msa
                       ? "Please select a state and enter an MSA to search for properties"
-                      : "Try adjusting your search filters to find more properties"}
+                      : "Try adjusting your search filters to find more properties for sale"}
                   </p>
                   {!filters.state || !filters.msa ? (
                     <div className="text-sm text-gray-500">
@@ -592,6 +615,10 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                               </Badge>
                               <Badge className="absolute bottom-2 left-2 bg-blue-600 text-white">
                                 {property.listingSource.website}
+                              </Badge>
+                              <Badge className="absolute bottom-2 right-2 bg-green-600 text-white">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                For Sale
                               </Badge>
                             </div>
                             <CardContent className="p-4">
@@ -647,6 +674,10 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                                   <div>
                                     <h3 className="text-2xl font-bold text-green-600">{formatPrice(property.price)}</h3>
                                     <p className="text-gray-600">${property.marketData.pricePerSqFt}/sqft</p>
+                                    <Badge className="mt-2 bg-green-100 text-green-800">
+                                      <CheckCircle className="h-3 w-3 mr-1" />
+                                      For Sale
+                                    </Badge>
                                   </div>
 
                                   <div className="space-y-2">
@@ -700,6 +731,13 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                                     <div className="flex justify-between">
                                       <span>Property Type:</span>
                                       <span className="capitalize">{property.propertyType}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Listing Status:</span>
+                                      <Badge className="bg-green-100 text-green-800">
+                                        <CheckCircle className="h-3 w-3 mr-1" />
+                                        For Sale
+                                      </Badge>
                                     </div>
                                     <div className="flex justify-between">
                                       <span>Square Footage:</span>
@@ -837,6 +875,13 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                                     <div className="flex justify-between">
                                       <span>Listing ID:</span>
                                       <span>{property.listingSource.listingId}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Status:</span>
+                                      <Badge className="bg-green-100 text-green-800">
+                                        <CheckCircle className="h-3 w-3 mr-1" />
+                                        For Sale
+                                      </Badge>
                                     </div>
                                     <div className="flex justify-between">
                                       <span>Last Updated:</span>

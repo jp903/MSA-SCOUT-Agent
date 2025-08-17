@@ -559,7 +559,7 @@ export default function PropertyAnalysisPage() {
                     </div>
                   </div>
 
-                  {/* Loan Information Section */}
+                  {/* Financing Options Section */}
                   <div className="space-y-4">
                     <div>
                       <Label className="text-base font-medium">Financing Options</Label>

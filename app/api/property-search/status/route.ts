@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
-import { propertySearchAgent } from "@/lib/property-search-agent"
+import { PropertySearchAgent } from "@/lib/property-search-agent"
 
 export async function GET() {
   try {
-    const apiStatus = await propertySearchAgent.checkAPIStatus()
+    const searchAgent = new PropertySearchAgent()
+    const apiStatus = await searchAgent.checkAPIStatus()
 
     return NextResponse.json({
       success: true,
@@ -12,11 +13,13 @@ export async function GET() {
       message: "API status check completed",
     })
   } catch (error: any) {
+    console.error("API status check failed:", error)
+
     return NextResponse.json(
       {
         success: false,
         error: "Failed to check API status",
-        details: error.message,
+        details: error.message || "Unknown error occurred",
         apiStatus: {
           rentspree: "error",
           loopnet: "error",
