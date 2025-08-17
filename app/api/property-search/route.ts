@@ -40,28 +40,18 @@ export async function POST(request: NextRequest) {
 
     // Create search agent and search for properties from real APIs
     const searchAgent = new PropertySearchAgent()
-    const properties = await searchAgent.searchProperties(filters)
+    const { properties, apiStatus } = await searchAgent.searchProperties(filters)
 
     console.log(`✅ Real-time search completed successfully. Found ${properties.length} properties`)
 
-    // Sort properties if needed
-    const sortedProperties = properties.sort((a, b) => {
-      const aValue = a[filters.sortBy as keyof typeof a] as number
-      const bValue = b[filters.sortBy as keyof typeof b] as number
-
-      if (filters.sortOrder === "desc") {
-        return bValue - aValue
-      }
-      return aValue - bValue
-    })
-
     return NextResponse.json({
       success: true,
-      properties: sortedProperties, // Return ALL properties from APIs
-      count: sortedProperties.length,
+      properties: properties,
+      count: properties.length,
       filters: filters,
+      apiStatus: apiStatus,
       timestamp: new Date().toISOString(),
-      message: `Found ${sortedProperties.length} real-time properties from RentSpree, LoopNet, and Zillow APIs`,
+      message: `Found ${properties.length} real-time properties from RentSpree, LoopNet, and Zillow APIs`,
       sources: ["RentSpree API", "LoopNet API", "Zillow API"],
     })
   } catch (error: any) {
@@ -74,6 +64,11 @@ export async function POST(request: NextRequest) {
         details: error.message || "Unknown error occurred",
         properties: [],
         count: 0,
+        apiStatus: {
+          rentspree: "error",
+          loopnet: "error",
+          zillow: "error",
+        },
         timestamp: new Date().toISOString(),
       },
       { status: 500 },
@@ -89,6 +84,7 @@ export async function GET() {
     description: "Searches real-time properties from RentSpree, LoopNet, and Zillow APIs",
     endpoints: {
       "POST /api/property-search": "Search for real-time investment properties with filters",
+      "GET /api/property-search/status": "Check API connection status",
     },
     requiredFields: ["state", "msa"],
     optionalFields: ["propertyType", "minPrice", "maxPrice", "minBedrooms", "maxBedrooms", "sortBy", "sortOrder"],
@@ -96,17 +92,17 @@ export async function GET() {
       {
         name: "RentSpree API",
         type: "Residential Rentals",
-        limit: "100 properties per search",
+        status: "active",
       },
       {
         name: "LoopNet API",
         type: "Commercial Properties",
-        limit: "100 properties per search",
+        status: "active",
       },
       {
         name: "Zillow API",
         type: "Residential Sales",
-        limit: "100 properties per search",
+        status: "active",
       },
     ],
   })

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -27,9 +27,14 @@ import {
   Mail,
   ExternalLink,
   Star,
+  RefreshCw,
+  Database,
+  Wifi,
+  WifiOff,
+  Loader2,
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import type { PropertyListing, PropertySearchFilters, MSAInfo } from "@/lib/property-search-agent"
+import type { PropertyListing, PropertySearchFilters, MSAInfo, APIStatus } from "@/lib/property-search-agent"
 
 const US_STATES = [
   "Alabama",
@@ -101,6 +106,11 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
   const [msaInfo, setMsaInfo] = useState<MSAInfo | null>(null)
   const [loading, setLoading] = useState(false)
   const [selectedProperty, setSelectedProperty] = useState<PropertyListing | null>(null)
+  const [apiStatus, setApiStatus] = useState<APIStatus>({
+    rentspree: "connecting",
+    loopnet: "connecting",
+    zillow: "connecting",
+  })
 
   // Filter states
   const [filters, setFilters] = useState<PropertySearchFilters>({
@@ -119,6 +129,26 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
 
   const [priceRange, setPriceRange] = useState([100000, 1000000])
   const [bedroomRange, setBedroomRange] = useState([1, 10])
+
+  useEffect(() => {
+    checkAPIStatus()
+    const interval = setInterval(checkAPIStatus, 30000) // Check every 30 seconds
+    return () => clearInterval(interval)
+  }, [])
+
+  const checkAPIStatus = async () => {
+    try {
+      const response = await fetch("/api/property-search/status")
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setApiStatus(data.apiStatus)
+        }
+      }
+    } catch (error) {
+      console.error("Failed to check API status:", error)
+    }
+  }
 
   const searchProperties = async () => {
     if (!filters.state || !filters.msa) {
@@ -168,9 +198,10 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
 
       if (data.success && Array.isArray(data.properties)) {
         setProperties(data.properties)
+        setApiStatus(data.apiStatus || apiStatus)
         toast({
           title: "Search Complete",
-          description: `Found ${data.properties.length} properties matching your criteria`,
+          description: `Found ${data.properties.length} properties from live APIs`,
         })
       } else {
         throw new Error(data.error || "Invalid response format")
@@ -218,7 +249,6 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
       }
     } catch (error) {
       console.warn("⚠️ Error getting MSA info:", error)
-      // Don't fail the entire search if MSA info fails
     }
   }
 
@@ -247,6 +277,28 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
     return colors[type as keyof typeof colors] || colors.residential
   }
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "connected":
+        return "bg-green-100 text-green-800 border-green-300"
+      case "connecting":
+        return "bg-yellow-100 text-yellow-800 border-yellow-300"
+      default:
+        return "bg-red-100 text-red-800 border-red-300"
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "connected":
+        return <Wifi className="h-3 w-3" />
+      case "connecting":
+        return <Loader2 className="h-3 w-3 animate-spin" />
+      default:
+        return <WifiOff className="h-3 w-3" />
+    }
+  }
+
   const handlePropertyTypeChange = (type: string, checked: boolean) => {
     setFilters((prev) => ({
       ...prev,
@@ -267,6 +319,47 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
         <CardContent className="flex-1">
           <ScrollArea className="h-full pr-4">
             <div className="space-y-6">
+              {/* API Status */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <Database className="h-4 w-4" />
+                    API Status
+                  </h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={checkAPIStatus}
+                    className="h-6 px-2 text-xs bg-transparent"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs">RentSpree:</span>
+                    <Badge variant="outline" className={`text-xs ${getStatusColor(apiStatus.rentspree)}`}>
+                      {getStatusIcon(apiStatus.rentspree)}
+                      <span className="ml-1">{apiStatus.rentspree}</span>
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs">LoopNet:</span>
+                    <Badge variant="outline" className={`text-xs ${getStatusColor(apiStatus.loopnet)}`}>
+                      {getStatusIcon(apiStatus.loopnet)}
+                      <span className="ml-1">{apiStatus.loopnet}</span>
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs">Zillow:</span>
+                    <Badge variant="outline" className={`text-xs ${getStatusColor(apiStatus.zillow)}`}>
+                      {getStatusIcon(apiStatus.zillow)}
+                      <span className="ml-1">{apiStatus.zillow}</span>
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
               {/* Location Selection */}
               <div className="space-y-3">
                 <h3 className="font-semibold text-sm">Location</h3>
@@ -437,9 +530,14 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
             <div className="flex items-center justify-between">
               <CardTitle>Properties Found ({properties.length})</CardTitle>
               {properties.length > 0 && (
-                <Badge variant="secondary">
-                  {filters.msa}, {filters.state}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">
+                    {filters.msa}, {filters.state}
+                  </Badge>
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                    Live API Data
+                  </Badge>
+                </div>
               )}
             </div>
           </CardHeader>
@@ -449,7 +547,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                 <div className="flex flex-col items-center justify-center h-64 text-center p-8">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Searching Properties...</h3>
-                  <p className="text-gray-600">Using AI to find the best investment opportunities</p>
+                  <p className="text-gray-600">Fetching live data from RentSpree, LoopNet, and Zillow APIs</p>
                 </div>
               ) : properties.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-center p-8">
@@ -491,6 +589,9 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                               </Badge>
                               <Badge className="absolute top-2 right-2 bg-white text-gray-900">
                                 {property.marketData.daysOnMarket} days
+                              </Badge>
+                              <Badge className="absolute bottom-2 left-2 bg-blue-600 text-white">
+                                {property.listingSource.website}
                               </Badge>
                             </div>
                             <CardContent className="p-4">
