@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { DollarSign, Home, Percent } from "lucide-react"
 import type { Property } from "@/lib/portfolio-types"
 
@@ -108,6 +109,7 @@ export function PropertyForm({ property, onSubmit, onCancel }: PropertyFormProps
     propertyType: property?.propertyType || "single-family",
     status: property?.status || "analyzing",
     notes: property?.notes || "",
+    useLoan: property ? property.loanAmount > 0 : true,
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -189,10 +191,12 @@ export function PropertyForm({ property, onSubmit, onCancel }: PropertyFormProps
         currentValue: Number.parseFloat(formData.currentValue) || 0,
         monthlyRent: Number.parseFloat(formData.monthlyRent) || 0,
         monthlyExpenses: Number.parseFloat(formData.monthlyExpenses) || 0,
-        downPayment: Number.parseFloat(formData.downPayment) || 0,
-        loanAmount: Number.parseFloat(formData.loanAmount) || 0,
-        interestRate: Number.parseFloat(formData.interestRate) || 0,
-        loanTermYears: Number.parseInt(formData.loanTermYears) || 30,
+        downPayment: formData.useLoan
+          ? Number.parseFloat(formData.downPayment) || 0
+          : Number.parseFloat(formData.purchasePrice) || 0,
+        loanAmount: formData.useLoan ? Number.parseFloat(formData.loanAmount) || 0 : 0,
+        interestRate: formData.useLoan ? Number.parseFloat(formData.interestRate) || 0 : 0,
+        loanTermYears: formData.useLoan ? Number.parseInt(formData.loanTermYears) || 30 : 0,
         propertyType: formData.propertyType,
         status: formData.status,
         notes: formData.notes.trim(),
@@ -207,7 +211,41 @@ export function PropertyForm({ property, onSubmit, onCancel }: PropertyFormProps
   }
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    setFormData((prev) => {
+      const newData = { ...prev, [field]: value }
+
+      // Handle loan toggle
+      if (field === "useLoan") {
+        const useLoan = value === "true"
+        if (useLoan) {
+          // When switching to loan, calculate loan amount
+          const purchasePrice = Number.parseFloat(prev.purchasePrice) || 0
+          const downPayment = Number.parseFloat(prev.downPayment) || purchasePrice * 0.2
+          newData.downPayment = downPayment.toString()
+          newData.loanAmount = (purchasePrice - downPayment).toString()
+          newData.interestRate = prev.interestRate || "6.0"
+          newData.loanTermYears = prev.loanTermYears || "30"
+        } else {
+          // When switching to cash, set down payment to full purchase price
+          newData.downPayment = prev.purchasePrice
+          newData.loanAmount = "0"
+          newData.interestRate = "0"
+          newData.loanTermYears = "0"
+        }
+        newData.useLoan = useLoan
+      }
+
+      // Auto-calculate loan amount when purchase price or down payment changes
+      if ((field === "purchasePrice" || field === "downPayment") && prev.useLoan) {
+        const purchasePrice =
+          field === "purchasePrice" ? Number.parseFloat(value) : Number.parseFloat(prev.purchasePrice)
+        const downPayment = field === "downPayment" ? Number.parseFloat(value) : Number.parseFloat(prev.downPayment)
+        newData.loanAmount = Math.max(0, purchasePrice - downPayment).toString()
+      }
+
+      return newData
+    })
+
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }))
     }
@@ -395,73 +433,100 @@ export function PropertyForm({ property, onSubmit, onCancel }: PropertyFormProps
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Percent className="h-5 w-5" />
-            Loan Information
+            Financing Information
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="downPayment">Down Payment</Label>
-              <Input
-                id="downPayment"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.downPayment}
-                onChange={(e) => handleInputChange("downPayment", e.target.value)}
-                placeholder="90000"
-                className={errors.downPayment ? "border-red-500" : ""}
-              />
-              {errors.downPayment && <p className="text-sm text-red-600">{errors.downPayment}</p>}
+          <div className="space-y-4">
+            <div>
+              <Label>Financing Method</Label>
+              <RadioGroup
+                value={formData.useLoan ? "loan" : "cash"}
+                onValueChange={(value) => handleInputChange("useLoan", (value === "loan").toString())}
+                className="flex gap-6 mt-2"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="loan" id="use-loan" />
+                  <Label htmlFor="use-loan">Use Loan</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="cash" id="use-cash" />
+                  <Label htmlFor="use-cash">Cash Purchase</Label>
+                </div>
+              </RadioGroup>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="loanAmount">Loan Amount</Label>
-              <Input
-                id="loanAmount"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.loanAmount}
-                onChange={(e) => handleInputChange("loanAmount", e.target.value)}
-                placeholder="360000"
-                className={errors.loanAmount ? "border-red-500" : ""}
-              />
-              {errors.loanAmount && <p className="text-sm text-red-600">{errors.loanAmount}</p>}
-            </div>
-          </div>
+            {formData.useLoan ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="downPayment">Down Payment</Label>
+                  <Input
+                    id="downPayment"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.downPayment}
+                    onChange={(e) => handleInputChange("downPayment", e.target.value)}
+                    placeholder="90000"
+                    className={errors.downPayment ? "border-red-500" : ""}
+                  />
+                  {errors.downPayment && <p className="text-sm text-red-600">{errors.downPayment}</p>}
+                </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="interestRate">Interest Rate (%)</Label>
-              <Input
-                id="interestRate"
-                type="number"
-                step="0.001"
-                min="0"
-                max="50"
-                value={formData.interestRate}
-                onChange={(e) => handleInputChange("interestRate", e.target.value)}
-                placeholder="6.5"
-                className={errors.interestRate ? "border-red-500" : ""}
-              />
-              {errors.interestRate && <p className="text-sm text-red-600">{errors.interestRate}</p>}
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="loanAmount">Loan Amount</Label>
+                  <Input
+                    id="loanAmount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.loanAmount}
+                    onChange={(e) => handleInputChange("loanAmount", e.target.value)}
+                    placeholder="360000"
+                    className={errors.loanAmount ? "border-red-500" : ""}
+                    disabled
+                  />
+                  {errors.loanAmount && <p className="text-sm text-red-600">{errors.loanAmount}</p>}
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="loanTermYears">Loan Term (Years)</Label>
-              <Input
-                id="loanTermYears"
-                type="number"
-                min="1"
-                max="50"
-                value={formData.loanTermYears}
-                onChange={(e) => handleInputChange("loanTermYears", e.target.value)}
-                placeholder="30"
-                className={errors.loanTermYears ? "border-red-500" : ""}
-              />
-              {errors.loanTermYears && <p className="text-sm text-red-600">{errors.loanTermYears}</p>}
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="interestRate">Interest Rate (%)</Label>
+                  <Input
+                    id="interestRate"
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    max="50"
+                    value={formData.interestRate}
+                    onChange={(e) => handleInputChange("interestRate", e.target.value)}
+                    placeholder="6.5"
+                    className={errors.interestRate ? "border-red-500" : ""}
+                  />
+                  {errors.interestRate && <p className="text-sm text-red-600">{errors.interestRate}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="loanTermYears">Loan Term (Years)</Label>
+                  <Input
+                    id="loanTermYears"
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={formData.loanTermYears}
+                    onChange={(e) => handleInputChange("loanTermYears", e.target.value)}
+                    placeholder="30"
+                    className={errors.loanTermYears ? "border-red-500" : ""}
+                  />
+                  {errors.loanTermYears && <p className="text-sm text-red-600">{errors.loanTermYears}</p>}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="cashAmount">Cash Investment</Label>
+                <Input id="cashAmount" type="number" value={formData.purchasePrice} disabled className="bg-gray-50" />
+                <p className="text-sm text-gray-600">Full purchase price will be paid in cash</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -559,8 +559,6 @@ export default function PropertyAnalysisPage() {
                     </div>
                   </div>
 
-                  <Separator />
-
                   {/* Loan Information */}
                   <div className="space-y-4">
                     <div>

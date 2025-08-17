@@ -4,7 +4,7 @@ import type { Property, PortfolioMetrics, PropertyPerformance, PropertyImage } f
 export class PortfolioManagerDB {
   static async getPortfolio(): Promise<Property[]> {
     try {
-      console.log("Querying properties from database...")
+      console.log("PortfolioManagerDB: Querying properties from database...")
       const properties = await sql`
         SELECT 
           id::text as id,
@@ -29,7 +29,7 @@ export class PortfolioManagerDB {
         ORDER BY created_at DESC
       `
 
-      console.log(`Found ${properties.length} properties in database`)
+      console.log(`PortfolioManagerDB: Found ${properties.length} properties in database`)
 
       const propertiesWithImages = await Promise.all(
         properties.map(async (property) => {
@@ -41,19 +41,30 @@ export class PortfolioManagerDB {
             images = []
           }
 
-          return {
+          const processedProperty = {
             ...property,
+            purchasePrice: Number(property.purchasePrice) || 0,
+            currentValue: Number(property.currentValue) || 0,
+            monthlyRent: Number(property.monthlyRent) || 0,
+            monthlyExpenses: Number(property.monthlyExpenses) || 0,
+            downPayment: Number(property.downPayment) || 0,
+            loanAmount: Number(property.loanAmount) || 0,
+            interestRate: Number(property.interestRate) || 0,
+            loanTermYears: Number(property.loanTermYears) || 30,
             purchaseDate: property.purchaseDate ? property.purchaseDate.toISOString().split("T")[0] : "",
             createdAt: property.createdAt.toISOString(),
             updatedAt: property.updatedAt.toISOString(),
             images,
           }
+
+          console.log(`Property ${processedProperty.name}: Current Value = $${processedProperty.currentValue}`)
+          return processedProperty
         }),
       )
 
       return propertiesWithImages
     } catch (error) {
-      console.error("Error fetching portfolio:", error)
+      console.error("PortfolioManagerDB: Error fetching portfolio:", error)
       throw error
     }
   }
@@ -62,7 +73,7 @@ export class PortfolioManagerDB {
     property: Omit<Property, "id" | "createdAt" | "updatedAt" | "images">,
   ): Promise<Property | null> {
     try {
-      console.log("Inserting property into database:", property)
+      console.log("PortfolioManagerDB: Inserting property into database:", property)
 
       const result = await sql`
         INSERT INTO properties (
@@ -109,10 +120,19 @@ export class PortfolioManagerDB {
 
       if (result.length > 0) {
         const newProperty = result[0]
-        console.log("Property inserted successfully with ID:", newProperty.id)
+        console.log("PortfolioManagerDB: Property inserted successfully with ID:", newProperty.id)
+        console.log("PortfolioManagerDB: New property current value:", newProperty.currentValue)
 
         return {
           ...newProperty,
+          purchasePrice: Number(newProperty.purchasePrice) || 0,
+          currentValue: Number(newProperty.currentValue) || 0,
+          monthlyRent: Number(newProperty.monthlyRent) || 0,
+          monthlyExpenses: Number(newProperty.monthlyExpenses) || 0,
+          downPayment: Number(newProperty.downPayment) || 0,
+          loanAmount: Number(newProperty.loanAmount) || 0,
+          interestRate: Number(newProperty.interestRate) || 0,
+          loanTermYears: Number(newProperty.loanTermYears) || 30,
           purchaseDate: newProperty.purchaseDate ? newProperty.purchaseDate.toISOString().split("T")[0] : "",
           createdAt: newProperty.createdAt.toISOString(),
           updatedAt: newProperty.updatedAt.toISOString(),
@@ -120,17 +140,17 @@ export class PortfolioManagerDB {
         }
       }
 
-      console.error("No property returned from insert operation")
+      console.error("PortfolioManagerDB: No property returned from insert operation")
       return null
     } catch (error) {
-      console.error("Error adding property to database:", error)
+      console.error("PortfolioManagerDB: Error adding property to database:", error)
       throw error
     }
   }
 
   static async updateProperty(id: string, updates: Partial<Property>): Promise<Property | null> {
     try {
-      console.log("Updating property:", id, updates)
+      console.log("PortfolioManagerDB: Updating property:", id, updates)
 
       // Validate UUID format
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -190,6 +210,14 @@ export class PortfolioManagerDB {
 
         return {
           ...updatedProperty,
+          purchasePrice: Number(updatedProperty.purchasePrice) || 0,
+          currentValue: Number(updatedProperty.currentValue) || 0,
+          monthlyRent: Number(updatedProperty.monthlyRent) || 0,
+          monthlyExpenses: Number(updatedProperty.monthlyExpenses) || 0,
+          downPayment: Number(updatedProperty.downPayment) || 0,
+          loanAmount: Number(updatedProperty.loanAmount) || 0,
+          interestRate: Number(updatedProperty.interestRate) || 0,
+          loanTermYears: Number(updatedProperty.loanTermYears) || 30,
           purchaseDate: updatedProperty.purchaseDate ? updatedProperty.purchaseDate.toISOString().split("T")[0] : "",
           createdAt: updatedProperty.createdAt.toISOString(),
           updatedAt: updatedProperty.updatedAt.toISOString(),
@@ -198,14 +226,14 @@ export class PortfolioManagerDB {
       }
       return null
     } catch (error) {
-      console.error("Error updating property:", error)
+      console.error("PortfolioManagerDB: Error updating property:", error)
       throw error
     }
   }
 
   static async deleteProperty(id: string): Promise<boolean> {
     try {
-      console.log("Deleting property with UUID:", id)
+      console.log("PortfolioManagerDB: Deleting property with UUID:", id)
 
       // Validate UUID format
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -217,10 +245,10 @@ export class PortfolioManagerDB {
       // Delete the property (CASCADE will handle images)
       const result = await sql`DELETE FROM properties WHERE id = ${id}::uuid`
 
-      console.log("Property deleted, affected rows:", result.count)
+      console.log("PortfolioManagerDB: Property deleted, affected rows:", result.count)
       return result.count > 0
     } catch (error) {
-      console.error("Error deleting property:", error)
+      console.error("PortfolioManagerDB: Error deleting property:", error)
       throw error
     }
   }
@@ -360,9 +388,10 @@ export class PortfolioManagerDB {
   static async calculatePortfolioMetrics(): Promise<PortfolioMetrics> {
     try {
       const portfolio = await this.getPortfolio()
-      const ownedProperties = portfolio.filter((p) => p.status === "owned")
+      console.log(`PortfolioManagerDB: Calculating metrics for ${portfolio.length} properties`)
 
-      if (ownedProperties.length === 0) {
+      if (portfolio.length === 0) {
+        console.log("PortfolioManagerDB: No properties found, returning zero metrics")
         return {
           totalProperties: 0,
           totalValue: 0,
@@ -376,21 +405,47 @@ export class PortfolioManagerDB {
         }
       }
 
-      const performances = ownedProperties.map((p) => this.calculatePropertyPerformance(p))
+      // Calculate totals from ALL properties
+      let totalValue = 0
+      let totalDebt = 0
+      let totalMonthlyIncome = 0
+      let totalMonthlyExpenses = 0
+      let totalMonthlyCashFlow = 0
+      let totalCapRate = 0
+      let totalCashOnCashReturn = 0
+      let totalInvested = 0
 
-      const totalValue = ownedProperties.reduce((sum, p) => sum + p.currentValue, 0)
-      const totalDebt = ownedProperties.reduce((sum, p) => sum + (p.loanAmount || 0), 0)
+      portfolio.forEach((property) => {
+        const currentValue = Number(property.currentValue) || 0
+        const loanAmount = Number(property.loanAmount) || 0
+        const monthlyRent = Number(property.monthlyRent) || 0
+        const monthlyExpenses = Number(property.monthlyExpenses) || 0
+        const downPayment = Number(property.downPayment) || 0
+
+        totalValue += currentValue
+        totalDebt += loanAmount
+        totalMonthlyIncome += monthlyRent
+        totalMonthlyExpenses += monthlyExpenses
+        totalInvested += downPayment
+
+        console.log(
+          `Property ${property.name}: Value=$${currentValue}, Rent=$${monthlyRent}, Expenses=$${monthlyExpenses}`,
+        )
+
+        // Calculate performance for this property
+        const performance = this.calculatePropertyPerformance(property)
+        totalMonthlyCashFlow += performance.monthlyCashFlow
+        totalCapRate += performance.capRate
+        totalCashOnCashReturn += performance.cashOnCashReturn
+      })
+
       const totalEquity = totalValue - totalDebt
-      const totalMonthlyIncome = ownedProperties.reduce((sum, p) => sum + p.monthlyRent, 0)
-      const totalMonthlyExpenses = ownedProperties.reduce((sum, p) => sum + p.monthlyExpenses, 0)
-      const totalMonthlyCashFlow = performances.reduce((sum, p) => sum + p.monthlyCashFlow, 0)
-      const averageCapRate = performances.reduce((sum, p) => sum + p.capRate, 0) / performances.length
-      const averageCashOnCashReturn = performances.reduce((sum, p) => sum + p.cashOnCashReturn, 0) / performances.length
-      const totalInvested = ownedProperties.reduce((sum, p) => sum + p.downPayment, 0)
+      const averageCapRate = portfolio.length > 0 ? totalCapRate / portfolio.length : 0
+      const averageCashOnCashReturn = portfolio.length > 0 ? totalCashOnCashReturn / portfolio.length : 0
       const totalROI = totalInvested > 0 ? ((totalEquity - totalInvested) / totalInvested) * 100 : 0
 
-      return {
-        totalProperties: ownedProperties.length,
+      const metrics = {
+        totalProperties: portfolio.length,
         totalValue: Math.round(totalValue),
         totalEquity: Math.round(totalEquity),
         totalMonthlyIncome: Math.round(totalMonthlyIncome),
@@ -400,8 +455,11 @@ export class PortfolioManagerDB {
         averageCashOnCashReturn: Math.round(averageCashOnCashReturn * 100) / 100,
         totalROI: Math.round(totalROI * 100) / 100,
       }
+
+      console.log("PortfolioManagerDB: Final calculated metrics:", metrics)
+      return metrics
     } catch (error) {
-      console.error("Error calculating portfolio metrics:", error)
+      console.error("PortfolioManagerDB: Error calculating portfolio metrics:", error)
       return {
         totalProperties: 0,
         totalValue: 0,

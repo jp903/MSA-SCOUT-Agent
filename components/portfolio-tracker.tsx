@@ -110,6 +110,9 @@ export default function PortfolioTracker() {
       return
     }
 
+    // Calculate the actual total value from properties
+    const actualTotalValue = properties.reduce((sum, p) => sum + (p.currentValue || 0), 0)
+
     // AI-powered portfolio analysis
     const aiScore = 60 + Math.random() * 35
     const riskScore = Math.random() * 100
@@ -117,7 +120,7 @@ export default function PortfolioTracker() {
 
     const mockAnalysis: PortfolioAnalysis = {
       totalProperties: portfolioMetrics?.totalProperties || properties.length,
-      totalValue: portfolioMetrics?.totalValue || properties.reduce((sum, p) => sum + (p.currentValue || 0), 0),
+      totalValue: portfolioMetrics?.totalValue || actualTotalValue,
       totalEquity: portfolioMetrics?.totalEquity || 0,
       totalMonthlyIncome:
         portfolioMetrics?.totalMonthlyIncome || properties.reduce((sum, p) => sum + (p.monthlyRent || 0), 0),
@@ -135,17 +138,17 @@ export default function PortfolioTracker() {
       opportunities: identifyOpportunities(properties, portfolioMetrics),
       projections: {
         oneYear: {
-          value: (portfolioMetrics?.totalValue || 0) * 1.05,
+          value: (portfolioMetrics?.totalValue || actualTotalValue) * 1.05,
           cashFlow: (portfolioMetrics?.totalMonthlyCashFlow || 0) * 1.03,
           roi: (portfolioMetrics?.totalROI || 0) * 1.02,
         },
         threeYear: {
-          value: (portfolioMetrics?.totalValue || 0) * 1.18,
+          value: (portfolioMetrics?.totalValue || actualTotalValue) * 1.18,
           cashFlow: (portfolioMetrics?.totalMonthlyCashFlow || 0) * 1.12,
           roi: (portfolioMetrics?.totalROI || 0) * 1.08,
         },
         fiveYear: {
-          value: (portfolioMetrics?.totalValue || 0) * 1.35,
+          value: (portfolioMetrics?.totalValue || actualTotalValue) * 1.35,
           cashFlow: (portfolioMetrics?.totalMonthlyCashFlow || 0) * 1.25,
           roi: (portfolioMetrics?.totalROI || 0) * 1.15,
         },
