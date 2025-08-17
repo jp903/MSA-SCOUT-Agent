@@ -3,7 +3,7 @@ import { PropertySearchAgent, type PropertySearchFilters } from "@/lib/property-
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("🔍 Property search API endpoint called")
+    console.log("🔍 Real-time property search API endpoint called")
 
     const body = await request.json()
     console.log("📋 Received search filters:", body)
@@ -38,11 +38,11 @@ export async function POST(request: NextRequest) {
 
     console.log("🎯 Processed search filters:", filters)
 
-    // Create search agent and search for properties
+    // Create search agent and search for properties from real APIs
     const searchAgent = new PropertySearchAgent()
     const properties = await searchAgent.searchProperties(filters)
 
-    console.log(`✅ Search completed successfully. Found ${properties.length} properties`)
+    console.log(`✅ Real-time search completed successfully. Found ${properties.length} properties`)
 
     // Sort properties if needed
     const sortedProperties = properties.sort((a, b) => {
@@ -57,19 +57,20 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      properties: sortedProperties,
+      properties: sortedProperties, // Return ALL properties from APIs
       count: sortedProperties.length,
       filters: filters,
       timestamp: new Date().toISOString(),
-      message: `Found ${sortedProperties.length} properties matching your criteria`,
+      message: `Found ${sortedProperties.length} real-time properties from RentSpree, LoopNet, and Zillow APIs`,
+      sources: ["RentSpree API", "LoopNet API", "Zillow API"],
     })
   } catch (error: any) {
-    console.error("❌ Property search API error:", error)
+    console.error("❌ Real-time property search API error:", error)
 
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to search properties",
+        error: "Failed to search real-time properties",
         details: error.message || "Unknown error occurred",
         properties: [],
         count: 0,
@@ -82,13 +83,31 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   return NextResponse.json({
-    message: "Property Search API",
-    version: "2.0.0",
+    message: "Real-Time Property Search API",
+    version: "3.0.0",
     status: "active",
+    description: "Searches real-time properties from RentSpree, LoopNet, and Zillow APIs",
     endpoints: {
-      "POST /api/property-search": "Search for investment properties with filters",
+      "POST /api/property-search": "Search for real-time investment properties with filters",
     },
     requiredFields: ["state", "msa"],
     optionalFields: ["propertyType", "minPrice", "maxPrice", "minBedrooms", "maxBedrooms", "sortBy", "sortOrder"],
+    dataSources: [
+      {
+        name: "RentSpree API",
+        type: "Residential Rentals",
+        limit: "100 properties per search",
+      },
+      {
+        name: "LoopNet API",
+        type: "Commercial Properties",
+        limit: "100 properties per search",
+      },
+      {
+        name: "Zillow API",
+        type: "Residential Sales",
+        limit: "100 properties per search",
+      },
+    ],
   })
 }

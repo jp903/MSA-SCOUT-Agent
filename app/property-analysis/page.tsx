@@ -559,46 +559,52 @@ export default function PropertyAnalysisPage() {
                     </div>
                   </div>
 
-                  {/* Loan Information */}
+                  {/* Loan Information Section */}
                   <div className="space-y-4">
                     <div>
-                      <Label>Financing</Label>
+                      <Label className="text-base font-medium">Financing Options</Label>
                       <RadioGroup
                         value={propertyData.useLoan ? "loan" : "cash"}
                         onValueChange={(value) => handleInputChange("useLoan", value === "loan")}
-                        className="flex gap-4 mt-2"
+                        className="flex gap-6 mt-3"
                       >
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="loan" id="use-loan" />
-                          <Label htmlFor="use-loan">Use Loan</Label>
+                          <Label htmlFor="use-loan" className="cursor-pointer">
+                            Use Loan
+                          </Label>
                         </div>
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="cash" id="use-cash" />
-                          <Label htmlFor="use-cash">Cash Purchase</Label>
+                          <Label htmlFor="use-cash" className="cursor-pointer">
+                            Cash Purchase
+                          </Label>
                         </div>
                       </RadioGroup>
                     </div>
 
                     {propertyData.useLoan ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-50 rounded-lg border">
                         <div>
-                          <Label htmlFor="downPayment">Down Payment</Label>
+                          <Label htmlFor="downPayment">Down Payment ($)</Label>
                           <Input
                             id="downPayment"
                             type="number"
                             value={propertyData.downPayment}
                             onChange={(e) => handleInputChange("downPayment", Number(e.target.value))}
+                            placeholder="40000"
                           />
                         </div>
                         <div>
-                          <Label htmlFor="loanAmount">Loan Amount</Label>
+                          <Label htmlFor="loanAmount">Loan Amount ($)</Label>
                           <Input
                             id="loanAmount"
                             type="number"
                             value={propertyData.loanAmount}
-                            onChange={(e) => handleInputChange("loanAmount", Number(e.target.value))}
                             disabled
+                            className="bg-gray-100"
                           />
+                          <p className="text-xs text-gray-500 mt-1">Auto-calculated: Purchase Price - Down Payment</p>
                         </div>
                         <div>
                           <Label htmlFor="interestRate">Interest Rate (%)</Label>
@@ -608,6 +614,7 @@ export default function PropertyAnalysisPage() {
                             step="0.1"
                             value={propertyData.interestRate}
                             onChange={(e) => handleInputChange("interestRate", Number(e.target.value))}
+                            placeholder="6.0"
                           />
                         </div>
                         <div>
@@ -617,13 +624,23 @@ export default function PropertyAnalysisPage() {
                             type="number"
                             value={propertyData.loanTermYears}
                             onChange={(e) => handleInputChange("loanTermYears", Number(e.target.value))}
+                            placeholder="30"
                           />
                         </div>
                       </div>
                     ) : (
-                      <div>
-                        <Label htmlFor="cashAmount">Cash Amount</Label>
-                        <Input id="cashAmount" type="number" value={propertyData.purchasePrice} disabled />
+                      <div className="p-4 bg-green-50 rounded-lg border">
+                        <div>
+                          <Label htmlFor="cashAmount">Total Cash Investment ($)</Label>
+                          <Input
+                            id="cashAmount"
+                            type="number"
+                            value={propertyData.purchasePrice}
+                            disabled
+                            className="bg-gray-100"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Full purchase price paid in cash</p>
+                        </div>
                       </div>
                     )}
                   </div>

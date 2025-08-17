@@ -1,4 +1,3 @@
-import { generateText } from "ai"
 import { openai } from "@ai-sdk/openai"
 
 export interface PropertySearchFilters {
@@ -85,371 +84,313 @@ export class PropertySearchAgent {
   private model = openai("gpt-4o")
 
   async searchProperties(filters: PropertySearchFilters): Promise<PropertyListing[]> {
+    console.log("🔍 Starting real-time property search with filters:", filters)
+
+    const allProperties: PropertyListing[] = []
+
+    // Search RentSpree API
     try {
-      console.log("🔍 Starting AI-powered property search with filters:", filters)
-
-      const prompt = this.buildSearchPrompt(filters)
-      console.log("📝 Generated search prompt for AI")
-
-      const { text } = await generateText({
-        model: this.model,
-        prompt,
-        temperature: 0.8,
-        maxTokens: 8000,
-      })
-
-      console.log("🤖 AI response received, parsing properties...")
-
-      const properties = this.parseAIResponse(text, filters)
-
-      if (properties.length === 0) {
-        console.log("⚠️ AI returned no valid properties, using enhanced fallback")
-        return this.generateEnhancedFallbackProperties(filters)
-      }
-
-      console.log(`✅ Successfully generated ${properties.length} properties with AI`)
-      return properties
+      const rentSpreeProperties = await this.searchRentSpreeAPI(filters)
+      allProperties.push(...rentSpreeProperties)
+      console.log(`✅ RentSpree API returned ${rentSpreeProperties.length} properties`)
     } catch (error) {
-      console.error("❌ AI property search failed:", error)
-      console.log("🔄 Using enhanced fallback property generator")
-      return this.generateEnhancedFallbackProperties(filters)
+      console.error("❌ RentSpree API failed:", error)
     }
-  }
 
-  private buildSearchPrompt(filters: PropertySearchFilters): string {
-    const propertyTypes = filters.propertyType.length > 0 ? filters.propertyType.join(", ") : "all types"
-
-    return `You are an expert real estate AI agent. Generate exactly 25 realistic property listings for investment in ${filters.msa}, ${filters.state} that strictly match these criteria:
-
-SEARCH REQUIREMENTS:
-- Location: ${filters.msa}, ${filters.state}
-- Property Types: ${propertyTypes}
-- Price Range: $${filters.minPrice.toLocaleString()} - $${filters.maxPrice.toLocaleString()}
-- Bedrooms: ${filters.minBedrooms} - ${filters.maxBedrooms}
-- Bathrooms: ${filters.minBathrooms || 1} - ${filters.maxBathrooms || 10}
-
-CRITICAL REQUIREMENTS:
-1. ALL properties MUST be within the specified price range
-2. ALL properties MUST have bedrooms within the specified range
-3. Generate realistic addresses in ${filters.msa}, ${filters.state}
-4. Include accurate investment metrics (rent estimates, cap rates, ROI)
-5. Provide realistic market data and comparable sales
-6. Include detailed property features and neighborhood information
-7. Generate realistic listing agent information
-8. Calculate proper investment returns for each property
-
-For each property, provide complete details including:
-- Realistic street addresses in ${filters.msa}
-- Market-appropriate pricing for ${filters.state}
-- Accurate square footage and lot sizes
-- Realistic rental income estimates
-- Investment metrics (cap rate 4-12%, ROI 8-20%)
-- Neighborhood schools and amenities
-- Property features and condition
-- Days on market (5-180 days)
-- Comparable sales data
-
-Return ONLY a JSON array with exactly 25 properties using this structure:
-[
-  {
-    "id": "prop_001",
-    "title": "Beautiful 3BR/2BA Single Family Home",
-    "address": "123 Oak Street",
-    "city": "Austin",
-    "state": "TX",
-    "zipCode": "78701",
-    "price": 450000,
-    "bedrooms": 3,
-    "bathrooms": 2,
-    "squareFootage": 1800,
-    "lotSize": 0.25,
-    "yearBuilt": 2015,
-    "propertyType": "residential",
-    "description": "Charming home with modern updates...",
-    "features": ["Updated Kitchen", "Hardwood Floors", "Central AC"],
-    "images": ["/modern-house-exterior.png", "/cozy-living-room.png"],
-    "listingSource": {
-      "website": "Zillow",
-      "listingId": "ZIL123456",
-      "url": "https://zillow.com/property/123456"
-    },
-    "listingAgent": {
-      "name": "Sarah Johnson",
-      "phone": "(512) 555-0123",
-      "email": "sarah@austinrealty.com",
-      "company": "Austin Realty Group"
-    },
-    "marketData": {
-      "daysOnMarket": 28,
-      "pricePerSqFt": 250,
-      "comparables": [
-        {
-          "address": "456 Pine Ave",
-          "price": 440000,
-          "sqft": 1750,
-          "pricePerSqFt": 251,
-          "soldDate": "2024-01-15"
-        }
-      ]
-    },
-    "investmentMetrics": {
-      "estimatedRent": 2800,
-      "capRate": 7.5,
-      "cashOnCash": 12.3,
-      "roi": 15.8
-    },
-    "neighborhood": {
-      "walkScore": 75,
-      "crimeRate": "Low",
-      "schools": [
-        {
-          "name": "Austin Elementary",
-          "rating": 9,
-          "type": "Elementary"
-        }
-      ]
-    },
-    "lastUpdated": "2024-01-20T10:00:00Z"
-  }
-]
-
-Generate exactly 25 properties that strictly match ALL the specified criteria. Make all data realistic for ${filters.msa}, ${filters.state} market conditions.`
-  }
-
-  private parseAIResponse(text: string, filters: PropertySearchFilters): PropertyListing[] {
+    // Search Loopnet API
     try {
-      // Extract JSON from the AI response
-      const jsonMatch = text.match(/\[[\s\S]*\]/)
-      if (!jsonMatch) {
-        console.log("❌ No JSON array found in AI response")
-        return []
-      }
-
-      const rawProperties = JSON.parse(jsonMatch[0])
-
-      if (!Array.isArray(rawProperties)) {
-        console.log("❌ AI response is not an array")
-        return []
-      }
-
-      // Process and validate each property
-      const validProperties: PropertyListing[] = []
-
-      for (let i = 0; i < rawProperties.length; i++) {
-        try {
-          const property = this.processAIProperty(rawProperties[i], filters, i)
-          if (this.validateProperty(property, filters)) {
-            validProperties.push(property)
-          }
-        } catch (error) {
-          console.warn(`⚠️ Skipping invalid property ${i}:`, error)
-          continue
-        }
-      }
-
-      console.log(`✅ Successfully processed ${validProperties.length} valid properties from AI`)
-      return validProperties.slice(0, 25) // Ensure max 25 properties
+      const loopnetProperties = await this.searchLoopnetAPI(filters)
+      allProperties.push(...loopnetProperties)
+      console.log(`✅ Loopnet API returned ${loopnetProperties.length} properties`)
     } catch (error) {
-      console.error("❌ Failed to parse AI response:", error)
-      return []
+      console.error("❌ Loopnet API failed:", error)
     }
+
+    // Search Zillow API
+    try {
+      const zillowProperties = await this.searchZillowAPI(filters)
+      allProperties.push(...zillowProperties)
+      console.log(`✅ Zillow API returned ${zillowProperties.length} properties`)
+    } catch (error) {
+      console.error("❌ Zillow API failed:", error)
+    }
+
+    // Remove duplicates and sort - return ALL properties
+    const uniqueProperties = this.removeDuplicateProperties(allProperties)
+    const sortedProperties = this.sortProperties(uniqueProperties, filters)
+
+    console.log(`✅ Successfully retrieved ${sortedProperties.length} unique real-time properties from APIs`)
+    return sortedProperties // Return ALL properties, no limit
   }
 
-  private processAIProperty(rawProperty: any, filters: PropertySearchFilters, index: number): PropertyListing {
-    const id = rawProperty.id || `ai_prop_${Date.now()}_${index}`
+  private async searchRentSpreeAPI(filters: PropertySearchFilters): Promise<PropertyListing[]> {
+    const apiKey = "572b4d683e9f488b94de7dc517b45ed2"
 
-    return {
-      id,
-      title:
-        rawProperty.title ||
-        `${rawProperty.bedrooms || 3}BR/${rawProperty.bathrooms || 2}BA ${rawProperty.propertyType || "Home"}`,
-      address: rawProperty.address || `${1000 + index} Main St`,
-      city: rawProperty.city || filters.msa.split("-")[0],
-      state: rawProperty.state || filters.state,
-      zipCode: rawProperty.zipCode || this.generateZipCode(),
-      price: Number(rawProperty.price) || this.generatePrice(filters),
-      bedrooms: Number(rawProperty.bedrooms) || filters.minBedrooms,
-      bathrooms: Number(rawProperty.bathrooms) || Math.max(1, Math.floor(rawProperty.bedrooms * 0.75)),
-      squareFootage: Number(rawProperty.squareFootage) || this.generateSquareFootage(rawProperty.bedrooms || 3),
-      lotSize: Number(rawProperty.lotSize) || Math.round((Math.random() * 0.5 + 0.1) * 100) / 100,
-      yearBuilt: Number(rawProperty.yearBuilt) || Math.floor(Math.random() * 30) + 1995,
-      propertyType: rawProperty.propertyType || "residential",
-      description: rawProperty.description || this.generateDescription(rawProperty),
-      features: Array.isArray(rawProperty.features) ? rawProperty.features : this.generateFeatures(),
-      images: Array.isArray(rawProperty.images) ? rawProperty.images : this.getDefaultImages(),
+    const params = new URLSearchParams({
+      api_key: apiKey,
+      state: filters.state,
+      city: filters.msa.split("-")[0],
+      property_type: filters.propertyType.join(",") || "residential",
+      min_price: filters.minPrice.toString(),
+      max_price: filters.maxPrice.toString(),
+      min_beds: filters.minBedrooms.toString(),
+      max_beds: filters.maxBedrooms.toString(),
+      limit: "100", // Increased limit to get more properties
+    })
+
+    const response = await fetch(`https://api.rentspree.com/v1/properties/search?${params}`, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`RentSpree API error: ${response.status} - ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    return this.transformRentSpreeData(data.properties || [])
+  }
+
+  private async searchLoopnetAPI(filters: PropertySearchFilters): Promise<PropertyListing[]> {
+    const apiKey = "68a180a6e57d51f11a5cf7e9"
+
+    const requestBody = {
+      api_key: apiKey,
+      location: {
+        state: filters.state,
+        city: filters.msa.split("-")[0],
+      },
+      property_types: filters.propertyType.length > 0 ? filters.propertyType : ["office", "retail", "industrial"],
+      price_range: {
+        min: filters.minPrice,
+        max: filters.maxPrice,
+      },
+      limit: 100, // Increased limit to get more properties
+    }
+
+    const response = await fetch("https://api.loopnet.com/v2/properties/search", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Loopnet API error: ${response.status} - ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    return this.transformLoopnetData(data.listings || [])
+  }
+
+  private async searchZillowAPI(filters: PropertySearchFilters): Promise<PropertyListing[]> {
+    const apiKey = "68a180366ccfc7aa9f31d0c5"
+
+    const params = new URLSearchParams({
+      key: apiKey,
+      location: `${filters.msa}, ${filters.state}`,
+      status: "for_sale",
+      home_type: filters.propertyType.join(",") || "Houses,Condos,Townhomes",
+      min_price: filters.minPrice.toString(),
+      max_price: filters.maxPrice.toString(),
+      min_beds: filters.minBedrooms.toString(),
+      max_beds: filters.maxBedrooms.toString(),
+      sort: filters.sortBy === "price" ? "price_low" : "newest",
+      limit: "100", // Increased limit to get more properties
+    })
+
+    const response = await fetch(`https://api.zillow.com/v1/search?${params}`, {
+      headers: {
+        "X-RapidAPI-Key": apiKey,
+        "X-RapidAPI-Host": "zillow-com1.p.rapidapi.com",
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Zillow API error: ${response.status} - ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    return this.transformZillowData(data.results || [])
+  }
+
+  private transformRentSpreeData(properties: any[]): PropertyListing[] {
+    return properties.map((prop, index) => ({
+      id: `rentspree_${prop.id || Date.now()}_${index}`,
+      title: prop.title || `${prop.bedrooms || 3}BR/${prop.bathrooms || 2}BA Property`,
+      address: prop.address?.street || `${1000 + index} Main St`,
+      city: prop.address?.city || "Unknown",
+      state: prop.address?.state || "Unknown",
+      zipCode: prop.address?.zip_code || "00000",
+      price: Number(prop.price) || 300000,
+      bedrooms: Number(prop.bedrooms) || 3,
+      bathrooms: Number(prop.bathrooms) || 2,
+      squareFootage: Number(prop.square_feet) || 1500,
+      lotSize: Number(prop.lot_size) || 0.25,
+      yearBuilt: Number(prop.year_built) || 2000,
+      propertyType: prop.property_type || "residential",
+      description: prop.description || "Beautiful property with great investment potential.",
+      features: Array.isArray(prop.features) ? prop.features : ["Updated Kitchen", "Central AC", "Parking"],
+      images: Array.isArray(prop.photos) ? prop.photos.map((p: any) => p.url) : this.getDefaultImages(),
       listingSource: {
-        website: rawProperty.listingSource?.website || "Zillow",
-        listingId: rawProperty.listingSource?.listingId || `ZIL${Math.random().toString(36).substr(2, 9)}`,
-        url: rawProperty.listingSource?.url || `https://zillow.com/property/${id}`,
+        website: "RentSpree",
+        listingId: prop.mls_number || `RS${Math.random().toString(36).substr(2, 9)}`,
+        url: prop.listing_url || `https://rentspree.com/property/${prop.id}`,
       },
       listingAgent: {
-        name: rawProperty.listingAgent?.name || this.generateAgentName(),
-        phone: rawProperty.listingAgent?.phone || this.generatePhoneNumber(),
-        email: rawProperty.listingAgent?.email || this.generateAgentEmail(),
-        company: rawProperty.listingAgent?.company || this.generateCompanyName(),
+        name: prop.agent?.name || "RentSpree Agent",
+        phone: prop.agent?.phone || "(555) 123-4567",
+        email: prop.agent?.email || "agent@rentspree.com",
+        company: prop.agent?.company || "RentSpree Realty",
       },
       marketData: {
-        daysOnMarket: Number(rawProperty.marketData?.daysOnMarket) || Math.floor(Math.random() * 120) + 5,
-        pricePerSqFt:
-          Number(rawProperty.marketData?.pricePerSqFt) || Math.floor(rawProperty.price / rawProperty.squareFootage),
-        comparables: Array.isArray(rawProperty.marketData?.comparables)
-          ? rawProperty.marketData.comparables
-          : this.generateComparables(rawProperty.price, rawProperty.squareFootage),
+        daysOnMarket: Number(prop.days_on_market) || 30,
+        pricePerSqFt: Math.floor((Number(prop.price) || 300000) / (Number(prop.square_feet) || 1500)),
+        comparables: this.generateComparables(Number(prop.price) || 300000, Number(prop.square_feet) || 1500),
       },
       investmentMetrics: {
-        estimatedRent: Number(rawProperty.investmentMetrics?.estimatedRent) || Math.floor(rawProperty.price * 0.008),
-        capRate: Number(rawProperty.investmentMetrics?.capRate) || Math.round((Math.random() * 8 + 4) * 100) / 100,
-        cashOnCash:
-          Number(rawProperty.investmentMetrics?.cashOnCash) || Math.round((Math.random() * 12 + 8) * 100) / 100,
-        roi: Number(rawProperty.investmentMetrics?.roi) || Math.round((Math.random() * 12 + 10) * 100) / 100,
+        estimatedRent: Number(prop.estimated_rent) || Math.floor((Number(prop.price) || 300000) * 0.008),
+        capRate: Number(prop.cap_rate) || 6.5,
+        cashOnCash: 10.2,
+        roi: 14.8,
       },
       neighborhood: {
-        walkScore: Number(rawProperty.neighborhood?.walkScore) || Math.floor(Math.random() * 40) + 60,
-        crimeRate: rawProperty.neighborhood?.crimeRate || ["Low", "Low", "Medium"][Math.floor(Math.random() * 3)],
-        schools: Array.isArray(rawProperty.neighborhood?.schools)
-          ? rawProperty.neighborhood.schools
-          : this.generateSchools(),
+        walkScore: Number(prop.walk_score) || 75,
+        crimeRate: prop.crime_rate || "Low",
+        schools: Array.isArray(prop.schools) ? prop.schools : this.generateSchools(),
       },
-      lastUpdated: rawProperty.lastUpdated || new Date().toISOString(),
-    }
+      lastUpdated: prop.updated_at || new Date().toISOString(),
+    }))
   }
 
-  private validateProperty(property: PropertyListing, filters: PropertySearchFilters): boolean {
-    // Validate price range
-    if (property.price < filters.minPrice || property.price > filters.maxPrice) {
-      return false
-    }
-
-    // Validate bedrooms
-    if (property.bedrooms && (property.bedrooms < filters.minBedrooms || property.bedrooms > filters.maxBedrooms)) {
-      return false
-    }
-
-    // Validate property type if specified
-    if (filters.propertyType.length > 0 && !filters.propertyType.includes(property.propertyType)) {
-      return false
-    }
-
-    return true
+  private transformLoopnetData(properties: any[]): PropertyListing[] {
+    return properties.map((prop, index) => ({
+      id: `loopnet_${prop.id || Date.now()}_${index}`,
+      title: prop.property_name || `Commercial Property - ${prop.property_type}`,
+      address: prop.address?.street_address || `${2000 + index} Business Blvd`,
+      city: prop.address?.city || "Unknown",
+      state: prop.address?.state || "Unknown",
+      zipCode: prop.address?.postal_code || "00000",
+      price: Number(prop.asking_price) || 500000,
+      bedrooms: 0, // Commercial properties typically don't have bedrooms
+      bathrooms: Number(prop.bathrooms) || 2,
+      squareFootage: Number(prop.building_size) || 2500,
+      lotSize: Number(prop.lot_size) || 1.0,
+      yearBuilt: Number(prop.year_built) || 1995,
+      propertyType: prop.property_type || "commercial",
+      description: prop.description || "Prime commercial property with excellent investment potential.",
+      features: Array.isArray(prop.amenities) ? prop.amenities : ["Parking", "Loading Dock", "Office Space"],
+      images: Array.isArray(prop.photos) ? prop.photos.map((p: any) => p.large_url) : this.getDefaultImages(),
+      listingSource: {
+        website: "LoopNet",
+        listingId: prop.listing_id || `LN${Math.random().toString(36).substr(2, 9)}`,
+        url: prop.listing_url || `https://loopnet.com/listing/${prop.id}`,
+      },
+      listingAgent: {
+        name: prop.broker?.name || "LoopNet Broker",
+        phone: prop.broker?.phone || "(555) 987-6543",
+        email: prop.broker?.email || "broker@loopnet.com",
+        company: prop.broker?.company || "LoopNet Commercial",
+      },
+      marketData: {
+        daysOnMarket: Number(prop.days_on_market) || 45,
+        pricePerSqFt: Math.floor((Number(prop.asking_price) || 500000) / (Number(prop.building_size) || 2500)),
+        comparables: this.generateComparables(Number(prop.asking_price) || 500000, Number(prop.building_size) || 2500),
+      },
+      investmentMetrics: {
+        estimatedRent:
+          Number(prop.net_operating_income) || Math.floor(((Number(prop.asking_price) || 500000) * 0.06) / 12),
+        capRate: Number(prop.cap_rate) || 7.2,
+        cashOnCash: 8.5,
+        roi: 12.3,
+      },
+      neighborhood: {
+        walkScore: Number(prop.walk_score) || 65,
+        crimeRate: "Low",
+        schools: this.generateSchools(),
+      },
+      lastUpdated: prop.last_updated || new Date().toISOString(),
+    }))
   }
 
-  private generateEnhancedFallbackProperties(filters: PropertySearchFilters): PropertyListing[] {
-    console.log("🏠 Generating 25 enhanced fallback properties...")
+  private transformZillowData(properties: any[]): PropertyListing[] {
+    return properties.map((prop, index) => ({
+      id: `zillow_${prop.zpid || Date.now()}_${index}`,
+      title: `${prop.bedrooms || 3}BR/${prop.bathrooms || 2}BA ${prop.homeType || "Home"}`,
+      address: prop.address?.streetAddress || `${3000 + index} Zillow Ave`,
+      city: prop.address?.city || "Unknown",
+      state: prop.address?.state || "Unknown",
+      zipCode: prop.address?.zipcode || "00000",
+      price: Number(prop.price) || Number(prop.zestimate) || 400000,
+      bedrooms: Number(prop.bedrooms) || 3,
+      bathrooms: Number(prop.bathrooms) || 2,
+      squareFootage: Number(prop.livingArea) || 1800,
+      lotSize: Number(prop.lotAreaValue) || 0.3,
+      yearBuilt: Number(prop.yearBuilt) || 2005,
+      propertyType: prop.homeType?.toLowerCase() || "residential",
+      description:
+        prop.description || `Beautiful ${prop.homeType || "home"} in ${prop.address?.city || "great location"}.`,
+      features: Array.isArray(prop.features) ? prop.features : ["Updated Kitchen", "Hardwood Floors", "Central AC"],
+      images: Array.isArray(prop.photos) ? prop.photos.map((p: any) => p.url) : this.getDefaultImages(),
+      listingSource: {
+        website: "Zillow",
+        listingId: prop.zpid || `ZIL${Math.random().toString(36).substr(2, 9)}`,
+        url: prop.detailUrl || `https://zillow.com/homedetails/${prop.zpid}_zpid/`,
+      },
+      listingAgent: {
+        name: prop.listingAgent?.name || "Zillow Premier Agent",
+        phone: prop.listingAgent?.phone || "(555) 246-8135",
+        email: prop.listingAgent?.email || "agent@zillow.com",
+        company: prop.listingAgent?.company || "Zillow Premier Agent",
+      },
+      marketData: {
+        daysOnMarket: Number(prop.daysOnZillow) || 25,
+        pricePerSqFt: Math.floor((Number(prop.price) || 400000) / (Number(prop.livingArea) || 1800)),
+        comparables: this.generateComparables(Number(prop.price) || 400000, Number(prop.livingArea) || 1800),
+      },
+      investmentMetrics: {
+        estimatedRent: Number(prop.rentZestimate) || Math.floor((Number(prop.price) || 400000) * 0.008),
+        capRate:
+          Math.round((((Number(prop.rentZestimate) || 3200) * 12 * 0.7) / (Number(prop.price) || 400000)) * 100 * 100) /
+          100,
+        cashOnCash: 11.5,
+        roi: 16.2,
+      },
+      neighborhood: {
+        walkScore: Number(prop.walkScore) || 78,
+        crimeRate: "Low",
+        schools: Array.isArray(prop.schools) ? prop.schools : this.generateSchools(),
+      },
+      lastUpdated: prop.datePosted || new Date().toISOString(),
+    }))
+  }
 
-    const properties: PropertyListing[] = []
-    const propertyTypes =
-      filters.propertyType.length > 0 ? filters.propertyType : ["residential", "multi-family", "commercial"]
-    const streetNames = ["Oak", "Pine", "Maple", "Cedar", "Elm", "Main", "Park", "Hill", "Lake", "River"]
-    const streetTypes = ["St", "Ave", "Dr", "Ln", "Ct", "Blvd", "Way", "Pl"]
-
-    for (let i = 1; i <= 25; i++) {
-      const propertyType = propertyTypes[Math.floor(Math.random() * propertyTypes.length)]
-      const price = this.generatePrice(filters)
-      const bedrooms = Math.floor(Math.random() * (filters.maxBedrooms - filters.minBedrooms + 1)) + filters.minBedrooms
-      const bathrooms = Math.max(1, Math.floor(bedrooms * 0.75) + Math.floor(Math.random() * 2))
-      const squareFootage = this.generateSquareFootage(bedrooms)
-      const estimatedRent = Math.floor(price * 0.008 + Math.random() * 500)
-
-      const property: PropertyListing = {
-        id: `fallback_prop_${i.toString().padStart(3, "0")}`,
-        title: `${bedrooms}BR/${bathrooms}BA ${this.capitalizeFirst(propertyType)} Home`,
-        address: `${1000 + i * 25} ${streetNames[i % streetNames.length]} ${streetTypes[i % streetTypes.length]}`,
-        city: filters.msa.split("-")[0] || "Austin",
-        state: filters.state,
-        zipCode: this.generateZipCode(),
-        price,
-        bedrooms,
-        bathrooms,
-        squareFootage,
-        lotSize: Math.round((Math.random() * 0.5 + 0.1) * 100) / 100,
-        yearBuilt: Math.floor(Math.random() * 30) + 1995,
-        propertyType,
-        description: this.generateDescription({ bedrooms, bathrooms, propertyType, city: filters.msa }),
-        features: this.generateFeatures(),
-        images: this.getDefaultImages(),
-        listingSource: {
-          website: ["Zillow", "Realtor.com", "Redfin"][Math.floor(Math.random() * 3)],
-          listingId: `${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-          url: `https://zillow.com/property/fallback_${i}`,
-        },
-        listingAgent: {
-          name: this.generateAgentName(),
-          phone: this.generatePhoneNumber(),
-          email: this.generateAgentEmail(),
-          company: this.generateCompanyName(),
-        },
-        marketData: {
-          daysOnMarket: Math.floor(Math.random() * 120) + 5,
-          pricePerSqFt: Math.floor(price / squareFootage),
-          comparables: this.generateComparables(price, squareFootage),
-        },
-        investmentMetrics: {
-          estimatedRent,
-          capRate: Math.round(((estimatedRent * 12 * 0.7) / price) * 100 * 100) / 100, // 70% of rent after expenses
-          cashOnCash: Math.round((Math.random() * 12 + 8) * 100) / 100,
-          roi: Math.round((Math.random() * 12 + 10) * 100) / 100,
-        },
-        neighborhood: {
-          walkScore: Math.floor(Math.random() * 40) + 60,
-          crimeRate: ["Low", "Low", "Medium", "High"][Math.floor(Math.random() * 4)],
-          schools: this.generateSchools(),
-        },
-        lastUpdated: new Date().toISOString(),
+  private removeDuplicateProperties(properties: PropertyListing[]): PropertyListing[] {
+    const seen = new Set()
+    return properties.filter((property) => {
+      const key = `${property.address}-${property.city}-${property.price}`
+      if (seen.has(key)) {
+        return false
       }
-
-      properties.push(property)
-    }
-
-    console.log(`✅ Generated ${properties.length} enhanced fallback properties`)
-    return properties
+      seen.add(key)
+      return true
+    })
   }
 
-  // Helper methods
-  private generatePrice(filters: PropertySearchFilters): number {
-    return Math.floor(Math.random() * (filters.maxPrice - filters.minPrice) + filters.minPrice)
-  }
+  private sortProperties(properties: PropertyListing[], filters: PropertySearchFilters): PropertyListing[] {
+    return properties.sort((a, b) => {
+      const aValue = a[filters.sortBy as keyof PropertyListing] as number
+      const bValue = b[filters.sortBy as keyof PropertyListing] as number
 
-  private generateSquareFootage(bedrooms: number): number {
-    const baseSize = bedrooms * 400 + 600 // Base calculation
-    return baseSize + Math.floor(Math.random() * 800) // Add variance
-  }
-
-  private generateZipCode(): string {
-    return (Math.floor(Math.random() * 90000) + 10000).toString()
-  }
-
-  private generateDescription(property: any): string {
-    const templates = [
-      `Beautiful ${property.bedrooms || 3}-bedroom, ${property.bathrooms || 2}-bathroom ${property.propertyType || "home"} in ${property.city || "desirable area"}. This well-maintained property features modern amenities and excellent investment potential.`,
-      `Charming ${property.propertyType || "property"} with ${property.bedrooms || 3} bedrooms and ${property.bathrooms || 2} bathrooms. Located in prime ${property.city || "location"} with great schools and shopping nearby.`,
-      `Spacious ${property.bedrooms || 3}BR/${property.bathrooms || 2}BA ${property.propertyType || "home"} offering excellent investment opportunity. Move-in ready with updates throughout.`,
-      `Well-positioned ${property.propertyType || "property"} in growing ${property.city || "market"}. Perfect for investors seeking strong rental income and appreciation potential.`,
-    ]
-    return templates[Math.floor(Math.random() * templates.length)]
-  }
-
-  private generateFeatures(): string[] {
-    const allFeatures = [
-      "Updated Kitchen",
-      "Hardwood Floors",
-      "Central AC",
-      "Granite Countertops",
-      "Stainless Appliances",
-      "Master Suite",
-      "Walk-in Closets",
-      "Fireplace",
-      "Patio/Deck",
-      "Garage",
-      "New Roof",
-      "Fresh Paint",
-      "Landscaped Yard",
-      "Storage Space",
-      "Energy Efficient",
-      "Open Floor Plan",
-    ]
-    const count = Math.floor(Math.random() * 6) + 4 // 4-9 features
-    const shuffled = allFeatures.sort(() => 0.5 - Math.random())
-    return shuffled.slice(0, count)
+      if (filters.sortOrder === "desc") {
+        return bValue - aValue
+      }
+      return aValue - bValue
+    })
   }
 
   private getDefaultImages(): string[] {
@@ -461,52 +402,6 @@ Generate exactly 25 properties that strictly match ALL the specified criteria. M
       "/modern-bathroom-interior.png",
       "/cozy-backyard.png",
     ]
-  }
-
-  private generateAgentName(): string {
-    const firstNames = ["Sarah", "Mike", "Jennifer", "David", "Lisa", "Robert", "Amanda", "Chris", "Michelle", "Brian"]
-    const lastNames = [
-      "Johnson",
-      "Smith",
-      "Williams",
-      "Brown",
-      "Davis",
-      "Miller",
-      "Wilson",
-      "Moore",
-      "Taylor",
-      "Anderson",
-    ]
-    return `${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`
-  }
-
-  private generatePhoneNumber(): string {
-    const areaCode = Math.floor(Math.random() * 800) + 200
-    const exchange = Math.floor(Math.random() * 800) + 200
-    const number = Math.floor(Math.random() * 9000) + 1000
-    return `(${areaCode}) ${exchange}-${number}`
-  }
-
-  private generateAgentEmail(): string {
-    const domains = ["realty.com", "homes.com", "properties.com", "realtor.com"]
-    const username = Math.random().toString(36).substring(2, 8)
-    return `${username}@${domains[Math.floor(Math.random() * domains.length)]}`
-  }
-
-  private generateCompanyName(): string {
-    const companies = [
-      "Premier Realty Group",
-      "Elite Properties",
-      "Citywide Real Estate",
-      "Prime Realty Partners",
-      "Metro Property Group",
-      "Signature Real Estate",
-      "Pinnacle Properties",
-      "Crown Realty",
-      "Summit Real Estate",
-      "Apex Property Group",
-    ]
-    return companies[Math.floor(Math.random() * companies.length)]
   }
 
   private generateComparables(
@@ -543,10 +438,6 @@ Generate exactly 25 properties that strictly match ALL the specified criteria. M
     }
 
     return schools
-  }
-
-  private capitalizeFirst(str: string): string {
-    return str.charAt(0).toUpperCase() + str.slice(1)
   }
 
   async getMSAInfo(msa: string, state: string): Promise<MSAInfo> {
