@@ -66,6 +66,7 @@ export default function PortfolioTracker() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [portfolio, setPortfolio] = useState<Property[]>([])
+  const [metrics, setMetrics] = useState<PortfolioMetrics | null>(null)
   const [analysis, setAnalysis] = useState<PortfolioAnalysis | null>(null)
   const [showAddProperty, setShowAddProperty] = useState(false)
   const [editingProperty, setEditingProperty] = useState<Property | null>(null)
@@ -88,6 +89,7 @@ export default function PortfolioTracker() {
 
       if (data.portfolio) {
         setPortfolio(data.portfolio)
+        setMetrics(data.metrics)
         await analyzePortfolio(data.portfolio, data.metrics)
       }
     } catch (error) {
@@ -102,7 +104,7 @@ export default function PortfolioTracker() {
     }
   }
 
-  const analyzePortfolio = async (properties: Property[], metrics: PortfolioMetrics) => {
+  const analyzePortfolio = async (properties: Property[], portfolioMetrics: PortfolioMetrics) => {
     if (properties.length === 0) {
       setAnalysis(null)
       return
@@ -114,36 +116,38 @@ export default function PortfolioTracker() {
     const diversificationScore = calculateDiversificationScore(properties)
 
     const mockAnalysis: PortfolioAnalysis = {
-      totalProperties: metrics?.totalProperties || 0,
-      totalValue: metrics?.totalValue || 0,
-      totalEquity: metrics?.totalEquity || 0,
-      totalMonthlyIncome: metrics?.totalMonthlyIncome || 0,
-      totalMonthlyExpenses: metrics?.totalMonthlyExpenses || 0,
-      totalMonthlyCashFlow: metrics?.totalMonthlyCashFlow || 0,
-      averageCapRate: metrics?.averageCapRate || 0,
-      averageCashOnCashReturn: metrics?.averageCashOnCashReturn || 0,
-      totalROI: metrics?.totalROI || 0,
+      totalProperties: portfolioMetrics?.totalProperties || properties.length,
+      totalValue: portfolioMetrics?.totalValue || properties.reduce((sum, p) => sum + (p.currentValue || 0), 0),
+      totalEquity: portfolioMetrics?.totalEquity || 0,
+      totalMonthlyIncome:
+        portfolioMetrics?.totalMonthlyIncome || properties.reduce((sum, p) => sum + (p.monthlyRent || 0), 0),
+      totalMonthlyExpenses:
+        portfolioMetrics?.totalMonthlyExpenses || properties.reduce((sum, p) => sum + (p.monthlyExpenses || 0), 0),
+      totalMonthlyCashFlow: portfolioMetrics?.totalMonthlyCashFlow || 0,
+      averageCapRate: portfolioMetrics?.averageCapRate || 0,
+      averageCashOnCashReturn: portfolioMetrics?.averageCashOnCashReturn || 0,
+      totalROI: portfolioMetrics?.totalROI || 0,
       aiScore: Math.round(aiScore),
       riskScore: Math.round(riskScore),
       diversificationScore: Math.round(diversificationScore),
-      recommendations: generateRecommendations(properties, metrics),
-      riskFactors: identifyRiskFactors(properties, metrics),
-      opportunities: identifyOpportunities(properties, metrics),
+      recommendations: generateRecommendations(properties, portfolioMetrics),
+      riskFactors: identifyRiskFactors(properties, portfolioMetrics),
+      opportunities: identifyOpportunities(properties, portfolioMetrics),
       projections: {
         oneYear: {
-          value: (metrics?.totalValue || 0) * 1.05,
-          cashFlow: (metrics?.totalMonthlyCashFlow || 0) * 1.03,
-          roi: (metrics?.totalROI || 0) * 1.02,
+          value: (portfolioMetrics?.totalValue || 0) * 1.05,
+          cashFlow: (portfolioMetrics?.totalMonthlyCashFlow || 0) * 1.03,
+          roi: (portfolioMetrics?.totalROI || 0) * 1.02,
         },
         threeYear: {
-          value: (metrics?.totalValue || 0) * 1.18,
-          cashFlow: (metrics?.totalMonthlyCashFlow || 0) * 1.12,
-          roi: (metrics?.totalROI || 0) * 1.08,
+          value: (portfolioMetrics?.totalValue || 0) * 1.18,
+          cashFlow: (portfolioMetrics?.totalMonthlyCashFlow || 0) * 1.12,
+          roi: (portfolioMetrics?.totalROI || 0) * 1.08,
         },
         fiveYear: {
-          value: (metrics?.totalValue || 0) * 1.35,
-          cashFlow: (metrics?.totalMonthlyCashFlow || 0) * 1.25,
-          roi: (metrics?.totalROI || 0) * 1.15,
+          value: (portfolioMetrics?.totalValue || 0) * 1.35,
+          cashFlow: (portfolioMetrics?.totalMonthlyCashFlow || 0) * 1.25,
+          roi: (portfolioMetrics?.totalROI || 0) * 1.15,
         },
       },
     }
@@ -158,20 +162,20 @@ export default function PortfolioTracker() {
     return Math.min(propertyTypes * 20 + states * 15, 100)
   }
 
-  const generateRecommendations = (properties: Property[], metrics: PortfolioMetrics | null): string[] => {
+  const generateRecommendations = (properties: Property[], portfolioMetrics: PortfolioMetrics | null): string[] => {
     const recommendations: string[] = []
 
-    if (!metrics) return recommendations
+    if (!portfolioMetrics) return recommendations
 
-    if (metrics.totalProperties < 5) {
+    if (portfolioMetrics.totalProperties < 5) {
       recommendations.push("Consider expanding portfolio size for better risk distribution")
     }
 
-    if (metrics.totalMonthlyCashFlow < 0) {
+    if (portfolioMetrics.totalMonthlyCashFlow < 0) {
       recommendations.push("Focus on improving cash flow through rent increases or expense reduction")
     }
 
-    if (metrics.averageCapRate < 6) {
+    if (portfolioMetrics.averageCapRate < 6) {
       recommendations.push("Look for higher cap rate properties to improve overall returns")
     }
 
@@ -188,16 +192,16 @@ export default function PortfolioTracker() {
     return recommendations
   }
 
-  const identifyRiskFactors = (properties: Property[], metrics: PortfolioMetrics | null): string[] => {
+  const identifyRiskFactors = (properties: Property[], portfolioMetrics: PortfolioMetrics | null): string[] => {
     const risks: string[] = []
 
-    if (!metrics) return risks
+    if (!portfolioMetrics) return risks
 
-    if (metrics.totalProperties < 3) {
+    if (portfolioMetrics.totalProperties < 3) {
       risks.push("Portfolio concentration risk - limited property count")
     }
 
-    if (metrics.totalMonthlyCashFlow < 0) {
+    if (portfolioMetrics.totalMonthlyCashFlow < 0) {
       risks.push("Negative cash flow exposure")
     }
 
@@ -208,23 +212,23 @@ export default function PortfolioTracker() {
       }
     }
 
-    if (metrics.averageCapRate < 4) {
+    if (portfolioMetrics.averageCapRate < 4) {
       risks.push("Low cap rates may indicate overvalued properties")
     }
 
     return risks
   }
 
-  const identifyOpportunities = (properties: Property[], metrics: PortfolioMetrics | null): string[] => {
+  const identifyOpportunities = (properties: Property[], portfolioMetrics: PortfolioMetrics | null): string[] => {
     const opportunities: string[] = []
 
-    if (!metrics) return opportunities
+    if (!portfolioMetrics) return opportunities
 
-    if (metrics.totalEquity > 500000) {
+    if (portfolioMetrics.totalEquity > 500000) {
       opportunities.push("Leverage equity for additional property acquisitions")
     }
 
-    if (metrics.totalMonthlyCashFlow > 5000) {
+    if (portfolioMetrics.totalMonthlyCashFlow > 5000) {
       opportunities.push("Strong cash flow enables aggressive expansion strategy")
     }
 
@@ -443,7 +447,9 @@ export default function PortfolioTracker() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Total Value</p>
-                    <p className="text-2xl font-bold text-gray-900">{formatCurrency(analysis?.totalValue)}</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {formatCurrency(analysis?.totalValue || metrics?.totalValue)}
+                    </p>
                   </div>
                   <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                     <DollarSign className="h-6 w-6 text-blue-600" />
@@ -458,13 +464,13 @@ export default function PortfolioTracker() {
                   <div>
                     <p className="text-sm font-medium text-gray-600">Monthly Cash Flow</p>
                     <p
-                      className={`text-2xl font-bold ${(analysis?.totalMonthlyCashFlow || 0) >= 0 ? "text-green-600" : "text-red-600"}`}
+                      className={`text-2xl font-bold ${(analysis?.totalMonthlyCashFlow || metrics?.totalMonthlyCashFlow || 0) >= 0 ? "text-green-600" : "text-red-600"}`}
                     >
-                      {formatCurrency(analysis?.totalMonthlyCashFlow)}
+                      {formatCurrency(analysis?.totalMonthlyCashFlow || metrics?.totalMonthlyCashFlow)}
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                    {(analysis?.totalMonthlyCashFlow || 0) >= 0 ? (
+                    {(analysis?.totalMonthlyCashFlow || metrics?.totalMonthlyCashFlow || 0) >= 0 ? (
                       <TrendingUp className="h-6 w-6 text-green-600" />
                     ) : (
                       <TrendingDown className="h-6 w-6 text-red-600" />
@@ -479,7 +485,9 @@ export default function PortfolioTracker() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Properties</p>
-                    <p className="text-2xl font-bold text-gray-900">{analysis?.totalProperties || 0}</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {analysis?.totalProperties || metrics?.totalProperties || portfolio.length}
+                    </p>
                   </div>
                   <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                     <Building2 className="h-6 w-6 text-purple-600" />
@@ -493,7 +501,9 @@ export default function PortfolioTracker() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Average Cap Rate</p>
-                    <p className="text-2xl font-bold text-orange-600">{formatPercentage(analysis?.averageCapRate)}</p>
+                    <p className="text-2xl font-bold text-orange-600">
+                      {formatPercentage(analysis?.averageCapRate || metrics?.averageCapRate)}
+                    </p>
                   </div>
                   <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                     <BarChart3 className="h-6 w-6 text-orange-600" />
@@ -780,27 +790,33 @@ export default function PortfolioTracker() {
                       <div className="space-y-4">
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-600">Total Equity</span>
-                          <span className="font-medium">{formatCurrency(analysis.totalEquity)}</span>
+                          <span className="font-medium">
+                            {formatCurrency(analysis.totalEquity || metrics?.totalEquity)}
+                          </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-600">Monthly Income</span>
                           <span className="font-medium text-green-600">
-                            {formatCurrency(analysis.totalMonthlyIncome)}
+                            {formatCurrency(analysis.totalMonthlyIncome || metrics?.totalMonthlyIncome)}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-600">Monthly Expenses</span>
                           <span className="font-medium text-red-600">
-                            {formatCurrency(analysis.totalMonthlyExpenses)}
+                            {formatCurrency(analysis.totalMonthlyExpenses || metrics?.totalMonthlyExpenses)}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-600">Cash-on-Cash Return</span>
-                          <span className="font-medium">{formatPercentage(analysis.averageCashOnCashReturn)}</span>
+                          <span className="font-medium">
+                            {formatPercentage(analysis.averageCashOnCashReturn || metrics?.averageCashOnCashReturn)}
+                          </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-600">Total ROI</span>
-                          <span className="font-medium">{formatPercentage(analysis.totalROI)}</span>
+                          <span className="font-medium">
+                            {formatPercentage(analysis.totalROI || metrics?.totalROI)}
+                          </span>
                         </div>
                       </div>
                     </CardContent>

@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Separator } from "@/components/ui/separator"
-import { Calculator, TrendingUp, DollarSign, PieChart } from "lucide-react"
+import { Calculator, TrendingUp, DollarSign, PieChart, Save } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
 
 interface CalculationResults {
   monthlyMortgage: number
@@ -25,6 +26,10 @@ interface CalculationResults {
 }
 
 function PropertyCalculator() {
+  // Property info
+  const [propertyName, setPropertyName] = useState("")
+  const [address, setAddress] = useState("")
+
   // Purchase inputs
   const [purchasePrice, setPurchasePrice] = useState(200000)
   const [useLoan, setUseLoan] = useState(true)
@@ -64,6 +69,7 @@ function PropertyCalculator() {
   const [costToSell, setCostToSell] = useState(8)
 
   const [results, setResults] = useState<CalculationResults | null>(null)
+  const [saving, setSaving] = useState(false)
 
   const calculateResults = () => {
     // Calculate down payment and loan amount
@@ -150,7 +156,71 @@ function PropertyCalculator() {
     })
   }
 
+  const saveCalculation = async () => {
+    if (!results || !propertyName.trim() || !address.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter property name, address, and calculate results before saving",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setSaving(true)
+    try {
+      const calculationData = {
+        name: propertyName,
+        address: address,
+        purchasePrice: purchasePrice,
+        purchaseDate: new Date().toISOString().split("T")[0],
+        currentValue: needRepairs ? valueAfterRepairs : purchasePrice,
+        monthlyRent: monthlyRent,
+        monthlyExpenses: results.monthlyExpenses,
+        downPayment: (purchasePrice * downPaymentPercent) / 100,
+        loanAmount: useLoan ? purchasePrice - (purchasePrice * downPaymentPercent) / 100 : 0,
+        interestRate: interestRate,
+        loanTermYears: loanTerm,
+        propertyType: "single-family",
+        status: "analyzed",
+        notes: `Calculator Results - Cap Rate: ${results.capRate.toFixed(2)}%, Cash-on-Cash: ${results.cashOnCashReturn.toFixed(2)}%, Total ROI: ${results.totalROI.toFixed(2)}%`,
+      }
+
+      const response = await fetch("/api/portfolio", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(calculationData),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to save calculation")
+      }
+
+      toast({
+        title: "Calculation Saved",
+        description: "Your property calculation has been saved to your portfolio",
+      })
+
+      // Clear form after successful save
+      setPropertyName("")
+      setAddress("")
+      setResults(null)
+    } catch (error) {
+      console.error("Error saving calculation:", error)
+      toast({
+        title: "Error",
+        description: "Failed to save calculation. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const clearForm = () => {
+    setPropertyName("")
+    setAddress("")
     setPurchasePrice(200000)
     setUseLoan(true)
     setDownPaymentPercent(20)
@@ -189,6 +259,32 @@ function PropertyCalculator() {
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Property Investment Calculator</h1>
         <p className="text-gray-600">Modify the values and click the Calculate button to analyze your investment</p>
+
+        {/* Property Name and Address */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 max-w-2xl mx-auto">
+          <div>
+            <Label htmlFor="propertyName">Property Name</Label>
+            <Input
+              id="propertyName"
+              type="text"
+              placeholder="e.g., Main Street Rental"
+              value={propertyName}
+              onChange={(e) => setPropertyName(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="address">Address</Label>
+            <Input
+              id="address"
+              type="text"
+              placeholder="e.g., 123 Main St, City, State"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -693,6 +789,16 @@ function PropertyCalculator() {
         <Button onClick={clearForm} variant="outline" className="px-8 py-3 text-lg bg-transparent">
           Clear
         </Button>
+        {results && (
+          <Button
+            onClick={saveCalculation}
+            disabled={saving}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg"
+          >
+            <Save className="h-5 w-5 mr-2" />
+            {saving ? "Saving..." : "Save to Portfolio"}
+          </Button>
+        )}
       </div>
 
       {/* Results Section */}
