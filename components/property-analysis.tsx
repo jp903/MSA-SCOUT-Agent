@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -61,6 +62,8 @@ export default function PropertyAnalysis() {
     monthlyExpenses: "",
     downPayment: "",
     loanRate: "",
+    useLoan: "loan", // "loan" or "cash"
+    cashInvestment: "",
     investmentGoals: "",
   })
 
@@ -87,14 +90,24 @@ export default function PropertyAnalysis() {
       const monthlyRent = Number.parseFloat(formData.monthlyRent) || 0
       const monthlyExpenses = Number.parseFloat(formData.monthlyExpenses) || 0
 
+      // Determine financing type
+      const isCash = formData.useLoan === "cash"
+
       // Calculate metrics
       const annualRent = monthlyRent * 12
       const annualExpenses = monthlyExpenses * 12
       const netOperatingIncome = annualRent - annualExpenses
-      const capRate = (netOperatingIncome / purchasePrice) * 100
+      const capRate = purchasePrice > 0 ? (netOperatingIncome / purchasePrice) * 100 : 0
 
-      const downPayment = Number.parseFloat(formData.downPayment) || purchasePrice * 0.2
-      const cashOnCashReturn = (((monthlyRent - monthlyExpenses) * 12) / downPayment) * 100
+      // Financing / investment calculations
+      const downPayment = isCash
+        ? purchasePrice
+        : Number.parseFloat(formData.downPayment) || purchasePrice * 0.2
+      const loanAmount = isCash ? 0 : Math.max(purchasePrice - downPayment, 0)
+      const totalInvestment = isCash
+        ? Number.parseFloat(formData.cashInvestment) || purchasePrice
+        : downPayment
+      const cashOnCashReturn = totalInvestment > 0 ? (((monthlyRent - monthlyExpenses) * 12) / totalInvestment) * 100 : 0
 
       // AI-powered analysis simulation
       const aiScore = 65 + Math.random() * 30
@@ -170,12 +183,13 @@ export default function PropertyAnalysis() {
           monthlyRent,
           monthlyExpenses,
           downPayment,
-          loanAmount: purchasePrice - downPayment,
+          loanAmount,
           interestRate: Number.parseFloat(formData.loanRate) || 6.5,
           loanTermYears: 30,
           status: "analyzed",
           location: formData.address.split(",").pop()?.trim() || "Unknown",
           equity: mockAnalysis.estimatedValue - (purchasePrice - downPayment),
+          cashInvestment: isCash ? Number.parseFloat(formData.cashInvestment) || purchasePrice : undefined,
         }),
       })
 
@@ -292,6 +306,46 @@ export default function PropertyAnalysis() {
                 onChange={(e) => handleInputChange("downPayment", e.target.value)}
               />
             </div>
+
+            <div>
+              <Label className="text-base font-medium">Financing</Label>
+              <div className="mt-2 flex items-center gap-6">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="financing"
+                    value="loan"
+                    checked={formData.useLoan === "loan"}
+                    onChange={(e) => handleInputChange("useLoan", e.target.value)}
+                  />
+                  <span>Use Loan</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="financing"
+                    value="cash"
+                    checked={formData.useLoan === "cash"}
+                    onChange={(e) => handleInputChange("useLoan", e.target.value)}
+                  />
+                  <span>Cash Purchase</span>
+                </label>
+              </div>
+            </div>
+
+            {formData.useLoan === "cash" && (
+              <div>
+                <Label htmlFor="cashInvestment">Total Cash Investment</Label>
+                <Input
+                  id="cashInvestment"
+                  type="number"
+                  placeholder="300000"
+                  value={formData.cashInvestment}
+                  onChange={(e) => handleInputChange("cashInvestment", e.target.value)}
+                />
+                <p className="text-xs text-gray-500 mt-1">Include purchase price + improvements/closing costs if applicable.</p>
+              </div>
+            )}
 
             <div>
               <Label htmlFor="loanRate">Loan Interest Rate (%)</Label>
