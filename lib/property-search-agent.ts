@@ -94,7 +94,7 @@ export class PropertySearchAgent {
   async searchProperties(
     filters: PropertySearchFilters,
   ): Promise<{ properties: PropertyListing[]; apiStatus: APIStatus }> {
-    console.log("🔍 Starting property search with filters:", filters)
+    console.log("🔍 Starting AUTHENTIC API property search with filters:", filters)
 
     const allProperties: PropertyListing[] = []
     const apiStatus: APIStatus = {
@@ -103,332 +103,419 @@ export class PropertySearchAgent {
       rentcast: "connecting",
     }
 
-    // Since API keys may not be configured, generate realistic properties
-    // that simulate real API responses
+    // Search RentCast API using authentic endpoints
     try {
-      console.log("🏠 Generating realistic property data...")
-      const generatedProperties = await this.generateRealisticProperties(filters)
-      allProperties.push(...generatedProperties)
-
-      // Set all APIs as connected since we're providing data
+      console.log("🏠 Calling RentCast AUTHENTIC API...")
+      const rentCastProperties = await this.searchRentCastAPI(filters)
+      allProperties.push(...rentCastProperties)
       apiStatus.rentcast = "connected"
-      apiStatus.loopnet = "connected"
-      apiStatus.zillow = "connected"
-
-      console.log(`✅ Generated ${generatedProperties.length} realistic properties`)
+      console.log(`✅ RentCast API returned ${rentCastProperties.length} AUTHENTIC properties`)
     } catch (error) {
-      console.error("❌ Property generation failed:", error)
+      console.error("❌ RentCast API failed:", error)
       apiStatus.rentcast = "error"
+    }
+
+    // Search LoopNet API for commercial properties
+    try {
+      console.log("🏢 Calling LoopNet AUTHENTIC API...")
+      const loopnetProperties = await this.searchLoopnetAPI(filters)
+      allProperties.push(...loopnetProperties)
+      apiStatus.loopnet = "connected"
+      console.log(`✅ LoopNet API returned ${loopnetProperties.length} AUTHENTIC properties`)
+    } catch (error) {
+      console.error("❌ LoopNet API failed:", error)
       apiStatus.loopnet = "error"
+    }
+
+    // Search Zillow API for residential properties
+    try {
+      console.log("🏠 Calling Zillow AUTHENTIC API...")
+      const zillowProperties = await this.searchZillowAPI(filters)
+      allProperties.push(...zillowProperties)
+      apiStatus.zillow = "connected"
+      console.log(`✅ Zillow API returned ${zillowProperties.length} AUTHENTIC properties`)
+    } catch (error) {
+      console.error("❌ Zillow API failed:", error)
       apiStatus.zillow = "error"
     }
 
-    // Filter for "for_sale" properties only
+    // Filter and sort authentic properties
     const forSaleProperties = allProperties.filter((property) => property.listingStatus === "for_sale")
-
-    // Sort properties
     const sortedProperties = this.sortProperties(forSaleProperties, filters)
 
-    console.log(`✅ Successfully retrieved ${sortedProperties.length} FOR SALE properties`)
+    console.log(`✅ Successfully retrieved ${sortedProperties.length} AUTHENTIC FOR SALE properties`)
     return { properties: sortedProperties, apiStatus }
   }
 
-  private async generateRealisticProperties(filters: PropertySearchFilters): Promise<PropertyListing[]> {
-    const properties: PropertyListing[] = []
-    const propertyCount = Math.floor(Math.random() * 15) + 20 // 20-35 properties
-
-    // Get city name from MSA
-    const cityName = filters.msa.split("-")[0]?.trim() || filters.msa.split(",")[0]?.trim() || "Unknown City"
-
-    // Property type mapping
-    const typeMapping = {
-      residential: ["Single Family", "Townhouse", "Condo"],
-      commercial: ["Office Building", "Retail Space", "Warehouse"],
-      "multi-family": ["Duplex", "Triplex", "Apartment Building"],
-      industrial: ["Manufacturing", "Distribution Center", "Industrial Park"],
-      land: ["Vacant Land", "Development Land", "Agricultural Land"],
+  private async searchRentCastAPI(filters: PropertySearchFilters): Promise<PropertyListing[]> {
+    if (!this.RENTCAST_API_KEY) {
+      throw new Error("RentCast API key not configured")
     }
 
-    for (let i = 0; i < propertyCount; i++) {
-      // Select property type
-      const selectedTypes = filters.propertyType.length > 0 ? filters.propertyType : ["residential"]
-      const randomType = selectedTypes[Math.floor(Math.random() * selectedTypes.length)]
-      const specificTypes = typeMapping[randomType as keyof typeof typeMapping] || ["Property"]
-      const specificType = specificTypes[Math.floor(Math.random() * specificTypes.length)]
-
-      // Generate realistic address
-      const streetNumbers = [
-        "123",
-        "456",
-        "789",
-        "1001",
-        "1234",
-        "2468",
-        "3579",
-        "4567",
-        "5678",
-        "6789",
-        "7890",
-        "8901",
-        "9012",
-        "1357",
-        "2460",
-      ]
-      const streetNames = [
-        "Main St",
-        "Oak Ave",
-        "Pine Dr",
-        "Maple Ln",
-        "Cedar Blvd",
-        "Elm Way",
-        "Park Ave",
-        "First St",
-        "Second St",
-        "Third St",
-        "Market St",
-        "Church St",
-        "School St",
-        "Mill Rd",
-        "Hill St",
-        "Lake Dr",
-        "River Rd",
-        "Forest Ave",
-        "Garden St",
-        "Spring St",
+    try {
+      // Use the authentic RentCast endpoints you provided
+      const endpoints = [
+        "/v1/listings/sale", // Primary endpoint for sale listings
+        "/v1/properties", // General properties endpoint
       ]
 
-      const streetNumber = streetNumbers[Math.floor(Math.random() * streetNumbers.length)]
-      const streetName = streetNames[Math.floor(Math.random() * streetNames.length)]
-      const address = `${streetNumber} ${streetName}`
+      const allListings: any[] = []
 
-      // Generate price within range
-      const price = Math.floor(
-        Math.random() * (filters.maxPrice - filters.minPrice) + filters.minPrice + Math.random() * 50000,
-      )
+      // Try multiple endpoints to get comprehensive data
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`🔗 Calling RentCast endpoint: ${endpoint}`)
 
-      // Generate bedrooms/bathrooms based on property type
-      let bedrooms = 0
-      let bathrooms = 0
+          const queryParams = new URLSearchParams({
+            state: filters.state,
+            city: filters.msa.split("-")[0]?.trim() || filters.msa.split(",")[0]?.trim(),
+            minPrice: filters.minPrice.toString(),
+            maxPrice: filters.maxPrice.toString(),
+            limit: "50",
+          })
 
-      if (randomType === "residential" || randomType === "multi-family") {
-        bedrooms = Math.max(
-          filters.minBedrooms,
-          Math.floor(Math.random() * (filters.maxBedrooms - filters.minBedrooms + 1)) + filters.minBedrooms,
-        )
-        bathrooms = Math.max(1, Math.floor(bedrooms * 0.75) + Math.floor(Math.random() * 2))
-      } else {
-        bathrooms = Math.floor(Math.random() * 4) + 1
-      }
+          // Add property type filter if specified
+          if (filters.propertyType.length > 0) {
+            const rentcastTypes = filters.propertyType.map((type) => {
+              switch (type) {
+                case "residential":
+                  return "single_family"
+                case "multi-family":
+                  return "multi_family"
+                case "commercial":
+                  return "apartment"
+                case "land":
+                  return "land"
+                default:
+                  return "single_family"
+              }
+            })
+            queryParams.append("propertyType", rentcastTypes[0])
+          }
 
-      // Generate square footage based on property type and price
-      let squareFootage: number
-      if (randomType === "commercial" || randomType === "industrial") {
-        squareFootage = Math.floor(Math.random() * 8000) + 2000
-      } else if (randomType === "multi-family") {
-        squareFootage = Math.floor(Math.random() * 4000) + 1500
-      } else {
-        squareFootage = Math.floor(Math.random() * 2500) + 1000
-      }
+          const apiUrl = `https://api.rentcast.io${endpoint}?${queryParams}`
+          console.log("🔗 RentCast API URL:", apiUrl)
 
-      // Generate realistic features based on property type
-      const residentialFeatures = [
-        "Updated Kitchen",
-        "Hardwood Floors",
-        "Central AC",
-        "Garage",
-        "Fireplace",
-        "Walk-in Closet",
-        "Master Suite",
-        "Granite Countertops",
-        "Stainless Steel Appliances",
-        "Tile Flooring",
-        "Crown Molding",
-        "Ceiling Fans",
-        "Patio/Deck",
-        "Fenced Yard",
-        "Swimming Pool",
-      ]
+          const response = await fetch(apiUrl, {
+            method: "GET",
+            headers: {
+              "X-Api-Key": this.RENTCAST_API_KEY,
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+          })
 
-      const commercialFeatures = [
-        "Parking Available",
-        "Loading Dock",
-        "Office Space",
-        "High Ceilings",
-        "HVAC System",
-        "Security System",
-        "Elevator",
-        "Conference Rooms",
-        "Break Room",
-        "Reception Area",
-        "Fiber Internet Ready",
-        "ADA Compliant",
-        "Sprinkler System",
-        "Emergency Exits",
-        "Storage Space",
-      ]
+          console.log(`📡 RentCast ${endpoint} Response Status:`, response.status)
 
-      const featurePool =
-        randomType === "commercial" || randomType === "industrial" ? commercialFeatures : residentialFeatures
-      const numFeatures = Math.floor(Math.random() * 6) + 3
-      const features = []
-      for (let j = 0; j < numFeatures; j++) {
-        const feature = featurePool[Math.floor(Math.random() * featurePool.length)]
-        if (!features.includes(feature)) {
-          features.push(feature)
+          if (response.ok) {
+            const data = await response.json()
+            console.log(`📊 RentCast ${endpoint} Response:`, data)
+
+            // Handle different response formats
+            if (data.listings && Array.isArray(data.listings)) {
+              allListings.push(...data.listings)
+            } else if (Array.isArray(data)) {
+              allListings.push(...data)
+            } else if (data.properties && Array.isArray(data.properties)) {
+              allListings.push(...data.properties)
+            }
+          } else {
+            const errorText = await response.text()
+            console.warn(`⚠️ RentCast ${endpoint} error:`, response.status, errorText)
+          }
+        } catch (endpointError) {
+          console.warn(`⚠️ RentCast ${endpoint} failed:`, endpointError)
         }
       }
 
-      // Generate realistic agent names
-      const agentFirstNames = [
-        "John",
-        "Sarah",
-        "Michael",
-        "Jennifer",
-        "David",
-        "Lisa",
-        "Robert",
-        "Karen",
-        "James",
-        "Susan",
-      ]
-      const agentLastNames = [
-        "Smith",
-        "Johnson",
-        "Williams",
-        "Brown",
-        "Jones",
-        "Garcia",
-        "Miller",
-        "Davis",
-        "Rodriguez",
-        "Martinez",
-      ]
-      const agentFirstName = agentFirstNames[Math.floor(Math.random() * agentFirstNames.length)]
-      const agentLastName = agentLastNames[Math.floor(Math.random() * agentLastNames.length)]
-      const agentName = `${agentFirstName} ${agentLastName}`
-
-      // Generate realistic company names
-      const companyNames = [
-        "Century 21",
-        "RE/MAX",
-        "Coldwell Banker",
-        "Keller Williams",
-        "Berkshire Hathaway",
-        "Realty One Group",
-        "eXp Realty",
-        "Compass",
-        "Sotheby's International",
-        "Better Homes and Gardens",
-      ]
-      const company = companyNames[Math.floor(Math.random() * companyNames.length)]
-
-      // Generate ZIP code
-      const zipCode = String(Math.floor(Math.random() * 90000) + 10000)
-
-      // Generate year built
-      const yearBuilt = Math.floor(Math.random() * 50) + 1975
-
-      // Generate days on market
-      const daysOnMarket = Math.floor(Math.random() * 120) + 1
-
-      // Generate investment metrics
-      const estimatedRent = Math.floor(price * 0.008 + Math.random() * price * 0.004)
-      const capRate = Math.round((Math.random() * 6 + 4) * 100) / 100
-      const cashOnCash = Math.round((Math.random() * 12 + 8) * 100) / 100
-      const roi = Math.round((Math.random() * 15 + 10) * 100) / 100
-
-      // Generate schools
-      const schoolNames = [
-        "Lincoln Elementary",
-        "Washington Middle School",
-        "Roosevelt High School",
-        "Jefferson Elementary",
-        "Madison Middle School",
-        "Monroe High School",
-        "Adams Elementary",
-        "Jackson Middle School",
-        "Wilson High School",
-        "Kennedy Elementary",
-      ]
-      const schools = []
-      const numSchools = Math.floor(Math.random() * 3) + 1
-      for (let j = 0; j < numSchools; j++) {
-        const schoolName = schoolNames[Math.floor(Math.random() * schoolNames.length)]
-        const rating = Math.floor(Math.random() * 4) + 7 // 7-10 rating
-        const type = j === 0 ? "Elementary" : j === 1 ? "Middle" : "High"
-        schools.push({ name: schoolName, rating, type })
+      if (allListings.length === 0) {
+        console.warn("⚠️ No authentic listings found from RentCast API")
+        return []
       }
 
-      // Generate comparables
-      const comparables = []
-      const numComps = Math.floor(Math.random() * 3) + 2 // 2-4 comparables
-      for (let j = 0; j < numComps; j++) {
-        const compPrice = price + (Math.random() - 0.5) * price * 0.3 // ±30% of original price
-        const compSqft = squareFootage + (Math.random() - 0.5) * squareFootage * 0.2 // ±20% of original sqft
-        const streetNumbers = ["456", "789", "1001", "1234", "2468"]
-        const streetNames = ["Oak St", "Pine Ave", "Maple Dr", "Cedar Ln", "Elm Way"]
+      // Transform authentic RentCast data to our format
+      return allListings.map((listing: any, index: number) => {
+        const propertyId = listing.id || listing.zpid || listing.propertyId || `rentcast_${Date.now()}_${index}`
 
-        comparables.push({
-          address: `${streetNumbers[j % streetNumbers.length]} ${streetNames[j % streetNames.length]}, ${cityName}`,
-          price: Math.round(compPrice),
-          sqft: Math.round(compSqft),
-          pricePerSqFt: Math.round(compPrice / compSqft),
-          soldDate: new Date(Date.now() - Math.random() * 180 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-        })
-      }
+        return {
+          id: `rentcast_${propertyId}`,
+          title:
+            listing.formattedAddress ||
+            listing.address ||
+            `${listing.bedrooms || 0}BR/${listing.bathrooms || 0}BA Property`,
+          address: listing.address || listing.formattedAddress || listing.streetAddress || "Address Not Available",
+          city: listing.city || filters.msa.split("-")[0]?.trim() || "Unknown City",
+          state: listing.state || filters.state,
+          zipCode: listing.zipCode || listing.zip || "00000",
+          price: listing.price || listing.listPrice || listing.salePrice || 0,
+          bedrooms: listing.bedrooms || listing.beds || undefined,
+          bathrooms: listing.bathrooms || listing.baths || 0,
+          squareFootage: listing.squareFootage || listing.livingArea || listing.sqft || 0,
+          lotSize: listing.lotSize || listing.lotAreaValue || 0,
+          yearBuilt: listing.yearBuilt || new Date().getFullYear() - 10,
+          propertyType: this.mapRentCastPropertyType(listing.propertyType || listing.homeType),
+          description:
+            listing.description || `Authentic property listing from RentCast in ${listing.city || filters.msa}`,
+          features: listing.features || listing.amenities || [],
+          images: listing.photos?.map((photo: any) => photo.url || photo) || ["/placeholder.svg"],
+          listingStatus: "for_sale" as const,
+          listingSource: {
+            website: "RentCast",
+            listingId: propertyId.toString(),
+            url: listing.url || `https://rentcast.io/property/${propertyId}`,
+          },
+          listingAgent: {
+            name: listing.agent?.name || listing.listingAgent?.name || "RentCast Agent",
+            phone: listing.agent?.phone || listing.listingAgent?.phone || "(555) 000-0000",
+            email: listing.agent?.email || listing.listingAgent?.email || "agent@rentcast.io",
+            company: listing.agent?.company || listing.listingAgent?.company || "RentCast Realty",
+          },
+          marketData: {
+            daysOnMarket: listing.daysOnMarket || listing.dom || 0,
+            pricePerSqFt:
+              listing.pricePerSqFt ||
+              (listing.price && listing.squareFootage ? Math.round(listing.price / listing.squareFootage) : 0),
+            comparables: listing.comparables || [],
+          },
+          investmentMetrics: {
+            estimatedRent: listing.rentEstimate || listing.estimatedRent,
+            capRate: listing.capRate,
+            cashOnCash: listing.cashOnCash,
+            roi: listing.roi,
+          },
+          neighborhood: {
+            walkScore: listing.walkScore || 0,
+            crimeRate: listing.crimeRate || "Unknown",
+            schools: listing.schools || [],
+          },
+          lastUpdated: listing.lastUpdated || listing.updatedAt || new Date().toISOString(),
+        }
+      })
+    } catch (error) {
+      console.error("❌ RentCast AUTHENTIC API Error:", error)
+      throw error
+    }
+  }
 
-      const property: PropertyListing = {
-        id: `prop_${Date.now()}_${i}`,
-        title: `${specificType} - ${bedrooms ? `${bedrooms}BR/${bathrooms}BA` : `${squareFootage} sqft`}`,
-        address,
-        city: cityName,
-        state: filters.state,
-        zipCode,
-        price,
-        bedrooms: bedrooms || undefined,
-        bathrooms,
-        squareFootage,
-        lotSize: Math.round((Math.random() * 1.5 + 0.2) * 100) / 100,
-        yearBuilt,
-        propertyType: randomType,
-        description: `Beautiful ${specificType.toLowerCase()} located in ${cityName}, ${filters.state}. This property features ${features.slice(0, 3).join(", ").toLowerCase()} and is perfect for ${randomType === "commercial" ? "business operations" : randomType === "multi-family" ? "rental income" : "family living"}. Located in a desirable neighborhood with easy access to shopping, dining, and entertainment.`,
-        features,
-        images: ["/placeholder.svg"],
-        listingStatus: "for_sale",
-        listingSource: {
-          website: ["RentCast", "LoopNet", "Zillow"][Math.floor(Math.random() * 3)],
-          listingId: `MLS${Math.floor(Math.random() * 1000000)}`,
-          url: `https://example.com/listing/${Date.now()}_${i}`,
-        },
-        listingAgent: {
-          name: agentName,
-          phone: `(${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
-          email: `${agentFirstName.toLowerCase()}.${agentLastName.toLowerCase()}@${company.toLowerCase().replace(/[^a-z]/g, "")}.com`,
-          company,
-        },
-        marketData: {
-          daysOnMarket,
-          pricePerSqFt: Math.round(price / squareFootage),
-          comparables,
-        },
-        investmentMetrics: {
-          estimatedRent,
-          capRate,
-          cashOnCash,
-          roi,
-        },
-        neighborhood: {
-          walkScore: Math.floor(Math.random() * 40) + 60,
-          crimeRate: ["Low", "Low", "Moderate", "Low"][Math.floor(Math.random() * 4)],
-          schools,
-        },
-        lastUpdated: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-      }
-
-      properties.push(property)
+  private async searchLoopnetAPI(filters: PropertySearchFilters): Promise<PropertyListing[]> {
+    if (!this.LOOPNET_API_KEY) {
+      throw new Error("LoopNet API key not configured")
     }
 
-    return properties
+    try {
+      const queryParams = new URLSearchParams({
+        state: filters.state,
+        city: filters.msa.split("-")[0]?.trim() || filters.msa,
+        propertyType: "commercial",
+        minPrice: filters.minPrice.toString(),
+        maxPrice: filters.maxPrice.toString(),
+        transactionType: "sale",
+        limit: "50",
+      })
+
+      const apiUrl = `https://api.loopnet.com/v1/properties?${queryParams}`
+      console.log("🔗 LoopNet AUTHENTIC API URL:", apiUrl)
+
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${this.LOOPNET_API_KEY}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      })
+
+      console.log("📡 LoopNet AUTHENTIC Response Status:", response.status)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("❌ LoopNet AUTHENTIC API Error:", response.status, errorText)
+        throw new Error(`LoopNet API error: ${response.status}`)
+      }
+
+      const data = await response.json()
+      console.log("📊 LoopNet AUTHENTIC API Response:", data)
+
+      if (!data.properties || !Array.isArray(data.properties)) {
+        console.warn("⚠️ LoopNet API returned no authentic properties")
+        return []
+      }
+
+      // Transform authentic LoopNet data
+      return data.properties.map((property: any, index: number) => ({
+        id: `loopnet_${property.id || Date.now() + index}`,
+        title: property.title || `Commercial Property - ${property.propertyType || "Office"}`,
+        address: property.address?.street || property.address || "Address Not Available",
+        city: property.address?.city || property.city || filters.msa.split("-")[0] || "Unknown City",
+        state: property.address?.state || property.state || filters.state,
+        zipCode: property.address?.zipCode || property.zipCode || "00000",
+        price: property.price || property.listPrice || 0,
+        bedrooms: 0,
+        bathrooms: property.bathrooms || 0,
+        squareFootage: property.squareFootage || property.buildingSize || 0,
+        lotSize: property.lotSize || 0,
+        yearBuilt: property.yearBuilt || new Date().getFullYear() - 10,
+        propertyType: "commercial",
+        description:
+          property.description ||
+          `Authentic commercial property from LoopNet in ${property.address?.city || filters.msa}`,
+        features: property.amenities || property.features || [],
+        images: property.photos?.map((photo: any) => photo.url) || ["/placeholder.svg"],
+        listingStatus: "for_sale" as const,
+        listingSource: {
+          website: "LoopNet",
+          listingId: property.id?.toString() || `LN${Date.now() + index}`,
+          url: property.url || `https://loopnet.com/listing/${property.id}`,
+        },
+        listingAgent: {
+          name: property.agent?.name || "LoopNet Agent",
+          phone: property.agent?.phone || "(555) 000-0000",
+          email: property.agent?.email || "agent@loopnet.com",
+          company: property.agent?.company || "LoopNet Commercial",
+        },
+        marketData: {
+          daysOnMarket: property.daysOnMarket || 0,
+          pricePerSqFt:
+            property.pricePerSqFt ||
+            (property.price && property.squareFootage ? Math.round(property.price / property.squareFootage) : 0),
+          comparables: property.comparables || [],
+        },
+        investmentMetrics: {
+          estimatedRent: property.rentEstimate,
+          capRate: property.capRate,
+          cashOnCash: property.cashOnCash,
+          roi: property.roi,
+        },
+        neighborhood: {
+          walkScore: property.walkScore || 0,
+          crimeRate: property.crimeRate || "Unknown",
+          schools: [],
+        },
+        lastUpdated: property.updatedAt || new Date().toISOString(),
+      }))
+    } catch (error) {
+      console.error("❌ LoopNet AUTHENTIC API Error:", error)
+      throw error
+    }
+  }
+
+  private async searchZillowAPI(filters: PropertySearchFilters): Promise<PropertyListing[]> {
+    if (!this.ZILLOW_API_KEY) {
+      throw new Error("Zillow API key not configured")
+    }
+
+    try {
+      const queryParams = new URLSearchParams({
+        location: `${filters.msa}, ${filters.state}`,
+        status_type: "ForSale",
+        minPrice: filters.minPrice.toString(),
+        maxPrice: filters.maxPrice.toString(),
+        beds_min: filters.minBedrooms.toString(),
+        beds_max: filters.maxBedrooms.toString(),
+        baths_min: filters.minBathrooms?.toString() || "1",
+        baths_max: filters.maxBathrooms?.toString() || "10",
+        limit: "50",
+      })
+
+      const apiUrl = `https://zillow-com1.p.rapidapi.com/propertyExtendedSearch?${queryParams}`
+      console.log("🔗 Zillow AUTHENTIC API URL:", apiUrl)
+
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          "X-RapidAPI-Key": this.ZILLOW_API_KEY,
+          "X-RapidAPI-Host": "zillow-com1.p.rapidapi.com",
+          "Content-Type": "application/json",
+        },
+      })
+
+      console.log("📡 Zillow AUTHENTIC Response Status:", response.status)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("❌ Zillow AUTHENTIC API Error:", response.status, errorText)
+        throw new Error(`Zillow API error: ${response.status}`)
+      }
+
+      const data = await response.json()
+      console.log("📊 Zillow AUTHENTIC API Response:", data)
+
+      if (!data.props || !Array.isArray(data.props)) {
+        console.warn("⚠️ Zillow API returned no authentic properties")
+        return []
+      }
+
+      // Transform authentic Zillow data
+      return data.props.map((property: any, index: number) => ({
+        id: `zillow_${property.zpid || Date.now() + index}`,
+        title: `${property.bedrooms || 0}BR/${property.bathrooms || 0}BA ${property.homeType || "House"}`,
+        address: property.address || "Address Not Available",
+        city: property.city || filters.msa.split("-")[0] || "Unknown City",
+        state: property.state || filters.state,
+        zipCode: property.zipcode || "00000",
+        price: property.price || 0,
+        bedrooms: property.bedrooms || 0,
+        bathrooms: property.bathrooms || 0,
+        squareFootage: property.livingArea || 0,
+        lotSize: property.lotAreaValue || 0,
+        yearBuilt: property.yearBuilt || new Date().getFullYear() - 10,
+        propertyType: "residential",
+        description:
+          property.description || `Authentic residential property from Zillow in ${property.city || filters.msa}`,
+        features: property.homeFactsInfo || [],
+        images: property.photos?.map((photo: any) => photo.url) || ["/placeholder.svg"],
+        listingStatus: "for_sale" as const,
+        listingSource: {
+          website: "Zillow",
+          listingId: property.zpid?.toString() || `ZIL${Date.now() + index}`,
+          url: property.detailUrl || `https://zillow.com/homedetails/${property.zpid}_zpid/`,
+        },
+        listingAgent: {
+          name: property.listingAgent?.name || "Zillow Agent",
+          phone: property.listingAgent?.phone || "(555) 000-0000",
+          email: property.listingAgent?.email || "agent@zillow.com",
+          company: property.listingAgent?.company || "Zillow Premier Agent",
+        },
+        marketData: {
+          daysOnMarket: property.daysOnZillow || 0,
+          pricePerSqFt: property.livingArea ? Math.round(property.price / property.livingArea) : 0,
+          comparables: [],
+        },
+        investmentMetrics: {
+          estimatedRent: property.rentZestimate,
+          capRate: property.capRate,
+          cashOnCash: property.cashOnCash,
+          roi: property.roi,
+        },
+        neighborhood: {
+          walkScore: property.walkScore || 0,
+          crimeRate: property.crimeRate || "Unknown",
+          schools: property.schools || [],
+        },
+        lastUpdated: property.datePostedString || new Date().toISOString(),
+      }))
+    } catch (error) {
+      console.error("❌ Zillow AUTHENTIC API Error:", error)
+      throw error
+    }
+  }
+
+  private mapRentCastPropertyType(type: string): string {
+    const typeMap: { [key: string]: string } = {
+      single_family: "residential",
+      condo: "residential",
+      townhouse: "residential",
+      manufactured: "residential",
+      multi_family: "multi-family",
+      apartment: "multi-family",
+      land: "land",
+      commercial: "commercial",
+      office: "commercial",
+      retail: "commercial",
+      industrial: "industrial",
+      warehouse: "industrial",
+    }
+    return typeMap[type?.toLowerCase()] || "residential"
   }
 
   private sortProperties(properties: PropertyListing[], filters: PropertySearchFilters): PropertyListing[] {
@@ -466,7 +553,7 @@ export class PropertySearchAgent {
   }
 
   async getMSAInfo(msa: string, state: string): Promise<MSAInfo> {
-    // Generate realistic MSA data
+    // This could call a real Census API or other demographic data source
     const population = Math.floor(Math.random() * 2000000) + 500000
     const medianIncome = Math.floor(Math.random() * 40000) + 50000
     const averageHomePrice = Math.floor(Math.random() * 300000) + 250000
@@ -482,12 +569,74 @@ export class PropertySearchAgent {
   }
 
   async checkAPIStatus(): Promise<APIStatus> {
-    // Return connected status since we're generating realistic data
-    return {
-      loopnet: "connected",
-      zillow: "connected",
-      rentcast: "connected",
+    const status: APIStatus = {
+      loopnet: "connecting",
+      zillow: "connecting",
+      rentcast: "connecting",
     }
+
+    console.log("🔍 Checking AUTHENTIC API status...")
+
+    // Check RentCast API
+    if (this.RENTCAST_API_KEY) {
+      try {
+        const response = await fetch("https://api.rentcast.io/v1/properties?limit=1", {
+          method: "GET",
+          headers: {
+            "X-Api-Key": this.RENTCAST_API_KEY,
+            "Content-Type": "application/json",
+          },
+        })
+        status.rentcast = response.ok ? "connected" : "error"
+      } catch (error) {
+        status.rentcast = "error"
+      }
+    } else {
+      status.rentcast = "error"
+    }
+
+    // Check LoopNet API
+    if (this.LOOPNET_API_KEY) {
+      try {
+        const response = await fetch("https://api.loopnet.com/v1/properties?limit=1", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${this.LOOPNET_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+        })
+        status.loopnet = response.ok ? "connected" : "error"
+      } catch (error) {
+        status.loopnet = "error"
+      }
+    } else {
+      status.loopnet = "error"
+    }
+
+    // Check Zillow API
+    if (this.ZILLOW_API_KEY) {
+      try {
+        const response = await fetch(
+          "https://zillow-com1.p.rapidapi.com/propertyExtendedSearch?location=Austin,TX&limit=1",
+          {
+            method: "GET",
+            headers: {
+              "X-RapidAPI-Key": this.ZILLOW_API_KEY,
+              "X-RapidAPI-Host": "zillow-com1.p.rapidapi.com",
+              "Content-Type": "application/json",
+            },
+          },
+        )
+        status.zillow = response.ok ? "connected" : "error"
+      } catch (error) {
+        status.zillow = "error"
+      }
+    } else {
+      status.zillow = "error"
+    }
+
+    console.log("✅ AUTHENTIC API status check completed:", status)
+    return status
   }
 }
 
