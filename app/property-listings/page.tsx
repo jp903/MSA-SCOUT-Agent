@@ -144,9 +144,9 @@ export default function PropertyListingsPage() {
       <SidebarInset>
         <div className="p-6">
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">Authentic Property Listings</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Property Listings</h1>
             <p className="text-gray-600 mt-2">
-              Search and analyze authentic investment properties from live RentCast, LoopNet, and Zillow APIs
+              Search and analyze investment properties across US markets with real-time data
             </p>
           </div>
 
