@@ -96,6 +96,13 @@ const navigationItems = [
     requiresAuth: false,
   },
   {
+    title: "Price Predictor",
+    url: "price-predictor",
+    icon: TrendingUp,
+    description: "AI Price Predictions",
+    requiresAuth: false,
+  },
+  {
     title: "Portfolio Tracker",
     url: "portfolio-tracker",
     icon: DollarSign,

@@ -11,6 +11,7 @@ import PropertyListings from "@/components/property-listings"
 import ProfileSettings from "@/components/profile-settings"
 import Preferences from "@/components/preferences"
 import AuthModal from "@/components/auth-modal"
+import PricePredictor from "@/components/price-predictor"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -51,6 +52,7 @@ export default function HomePage() {
     | "property-analysis"
     | "portfolio-tracker"
     | "deal-finder"
+    | "price-predictor"
     | "profile-settings"
     | "preferences"
   >("chat")
@@ -358,6 +360,9 @@ export default function HomePage() {
         break
       case "deal-finder":
         setActiveView("deal-finder")
+        break
+      case "price-predictor":
+        setActiveView("price-predictor")
         break
       case "ai-chat":
         setActiveView("home")
@@ -696,6 +701,7 @@ export default function HomePage() {
           {activeView === "deal-finder" && <PropertyListings />}
           {activeView === "property-analysis" && <PropertyAnalysis />}
           {activeView === "portfolio-tracker" && <PortfolioTracker />}
+          {activeView === "price-predictor" && <PricePredictor />}
 
           {/* Home Page - Dashboard & Tools */}
           {activeView === "chat" && (
@@ -926,6 +932,31 @@ export default function HomePage() {
                       Monitor your property portfolio performance and get optimization suggestions.
                     </p>
                     <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                      AI-powered
+                    </Badge>
+                  </CardContent>
+                </Card>
+
+                <Card
+                  className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
+                  onClick={() => handleToolSelect("price-predictor")}
+                >
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center">
+                        <TrendingUp className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">Price Predictor</CardTitle>
+                        <p className="text-sm text-gray-600">AI price predictions</p>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Get AI-powered property price predictions and market forecasts for any property.
+                    </p>
+                    <Badge variant="secondary" className="bg-purple-100 text-purple-800">
                       AI-powered
                     </Badge>
                   </CardContent>
