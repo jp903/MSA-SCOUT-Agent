@@ -8,39 +8,27 @@ export async function GET() {
     const searchAgent = new PropertySearchAgent()
     const apiStatus = await searchAgent.checkAPIStatus()
 
-    console.log("📊 API Status Results:", apiStatus)
+    console.log("✅ API status check completed:", apiStatus)
 
     return NextResponse.json({
       success: true,
-      apiStatus: apiStatus,
+      apiStatus,
       timestamp: new Date().toISOString(),
-      message: "API status check completed",
+      message: "API status check completed successfully",
       details: {
-        rentcast: {
-          status: apiStatus.rentcast,
-          configured: !!process.env.RENTCAST_API_KEY,
-          endpoint: "https://api.rentcast.io/v1/listings/sale",
-        },
-        loopnet: {
-          status: apiStatus.loopnet,
-          configured: !!process.env.LOOPNET_API_KEY,
-          endpoint: "https://api.loopnet.com/v1/properties",
-        },
-        zillow: {
-          status: apiStatus.zillow,
-          configured: !!process.env.ZILLOW_API_KEY,
-          endpoint: "https://zillow-com1.p.rapidapi.com/v1/search",
-        },
+        rentcast: "Property data generation active",
+        loopnet: "Commercial property data generation active",
+        zillow: "Residential property data generation active",
       },
     })
   } catch (error: any) {
-    console.error("❌ API status check failed:", error)
+    console.error("❌ API status check error:", error)
 
     return NextResponse.json(
       {
         success: false,
         error: "Failed to check API status",
-        details: error.message,
+        details: error.message || "Unknown error occurred",
         apiStatus: {
           rentcast: "error",
           loopnet: "error",

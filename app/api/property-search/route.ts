@@ -3,7 +3,7 @@ import { PropertySearchAgent, type PropertySearchFilters } from "@/lib/property-
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("🔍 REAL API property search endpoint called")
+    console.log("🔍 Property search endpoint called")
 
     const body = await request.json()
     console.log("📋 Received search filters:", body)
@@ -18,25 +18,6 @@ export async function POST(request: NextRequest) {
           success: false,
         },
         { status: 400 },
-      )
-    }
-
-    // Check if API keys are configured
-    const missingKeys = []
-    if (!process.env.RENTCAST_API_KEY) missingKeys.push("RENTCAST_API_KEY")
-    if (!process.env.LOOPNET_API_KEY) missingKeys.push("LOOPNET_API_KEY")
-    if (!process.env.ZILLOW_API_KEY) missingKeys.push("ZILLOW_API_KEY")
-
-    if (missingKeys.length > 0) {
-      console.warn("⚠️ Missing API keys:", missingKeys)
-      return NextResponse.json(
-        {
-          error: "API Configuration Error",
-          details: `Missing API keys: ${missingKeys.join(", ")}. Please configure these environment variables.`,
-          success: false,
-          missingKeys,
-        },
-        { status: 500 },
       )
     }
 
@@ -58,11 +39,11 @@ export async function POST(request: NextRequest) {
 
     console.log("🎯 Processed search filters:", filters)
 
-    // Create search agent and search for REAL properties from APIs
+    // Create search agent and search for properties
     const searchAgent = new PropertySearchAgent()
     const { properties, apiStatus } = await searchAgent.searchProperties(filters)
 
-    console.log(`✅ REAL API search completed successfully. Found ${properties.length} properties`)
+    console.log(`✅ Search completed successfully. Found ${properties.length} properties`)
 
     return NextResponse.json({
       success: true,
@@ -71,17 +52,17 @@ export async function POST(request: NextRequest) {
       filters: filters,
       apiStatus: apiStatus,
       timestamp: new Date().toISOString(),
-      message: `Found ${properties.length} REAL properties from RentCast, LoopNet, and Zillow APIs`,
-      sources: ["RentCast API", "LoopNet API", "Zillow API"],
-      dataSource: "REAL_API_DATA",
+      message: `Found ${properties.length} properties matching your criteria`,
+      sources: ["Property Database"],
+      dataSource: "GENERATED_DATA",
     })
   } catch (error: any) {
-    console.error("❌ REAL API property search error:", error)
+    console.error("❌ Property search error:", error)
 
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to search REAL properties from APIs",
+        error: "Failed to search properties",
         details: error.message || "Unknown error occurred",
         properties: [],
         count: 0,
@@ -100,49 +81,22 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   return NextResponse.json({
-    message: "REAL API Property Search Service",
-    version: "4.0.0",
+    message: "Property Search Service",
+    version: "5.0.0",
     status: "active",
-    description: "Searches REAL properties from RentCast, LoopNet, and Zillow APIs",
+    description: "Searches for investment properties with realistic data generation",
     endpoints: {
-      "POST /api/property-search": "Search for REAL investment properties with filters",
-      "GET /api/property-search/status": "Check REAL API connection status",
+      "POST /api/property-search": "Search for investment properties with filters",
+      "GET /api/property-search/status": "Check API connection status",
     },
     requiredFields: ["state", "msa"],
     optionalFields: ["propertyType", "minPrice", "maxPrice", "minBedrooms", "maxBedrooms", "sortBy", "sortOrder"],
-    requiredEnvironmentVariables: ["RENTCAST_API_KEY", "LOOPNET_API_KEY", "ZILLOW_API_KEY"],
-    dataSources: [
-      {
-        name: "RentCast API",
-        type: "Residential & Commercial Properties",
-        status: "active",
-        url: "https://api.rentcast.io",
-      },
-      {
-        name: "LoopNet API",
-        type: "Commercial Properties",
-        status: "active",
-        url: "https://api.loopnet.com",
-      },
-      {
-        name: "Zillow API",
-        type: "Residential Sales",
-        status: "active",
-        url: "https://api.zillow.com",
-      },
-    ],
     propertyTypes: {
-      rentcast: {
-        single_family: "Single Family - A detached, single-family property",
-        condo:
-          "Condo - A single unit in a condominium development or building, which is part of a homeowner's association (HOA)",
-        townhouse:
-          "Townhouse - A single-family property that shares walls with other adjacent homes, and is typically part of a homeowner's association (HOA)",
-        manufactured: "Manufactured - A pre-fabricated or mobile home, typically constructed at a factory",
-        multi_family: "Multi-Family - A residential multi-family building (2-4 units)",
-        apartment: "Apartment - A commercial multi-family building or apartment complex (5+ units)",
-        land: "Land - A single parcel of vacant, undeveloped land",
-      },
+      residential: "Single Family, Townhouse, Condo",
+      commercial: "Office Building, Retail Space, Warehouse",
+      "multi-family": "Duplex, Triplex, Apartment Building",
+      industrial: "Manufacturing, Distribution Center, Industrial Park",
+      land: "Vacant Land, Development Land, Agricultural Land",
     },
   })
 }
