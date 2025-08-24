@@ -1,134 +1,30 @@
-# Property Investment Agent
+# Building AI agent
 
-An AI-powered property investment analysis platform built with Next.js, featuring real-time market data, property search, and intelligent investment recommendations.
+*Automatically synced with your [v0.dev](https://v0.dev) deployments*
 
-## Features
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/haseeb83s-projects/v0-building-ai-agent)
+[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/Gru9L5en34W)
 
-- 🏠 **Property Search & Analysis** - Search properties with detailed investment metrics
-- 🤖 **AI-Powered Chat** - Get intelligent property investment advice
-- 📊 **Market Insights** - Real-time market data and trends
-- 💼 **Portfolio Tracking** - Track and manage your property investments
-- 🔐 **Authentication** - Secure user authentication and data protection
-- 📱 **Responsive Design** - Works seamlessly on all devices
+## Overview
 
-## Tech Stack
+This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
+Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
 
-- **Frontend**: Next.js 15, React 19, TypeScript
-- **Styling**: Tailwind CSS, shadcn/ui
-- **Database**: Neon PostgreSQL
-- **AI**: OpenAI GPT-4, Vercel AI SDK
-- **Authentication**: JWT-based auth
-- **APIs**: FRED Economic Data, RentCast, Property APIs
+## Deployment
 
-## Getting Started
+Your project is live at:
 
-### Prerequisites
+**[https://vercel.com/haseeb83s-projects/v0-building-ai-agent](https://vercel.com/haseeb83s-projects/v0-building-ai-agent)**
 
-- Node.js 18+ 
-- pnpm (recommended) or npm
-- PostgreSQL database (Neon recommended)
+## Build your app
 
-### Installation
+Continue building your app on:
 
-1. Clone the repository:
-\`\`\`bash
-git clone https://github.com/yourusername/property-investment-agent.git
-cd property-investment-agent
-\`\`\`
+**[https://v0.dev/chat/projects/Gru9L5en34W](https://v0.dev/chat/projects/Gru9L5en34W)**
 
-2. Install dependencies:
-\`\`\`bash
-pnpm install
-\`\`\`
+## How It Works
 
-3. Set up environment variables:
-\`\`\`bash
-cp .env.example .env.local
-\`\`\`
-
-Fill in your environment variables in `.env.local`:
-
-\`\`\`env
-# Database
-DATABASE_URL="your-neon-database-url"
-
-# OpenAI
-OPENAI_API_KEY="your-openai-api-key"
-
-# Property APIs
-RAPIDAPI_KEY="your-rapidapi-key"
-RENTCAST_API_KEY="your-rentcast-api-key"
-FRED_API_KEY="your-fred-api-key"
-
-# JWT Secret
-JWT_SECRET="your-jwt-secret"
-
-# App URL
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
-\`\`\`
-
-4. Initialize the database:
-\`\`\`bash
-pnpm run dev
-# Visit http://localhost:3000/api/init-db to initialize tables
-\`\`\`
-
-5. Start the development server:
-\`\`\`bash
-pnpm dev
-\`\`\`
-
-Open [http://localhost:3000](http://localhost:3000) to view the application.
-
-## API Endpoints
-
-### Authentication
-- `POST /api/auth/signup` - User registration
-- `POST /api/auth/signin` - User login
-- `POST /api/auth/signout` - User logout
-- `POST /api/auth/verify` - Token verification
-
-### Property Search
-- `GET /api/property-search` - Search properties
-- `GET /api/property-search/status` - API status check
-
-### Market Data
-- `GET /api/fred-data` - Economic indicators
-- `GET /api/msa-info` - Metropolitan area info
-
-### AI Chat
-- `POST /api/chat` - AI chat interactions
-
-### Portfolio
-- `GET /api/portfolio` - Get user portfolios
-- `POST /api/portfolio` - Create portfolio
-- `GET /api/portfolio/[id]` - Get specific portfolio
-
-## Environment Setup
-
-See [docs/ENVIRONMENT_SETUP.md](docs/ENVIRONMENT_SETUP.md) for detailed environment configuration instructions.
-
-## Scripts
-
-- `pnpm dev` - Start development server
-- `pnpm build` - Build for production
-- `pnpm start` - Start production server
-- `pnpm lint` - Run ESLint
-- `pnpm env:check` - Check environment variables
-- `pnpm api:test` - Test API connections
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-For support, email support@msascout.com or join our Discord community.
+1. Create and modify your project using [v0.dev](https://v0.dev)
+2. Deploy your chats from the v0 interface
+3. Changes are automatically pushed to this repository
+4. Vercel deploys the latest version from this repository

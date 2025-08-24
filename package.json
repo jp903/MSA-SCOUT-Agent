@@ -1,14 +1,11 @@
 {
   "name": "property-investment-agent",
-  "version": "0.2.0",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
-    "api:test": "node scripts/test-apis.js",
     "build": "next build",
     "dev": "next dev",
-    "env:check": "node scripts/check-env.js",
     "lint": "next lint",
-    "rapidapi:check": "node scripts/check-rapidapi.js",
     "start": "next start"
   },
   "dependencies": {
@@ -82,12 +79,5 @@
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"
-  },
-  "pnpm": {
-    "overrides": {
-      "@ai-sdk/openai": "0.0.66",
-      "ai": "3.4.32",
-      "zod": "3.23.8"
-    }
   }
 }

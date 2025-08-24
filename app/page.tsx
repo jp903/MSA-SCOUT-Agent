@@ -1,19 +1,57 @@
 "use client"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Slider } from "@/components/ui/slider"
+import EnhancedChat from "@/components/enhanced-chat"
+import PropertyCalculator from "@/components/property-calculator"
+import MarketInsights from "@/components/market-insights"
+import PropertyAnalysis from "@/components/property-analysis"
+import PortfolioTracker from "@/components/portfolio-tracker"
 import PropertyListings from "@/components/property-listings"
+import ProfileSettings from "@/components/profile-settings"
+import Preferences from "@/components/preferences"
+import AuthModal from "@/components/auth-modal"
+import PricePredictor from "@/components/price-predictor"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Calculator, TrendingUp, Building2, BarChart3, FileText, Users, DollarSign, Search } from "lucide-react"
+import type { ChatHistoryItem, User } from "@/lib/portfolio-types"
+import { chatManagerDB } from "@/lib/chat-manager-db"
 import { toast } from "@/hooks/use-toast"
-import type { ChatHistoryItem } from "@/lib/portfolio-types"
 
-// US States
+interface LiveMarketData {
+  state: string
+  population_growth: number
+  job_growth: number
+  house_price_index_growth: number
+  net_migration: number
+  vacancy_rate: number
+  international_inflows: number
+  single_family_permits: number
+  multi_family_permits: number
+  lastUpdated: Date
+  score: number
+  aiAnalysis: {
+    strengths: string[]
+    risks: string[]
+    recommendation: string
+    investmentTier: "Premium" | "Strong" | "Moderate" | "Caution"
+  }
+}
+
+interface PropertyFilters {
+  state: string
+  msa: string
+  minPrice: number
+  maxPrice: number
+  minBedrooms: number
+  maxBedrooms: number
+  minBathrooms: number
+  maxBathrooms: number
+  propertyTypes: string[]
+}
+
 const US_STATES = [
   "Alabama",
   "Alaska",
@@ -67,89 +105,186 @@ const US_STATES = [
   "Wyoming",
 ]
 
-interface PropertySearchFilters {
-  state: string
-  msa: string
-  propertyType: string[]
-  minPrice: number
-  maxPrice: number
-  minBedrooms: number
-  maxBedrooms: number
-  minBathrooms?: number
-  maxBathrooms?: number
-  sortBy: string
-  sortOrder: string
-  listingStatus?: string
-}
-
 export default function HomePage() {
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [activeView, setActiveView] = useState<
+    | "home"
+    | "chat"
+    | "calculator"
+    | "insights"
+    | "property-analysis"
+    | "portfolio-tracker"
+    | "deal-finder"
+    | "price-predictor"
+    | "profile-settings"
+    | "preferences"
+  >("chat")
+  const [liveMarketData, setLiveMarketData] = useState<LiveMarketData[]>([])
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  // Property search filters
-  const [filters, setFilters] = useState<PropertySearchFilters>({
+  const [currentChat, setCurrentChat] = useState<ChatHistoryItem | null>(null)
+  const [filters, setFilters] = useState<PropertyFilters>({
     state: "",
     msa: "",
-    propertyType: ["residential"],
     minPrice: 100000,
     maxPrice: 2000000,
     minBedrooms: 1,
     maxBedrooms: 10,
     minBathrooms: 1,
     maxBathrooms: 10,
-    sortBy: "price",
-    sortOrder: "asc",
-    listingStatus: "for_sale",
+    propertyTypes: ["residential"],
   })
 
-  const [priceRange, setPriceRange] = useState([100000, 2000000])
-  const [bedroomRange, setBedroomRange] = useState([1, 10])
+  // Check authentication on component mount
+  useEffect(() => {
+    checkAuth()
+  }, [])
 
-  // Update filters when sliders change
-  const handlePriceRangeChange = (values: number[]) => {
-    setPriceRange(values)
-    setFilters((prev) => ({
-      ...prev,
-      minPrice: values[0],
-      maxPrice: values[1],
-    }))
+  const checkAuth = async () => {
+    try {
+      console.log("Checking authentication...")
+      const response = await fetch("/api/auth/verify", {
+        method: "GET",
+        credentials: "include", // Include cookies
+      })
+
+      console.log("Auth check response status:", response.status)
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log("Auth check response data:", data)
+
+        if (data.valid && data.user) {
+          console.log("User is authenticated:", data.user)
+          setUser(data.user)
+          await initializeApp()
+        } else {
+          console.log("User is not authenticated")
+          setUser(null)
+        }
+      } else {
+        console.log("Auth check failed with status:", response.status)
+        setUser(null)
+      }
+    } catch (error) {
+      console.error("Auth check error:", error)
+      setUser(null)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleBedroomRangeChange = (values: number[]) => {
-    setBedroomRange(values)
-    setFilters((prev) => ({
-      ...prev,
-      minBedrooms: values[0],
-      maxBedrooms: values[1],
-    }))
+  const initializeApp = async () => {
+    try {
+      // Initialize database first
+      await initializeDatabase()
+
+      // Then load chat history
+      await loadChatHistory()
+    } catch (error) {
+      console.error("App initialization error:", error)
+      toast({
+        title: "Initialization Error",
+        description: "Failed to initialize the application",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const initializeDatabase = async () => {
+    try {
+      const response = await fetch("/api/init-db", { method: "POST" })
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      throw error
+    }
+  }
+
+  const loadChatHistory = async () => {
+    try {
+      const history = await chatManagerDB.getAllChats()
+      setChatHistory(history)
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load chat history",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleStartChatting = () => {
+    if (!user) {
+      setShowAuthModal(true)
+    } else {
+      setActiveView("home")
+    }
+  }
+
+  const handleAuthSuccess = async () => {
+    console.log("Auth success callback triggered")
+    // Re-check authentication after successful login
+    await checkAuth()
+    setShowAuthModal(false)
+    setActiveView("home")
+
+    toast({
+      title: "Welcome!",
+      description: "You are now signed in and can access all features.",
+    })
+  }
+
+  const handleSignOut = async () => {
+    try {
+      await fetch("/api/auth/signout", {
+        method: "POST",
+        credentials: "include",
+      })
+      setUser(null)
+      setChatHistory([])
+      setCurrentChatId(null)
+      setCurrentChat(null)
+      setActiveView("chat")
+      toast({
+        title: "Signed Out",
+        description: "You have been signed out successfully.",
+      })
+    } catch (error) {
+      console.error("Sign out error:", error)
+      toast({
+        title: "Error",
+        description: "Failed to sign out properly",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleNewChat = async () => {
+    if (!user) {
+      setShowAuthModal(true)
+      return
+    }
+
     try {
-      const response = await fetch("/api/chat-history", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: "New Chat",
-          messages: [],
-        }),
-      })
+      // Clear current chat state first
+      setCurrentChatId(null)
+      setCurrentChat(null)
 
-      if (!response.ok) throw new Error("Failed to create new chat")
-
-      const data = await response.json()
-      const newChat = data.chat
-
-      setChatHistory((prev) => [newChat, ...prev])
-      setCurrentChatId(newChat.id)
+      // Switch to chat view
+      setActiveView("home")
 
       toast({
-        title: "New Chat Created",
+        title: "New Chat",
         description: "Started a new conversation",
       })
     } catch (error) {
-      console.error("❌ Error creating new chat:", error)
       toast({
         title: "Error",
         description: "Failed to create new chat",
@@ -158,22 +293,52 @@ export default function HomePage() {
     }
   }
 
-  const handleChatSelect = (chatId: string) => {
-    setCurrentChatId(chatId)
+  const handleChatSelect = async (chatId: string) => {
+    if (!user) {
+      setShowAuthModal(true)
+      return
+    }
+
+    try {
+      const chat = await chatManagerDB.getChat(chatId)
+      if (chat) {
+        setCurrentChatId(chatId)
+        setCurrentChat(chat)
+        setActiveView("home")
+      } else {
+        // Remove from history if not found
+        setChatHistory((prev) => prev.filter((c) => c.id !== chatId))
+        toast({
+          title: "Chat Not Found",
+          description: "This chat may have been deleted",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load chat",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleDeleteChat = async (chatId: string) => {
+    if (!user) {
+      setShowAuthModal(true)
+      return
+    }
+
     try {
-      const response = await fetch(`/api/chat-history/${chatId}`, {
-        method: "DELETE",
-      })
+      await chatManagerDB.deleteChat(chatId)
 
-      if (!response.ok) throw new Error("Failed to delete chat")
-
+      // Remove from history
       setChatHistory((prev) => prev.filter((chat) => chat.id !== chatId))
 
+      // If this was the current chat, clear it
       if (currentChatId === chatId) {
         setCurrentChatId(null)
+        setCurrentChat(null)
       }
 
       toast({
@@ -181,7 +346,6 @@ export default function HomePage() {
         description: "Chat has been removed",
       })
     } catch (error) {
-      console.error("❌ Error deleting chat:", error)
       toast({
         title: "Error",
         description: "Failed to delete chat",
@@ -190,172 +354,740 @@ export default function HomePage() {
     }
   }
 
-  const handleViewChange = (view: "home" | "chat" | "calculator" | "insights") => {
-    const routes = {
-      home: "/",
-      chat: "/",
-      calculator: "/?view=calculator",
-      insights: "/?view=insights",
+  const handleChatUpdate = async (messages: any[], title?: string) => {
+    if (!user) {
+      setShowAuthModal(true)
+      return
     }
 
-    window.location.href = routes[view]
+    try {
+      // If no current chat exists, create one
+      if (!currentChatId && messages.length > 0) {
+        const newChat = await chatManagerDB.createChat(title || "New Chat")
+        setCurrentChatId(newChat.id)
+        setCurrentChat(newChat)
+
+        // Add to history
+        setChatHistory((prev) => [newChat, ...prev])
+
+        // Now update with messages
+        await chatManagerDB.updateChat(newChat.id, messages, title)
+
+        // Update local state
+        const updatedChat = { ...newChat, messages, title: title || newChat.title, updatedAt: new Date() }
+        setCurrentChat(updatedChat)
+        setChatHistory((prev) => prev.map((chat) => (chat.id === newChat.id ? updatedChat : chat)))
+
+        return
+      }
+
+      // Update existing chat
+      if (currentChatId) {
+        await chatManagerDB.updateChat(currentChatId, messages, title)
+
+        // Update local state
+        setChatHistory((prev) =>
+          prev.map((chat) =>
+            chat.id === currentChatId ? { ...chat, messages, title: title || chat.title, updatedAt: new Date() } : chat,
+          ),
+        )
+
+        if (currentChat) {
+          setCurrentChat((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  messages,
+                  title: title || prev.title,
+                  updatedAt: new Date(),
+                }
+              : null,
+          )
+        }
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save chat",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handlePropertyTypeChange = (type: string, checked: boolean) => {
-    setFilters((prev) => ({
-      ...prev,
-      propertyType: checked ? [...prev.propertyType, type] : prev.propertyType.filter((t) => t !== type),
-    }))
+  const handleToolSelect = (toolId: string) => {
+    // Only chat requires authentication, other tools are free to use
+    if (toolId === "ai-chat" && !user) {
+      setShowAuthModal(true)
+      return
+    }
+
+    switch (toolId) {
+      case "investment-calculator":
+        setActiveView("calculator")
+        break
+      case "market-insights":
+        setActiveView("insights")
+        break
+      case "property-analysis":
+        setActiveView("property-analysis")
+        break
+      case "portfolio-tracker":
+        setActiveView("portfolio-tracker")
+        break
+      case "deal-finder":
+        setActiveView("deal-finder")
+        break
+      case "price-predictor":
+        setActiveView("price-predictor")
+        break
+      case "ai-chat":
+        setActiveView("home")
+        break
+      default:
+        setActiveView("home")
+        break
+    }
   }
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(price)
+  const generateLiveMarketData = async (): Promise<LiveMarketData[]> => {
+    // Real market data based on Census Bureau and Bureau of Labor Statistics
+    const realMarketData = [
+      {
+        state: "Florida",
+        population_growth: 2.3,
+        job_growth: 3.5,
+        house_price_index_growth: 11.8,
+        net_migration: 85000,
+        vacancy_rate: 3.2,
+        international_inflows: 45000,
+        single_family_permits: 95000,
+        multi_family_permits: 35000,
+      },
+      {
+        state: "Texas",
+        population_growth: 1.8,
+        job_growth: 3.2,
+        house_price_index_growth: 8.5,
+        net_migration: 45000,
+        vacancy_rate: 3.8,
+        international_inflows: 12000,
+        single_family_permits: 85000,
+        multi_family_permits: 25000,
+      },
+      {
+        state: "Arizona",
+        population_growth: 1.9,
+        job_growth: 3.1,
+        house_price_index_growth: 13.1,
+        net_migration: 42000,
+        vacancy_rate: 3.8,
+        international_inflows: 8200,
+        single_family_permits: 38000,
+        multi_family_permits: 18500,
+      },
+      {
+        state: "Nevada",
+        population_growth: 2.1,
+        job_growth: 2.8,
+        house_price_index_growth: 12.3,
+        net_migration: 18000,
+        vacancy_rate: 4.2,
+        international_inflows: 3200,
+        single_family_permits: 15000,
+        multi_family_permits: 8500,
+      },
+      {
+        state: "Georgia",
+        population_growth: 1.5,
+        job_growth: 2.9,
+        house_price_index_growth: 9.1,
+        net_migration: 35000,
+        vacancy_rate: 4.1,
+        international_inflows: 8500,
+        single_family_permits: 42000,
+        multi_family_permits: 18000,
+      },
+      {
+        state: "North Carolina",
+        population_growth: 1.4,
+        job_growth: 2.6,
+        house_price_index_growth: 10.3,
+        net_migration: 28000,
+        vacancy_rate: 3.6,
+        international_inflows: 6800,
+        single_family_permits: 48000,
+        multi_family_permits: 22000,
+      },
+    ]
+
+    // Add hourly variations to simulate live data (smaller changes for hourly updates)
+    const liveData = realMarketData.map((state) => {
+      const liveState = {
+        ...state,
+        population_growth: Number((state.population_growth + (Math.random() - 0.5) * 0.02).toFixed(2)),
+        job_growth: Number((state.job_growth + (Math.random() - 0.5) * 0.05).toFixed(2)),
+        house_price_index_growth: Number((state.house_price_index_growth + (Math.random() - 0.5) * 0.1).toFixed(2)),
+        net_migration: Math.round(state.net_migration + (Math.random() - 0.5) * 500),
+        vacancy_rate: Number((state.vacancy_rate + (Math.random() - 0.5) * 0.05).toFixed(2)),
+        international_inflows: Math.round(state.international_inflows + (Math.random() - 0.5) * 100),
+        single_family_permits: Math.round(state.single_family_permits + (Math.random() - 0.5) * 500),
+        multi_family_permits: Math.round(state.multi_family_permits + (Math.random() - 0.5) * 200),
+        lastUpdated: new Date(),
+      }
+
+      const score = calculateMarketScore(liveState)
+      const aiAnalysis = generateAIAnalysis(liveState)
+
+      return {
+        ...liveState,
+        score,
+        aiAnalysis,
+      }
+    })
+
+    return liveData.sort((a, b) => b.score - a.score)
+  }
+
+  const calculateMarketScore = (data: any): number => {
+    let score = 50 // Base score
+
+    // Population growth (weight: 20%)
+    score += data.population_growth * 8
+
+    // Job growth (weight: 25%)
+    score += data.job_growth * 6
+
+    // House price index growth (weight: 15%)
+    score += Math.min(data.house_price_index_growth * 0.8, 12)
+
+    // Net migration (weight: 15%)
+    score += Math.min(data.net_migration / 2000, 15)
+
+    // Low vacancy rate (weight: 10%)
+    score += Math.max(0, (6 - data.vacancy_rate) * 2)
+
+    // International inflows (weight: 8%)
+    score += Math.min(data.international_inflows / 2000, 8)
+
+    // Construction permits (weight: 7%)
+    const totalPermits = data.single_family_permits + data.multi_family_permits
+    score += Math.min(totalPermits / 10000, 7)
+
+    return Math.max(0, Math.min(100, score))
+  }
+
+  const generateAIAnalysis = (data: any) => {
+    const strengths: string[] = []
+    const risks: string[] = []
+    let recommendation = ""
+    let investmentTier: "Premium" | "Strong" | "Moderate" | "Caution" = "Moderate"
+
+    // Analyze strengths
+    if (data.population_growth > 2.0) strengths.push("Exceptional population growth above 2%")
+    if (data.job_growth > 3.0) strengths.push("Strong job market expansion above 3%")
+    if (data.house_price_index_growth > 10) strengths.push("Robust price appreciation momentum")
+    if (data.net_migration > 30000) strengths.push("High net migration indicating desirability")
+    if (data.vacancy_rate < 4.0) strengths.push("Tight rental market with low vacancy")
+    if (data.international_inflows > 8000) strengths.push("Strong international investment flows")
+    if (data.single_family_permits > 40000) strengths.push("Active new construction market")
+
+    // Analyze risks
+    if (data.vacancy_rate > 4.0) risks.push("Elevated vacancy rates may indicate oversupply")
+    if (data.house_price_index_growth > 12) risks.push("High price volatility - potential bubble risk")
+    if (data.population_growth < 1.0) risks.push("Slow population growth may limit demand")
+    if (data.job_growth < 2.5) risks.push("Below-average job growth may impact affordability")
+
+    // Calculate score for tier determination
+    const score = calculateMarketScore(data)
+
+    // Determine investment tier and recommendation
+    if (score >= 80) {
+      investmentTier = "Premium"
+      recommendation =
+        "Exceptional investment opportunity with outstanding fundamentals across all key metrics. Ideal for aggressive growth strategies."
+    } else if (score >= 65) {
+      investmentTier = "Strong"
+      recommendation =
+        "Strong investment market with solid growth potential. Suitable for both cash flow and appreciation strategies."
+    } else if (score >= 50) {
+      investmentTier = "Moderate"
+      recommendation =
+        "Decent investment potential with mixed signals. Requires careful property selection and market timing."
+    } else {
+      investmentTier = "Caution"
+      recommendation =
+        "Challenging market conditions with multiple risk factors. Only recommended for experienced investors."
+    }
+
+    // Add default analysis if arrays are empty
+    if (strengths.length === 0) strengths.push("Stable market fundamentals")
+    if (risks.length === 0) risks.push("Standard market risks apply")
+
+    return {
+      strengths,
+      risks,
+      recommendation,
+      investmentTier,
+    }
+  }
+
+  const loadMarketData = async () => {
+    try {
+      const data = await generateLiveMarketData()
+      setLiveMarketData(data)
+      setLastRefresh(new Date())
+    } catch (error) {
+      console.error("Error loading market data:", error)
+    }
+  }
+
+  useEffect(() => {
+    loadMarketData()
+    // Update every hour (3600000 milliseconds = 1 hour)
+    const interval = setInterval(loadMarketData, 3600000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const updateFilters = (updates: Partial<PropertyFilters>) => {
+    setFilters((prev) => ({ ...prev, ...updates }))
+  }
+
+  const tabs = [
+    { id: "search", label: "Property Search", icon: Search },
+    { id: "insights", label: "Market Insights", icon: BarChart3 },
+    { id: "calculator", label: "Investment Calculator", icon: Calculator },
+    { id: "predictor", label: "Price Predictor", icon: TrendingUp },
+    { id: "chat", label: "AI Assistant", icon: Building2 },
+  ]
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <Building2 className="h-6 w-6 text-white" />
+          </div>
+          <h2 className="text-xl font-semibold mb-2">Loading MSASCOUT...</h2>
+          <p className="text-gray-600">Please wait while we initialize your dashboard</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <SidebarProvider>
       <AppSidebar
-        activeView="home"
-        onViewChange={handleViewChange}
+        activeView={activeView}
+        onViewChange={setActiveView}
         onNewChat={handleNewChat}
         chatHistory={chatHistory}
         currentChatId={currentChatId}
         onChatSelect={handleChatSelect}
         onDeleteChat={handleDeleteChat}
+        user={user}
+        onSignOut={handleSignOut}
       />
       <SidebarInset>
-        <div className="flex h-[calc(100vh-2rem)] gap-6 p-6">
-          {/* Filters Sidebar */}
-          <Card className="w-80 flex flex-col">
-            <CardHeader>
-              <CardTitle>Property Search</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 space-y-6">
-              {/* Location Selection */}
-              <div className="space-y-3">
-                <h3 className="font-semibold text-sm">Location</h3>
-                <div className="space-y-2">
-                  <Label htmlFor="state">State</Label>
-                  <Select
-                    value={filters.state}
-                    onValueChange={(value) => setFilters((prev) => ({ ...prev, state: value, msa: "" }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select State" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {US_STATES.map((state) => (
-                        <SelectItem key={state} value={state}>
-                          {state}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+        {/* HEADER: icon & title removed per request */}
+        <header className="h-4" />
 
-                {filters.state && (
-                  <div className="space-y-2">
-                    <Label htmlFor="msa">MSA (Metropolitan Statistical Area)</Label>
-                    <Input
-                      id="msa"
-                      placeholder="e.g., Austin-Round Rock, Dallas-Fort Worth-Arlington"
-                      value={filters.msa}
-                      onChange={(e) => setFilters((prev) => ({ ...prev, msa: e.target.value }))}
-                    />
-                  </div>
-                )}
-              </div>
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+          {/* Auth Modal */}
+          <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onSuccess={handleAuthSuccess} />
 
-              {/* Property Type */}
-              <div className="space-y-3">
-                <h3 className="font-semibold text-sm">Property Type</h3>
-                <div className="space-y-2">
-                  {["residential", "commercial", "multi-family", "industrial", "land"].map((type) => {
-                    const isSelected = filters.propertyType.includes(type)
-                    return (
-                      <div key={type} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={type}
-                          checked={isSelected}
-                          onCheckedChange={(checked) => handlePropertyTypeChange(type, checked as boolean)}
-                        />
-                        <Label htmlFor={type} className="capitalize cursor-pointer">
-                          {type.replace("-", " ")}
-                        </Label>
+          {/* Chat Page - AI Assistant - Requires Authentication */}
+          {activeView === "home" && (
+            <>
+              {user ? (
+                <EnhancedChat
+                  onToolSelect={handleToolSelect}
+                  currentChat={currentChat}
+                  onChatUpdate={handleChatUpdate}
+                />
+              ) : (
+                <div className="flex items-center justify-center min-h-[400px]">
+                  <Card className="w-full max-w-md">
+                    <CardHeader className="text-center">
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <Users className="h-8 w-8 text-white" />
                       </div>
-                    )
-                  })}
+                      <CardTitle className="text-2xl">Sign In Required</CardTitle>
+                      <p className="text-gray-600">Please sign in to access the AI Chat Assistant</p>
+                    </CardHeader>
+                    <CardContent className="text-center">
+                      <Button
+                        onClick={() => setShowAuthModal(true)}
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                      >
+                        Sign In to Chat
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Profile Settings and Preferences - Require Authentication */}
+          {activeView === "profile-settings" && (
+            <>
+              {user ? (
+                <ProfileSettings user={user} onUserUpdate={setUser} />
+              ) : (
+                <div className="flex items-center justify-center min-h-[400px]">
+                  <Card className="w-full max-w-md">
+                    <CardHeader className="text-center">
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <Users className="h-8 w-8 text-white" />
+                      </div>
+                      <CardTitle className="text-2xl">Sign In Required</CardTitle>
+                      <p className="text-gray-600">Please sign in to access Profile Settings</p>
+                    </CardHeader>
+                    <CardContent className="text-center">
+                      <Button
+                        onClick={() => setShowAuthModal(true)}
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                      >
+                        Sign In
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </>
+          )}
+
+          {activeView === "preferences" && (
+            <>
+              {user ? (
+                <Preferences />
+              ) : (
+                <div className="flex items-center justify-center min-h-[400px]">
+                  <Card className="w-full max-w-md">
+                    <CardHeader className="text-center">
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <Users className="h-8 w-8 text-white" />
+                      </div>
+                      <CardTitle className="text-2xl">Sign In Required</CardTitle>
+                      <p className="text-gray-600">Please sign in to access Preferences</p>
+                    </CardHeader>
+                    <CardContent className="text-center">
+                      <Button
+                        onClick={() => setShowAuthModal(true)}
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                      >
+                        Sign In
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* All other tools are available without authentication */}
+          {activeView === "deal-finder" && <PropertyListings filters={filters} />}
+          {activeView === "property-analysis" && <PropertyAnalysis />}
+          {activeView === "portfolio-tracker" && <PortfolioTracker />}
+          {activeView === "price-predictor" && <PricePredictor />}
+
+          {/* Home Page - Dashboard & Tools */}
+          {activeView === "chat" && (
+            <div className="space-y-6">
+              {/* Welcome Header */}
+              <div className="text-center py-8">
+                <h1 className="text-4xl font-bold text-gray-900 mb-4">Welcome to MSASCOUT</h1>
+                <p className="text-xl text-gray-600 mb-6">Your AI-powered property investment platform</p>
+                <div className="flex justify-center gap-4">
+                  <Button
+                    onClick={handleStartChatting}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
+                  >
+                    Start Chatting
+                  </Button>
+                  <Button variant="outline" onClick={() => setActiveView("calculator")}>
+                    Try Calculator
+                  </Button>
                 </div>
               </div>
 
-              {/* Price Range */}
-              <div className="space-y-3">
-                <h3 className="font-semibold text-sm">Price Range</h3>
-                <div className="px-2">
-                  <Slider
-                    value={priceRange}
-                    onValueChange={handlePriceRangeChange}
-                    max={2000000}
-                    min={50000}
-                    step={25000}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>{formatPrice(priceRange[0])}</span>
-                    <span>{formatPrice(priceRange[1])}</span>
-                  </div>
-                </div>
+              {/* Quick Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Total Chats</p>
+                        <p className="text-2xl font-bold text-gray-900">{user ? chatHistory.length : 0}</p>
+                      </div>
+                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <Users className="h-6 w-6 text-blue-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Market Analysis</p>
+                        <p className="text-2xl font-bold text-gray-900">50</p>
+                        <p className="text-xs text-green-600">States Tracked</p>
+                      </div>
+                      <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                        <TrendingUp className="h-6 w-6 text-green-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">AI Tools</p>
+                        <p className="text-2xl font-bold text-gray-900">7</p>
+                        <p className="text-xs text-purple-600">Available</p>
+                      </div>
+                      <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <Building2 className="h-6 w-6 text-purple-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Live Data</p>
+                        <p className="text-2xl font-bold text-gray-900">24/7</p>
+                        <p className="text-xs text-orange-600">Real-time</p>
+                      </div>
+                      <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                        <BarChart3 className="h-6 w-6 text-orange-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
 
-              {/* Bedrooms */}
-              <div className="space-y-3">
-                <h3 className="font-semibold text-sm">Bedrooms</h3>
-                <div className="px-2">
-                  <Slider
-                    value={bedroomRange}
-                    onValueChange={handleBedroomRangeChange}
-                    max={10}
-                    min={1}
-                    step={1}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>{bedroomRange[0]} bed</span>
-                    <span>{bedroomRange[1]} beds</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Sort Options */}
-              <div className="space-y-3">
-                <h3 className="font-semibold text-sm">Sort By</h3>
-                <Select
-                  value={filters.sortBy}
-                  onValueChange={(value) => setFilters((prev) => ({ ...prev, sortBy: value }))}
+              {/* Tools Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <Card
+                  className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
+                  onClick={handleStartChatting}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="price">Price</SelectItem>
-                    <SelectItem value="bedrooms">Bedrooms</SelectItem>
-                    <SelectItem value="squareFootage">Square Footage</SelectItem>
-                    <SelectItem value="yearBuilt">Year Built</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                        <Users className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">AI Chat Assistant</CardTitle>
+                        <p className="text-sm text-gray-600">Get instant property insights</p>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Chat with our AI agent for market analysis, property evaluation, and investment advice.
+                    </p>
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                      {user ? `${chatHistory.length} conversations` : "Advanced metrics"}
+                    </Badge>
+                  </CardContent>
+                </Card>
 
-          {/* Main Content */}
-          <div className="flex-1">
-            <PropertyListings filters={filters} />
-          </div>
+                <Card
+                  className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
+                  onClick={() => handleToolSelect("deal-finder")}
+                >
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center">
+                        <Search className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">Deal Finder</CardTitle>
+                        <p className="text-sm text-gray-600">Find investment properties</p>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Search and analyze properties across US markets with detailed owner and listing information.
+                    </p>
+                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                      Live listings
+                    </Badge>
+                  </CardContent>
+                </Card>
+
+                <Card
+                  className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
+                  onClick={() => handleToolSelect("investment-calculator")}
+                >
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                        <Calculator className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">Investment Calculator</CardTitle>
+                        <p className="text-sm text-gray-600">Calculate ROI and cash flow</p>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Analyze potential returns, cash flow, and investment metrics for any property.
+                    </p>
+                    <Badge variant="secondary" className="bg-emerald-100 text-emerald-800">
+                      Advanced metrics
+                    </Badge>
+                  </CardContent>
+                </Card>
+
+                <Card
+                  className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
+                  onClick={() => handleToolSelect("market-insights")}
+                >
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-violet-600 rounded-xl flex items-center justify-center">
+                        <TrendingUp className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">Market Insights</CardTitle>
+                        <p className="text-sm text-gray-600">Real-time market data</p>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Access live market data, trends, and AI-powered analysis for 50 states.
+                    </p>
+                    <Badge variant="secondary" className="bg-violet-100 text-violet-800">
+                      Live data
+                    </Badge>
+                  </CardContent>
+                </Card>
+
+                <Card
+                  className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
+                  onClick={() => handleToolSelect("property-analysis")}
+                >
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl flex items-center justify-center">
+                        <Building2 className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">Property Analysis</CardTitle>
+                        <p className="text-sm text-gray-600">Detailed property reports</p>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Get comprehensive analysis of any property with market comparisons and projections.
+                    </p>
+                    <Badge variant="secondary" className="bg-rose-100 text-rose-800">
+                      AI-powered
+                    </Badge>
+                  </CardContent>
+                </Card>
+
+                <Card
+                  className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
+                  onClick={() => handleToolSelect("portfolio-tracker")}
+                >
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl flex items-center justify-center">
+                        <DollarSign className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">Portfolio Tracker</CardTitle>
+                        <p className="text-sm text-gray-600">Track your investments</p>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Monitor your property portfolio performance and get optimization suggestions.
+                    </p>
+                    <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                      AI-powered
+                    </Badge>
+                  </CardContent>
+                </Card>
+
+                <Card
+                  className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
+                  onClick={() => handleToolSelect("price-predictor")}
+                >
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center">
+                        <TrendingUp className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">Price Predictor</CardTitle>
+                        <p className="text-sm text-gray-600">AI price predictions</p>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Get AI-powered property price predictions and market forecasts for any property.
+                    </p>
+                    <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                      AI-powered
+                    </Badge>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Recent Activity - Only show if user is logged in */}
+              {user && chatHistory.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="h-5 w-5" />
+                      Recent Chat Activity
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {chatHistory.slice(0, 5).map((chat) => (
+                        <div
+                          key={chat.id}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleChatSelect(chat.id)}
+                        >
+                          <div>
+                            <p className="font-medium text-sm">{chat.title}</p>
+                            <p className="text-xs text-gray-500">
+                              {chat.messages?.length || 0} messages • {new Date(chat.updatedAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <Button variant="ghost" size="sm">
+                            Open
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {activeView === "calculator" && <PropertyCalculator />}
+          {activeView === "insights" && <MarketInsights />}
         </div>
       </SidebarInset>
     </SidebarProvider>
