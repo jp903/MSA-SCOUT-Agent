@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -26,12 +26,19 @@ import {
   Square,
   Phone,
   Mail,
+  ExternalLink,
   Star,
-  CheckCircle,
+  RefreshCw,
+  Database,
+  Wifi,
+  WifiOff,
+  Loader2,
   AlertTriangle,
+  CheckCircle,
+  Key,
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import type { PropertyListing, PropertySearchFilters, MSAInfo } from "@/lib/property-search-agent"
+import type { PropertyListing, PropertySearchFilters, MSAInfo, APIStatus } from "@/lib/property-search-agent"
 
 const US_STATES = [
   "Alabama",
@@ -104,6 +111,11 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
   const [loading, setLoading] = useState(false)
   const [selectedProperty, setSelectedProperty] = useState<PropertyListing | null>(null)
   const [apiConfigError, setApiConfigError] = useState<string | null>(null)
+  const [apiStatus, setApiStatus] = useState<APIStatus>({
+    loopnet: "connecting",
+    zillow: "connecting",
+    rentcast: "connecting",
+  })
 
   // Filter states
   const [filters, setFilters] = useState<PropertySearchFilters>({
@@ -123,6 +135,26 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
 
   const [priceRange, setPriceRange] = useState([100000, 1000000])
   const [bedroomRange, setBedroomRange] = useState([1, 10])
+
+  useEffect(() => {
+    checkAPIStatus()
+    const interval = setInterval(checkAPIStatus, 30000) // Check every 30 seconds
+    return () => clearInterval(interval)
+  }, [])
+
+  const checkAPIStatus = async () => {
+    try {
+      const response = await fetch("/api/property-search/status")
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setApiStatus(data.apiStatus)
+        }
+      }
+    } catch (error) {
+      console.error("Failed to check API status:", error)
+    }
+  }
 
   const searchProperties = async () => {
     if (!filters.state || !filters.msa) {
@@ -166,25 +198,33 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
 
       if (!response.ok) {
         const errorData = await response.json()
+
+        // Check if it's an API configuration error
+        if (errorData.missingKeys) {
+          setApiConfigError(
+            `Missing API Keys: ${errorData.missingKeys.join(", ")}. Please configure these environment variables to access real property data.`,
+          )
+        }
+
         throw new Error(errorData.details || errorData.error || `HTTP ${response.status}`)
       }
 
       const data = await response.json()
-      console.log("📊 API response data:", data)
+      console.log("📊 REAL API response data:", data)
 
       if (data.success && Array.isArray(data.properties)) {
         setProperties(data.properties)
+        setApiStatus(data.apiStatus || apiStatus)
 
-        if (data.properties.length > 0) {
+        if (data.dataSource === "REAL_API_DATA") {
           toast({
             title: "Real Data Retrieved!",
-            description: `Found ${data.properties.length} REAL properties from live APIs: ${data.sources?.join(", ")}`,
+            description: `Found ${data.properties.length} REAL properties from live APIs`,
           })
         } else {
           toast({
-            title: "No Properties Found",
-            description: "No properties found matching your criteria from the APIs. Try adjusting your search filters.",
-            variant: "destructive",
+            title: "Search Complete",
+            description: `Found ${data.properties.length} properties`,
           })
         }
       } else {
@@ -192,22 +232,11 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
       }
     } catch (error: any) {
       console.error("❌ Property search error:", error)
-
-      if (error.message.includes("API keys not configured") || error.message.includes("API Configuration Error")) {
-        setApiConfigError(error.message)
-        toast({
-          title: "API Configuration Error",
-          description: "Please configure your API keys in the environment variables.",
-          variant: "destructive",
-        })
-      } else {
-        toast({
-          title: "Search Error",
-          description:
-            error.message || "Failed to search properties. Please check your API configuration and try again.",
-          variant: "destructive",
-        })
-      }
+      toast({
+        title: "Search Error",
+        description: error.message || "Failed to search properties. Please try again.",
+        variant: "destructive",
+      })
       setProperties([])
     } finally {
       setLoading(false)
@@ -272,6 +301,28 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
     return colors[type as keyof typeof colors] || colors.residential
   }
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "connected":
+        return "bg-green-100 text-green-800 border-green-300"
+      case "connecting":
+        return "bg-yellow-100 text-yellow-800 border-yellow-300"
+      default:
+        return "bg-red-100 text-red-800 border-red-300"
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "connected":
+        return <Wifi className="h-3 w-3" />
+      case "connecting":
+        return <Loader2 className="h-3 w-3 animate-spin" />
+      default:
+        return <WifiOff className="h-3 w-3" />
+    }
+  }
+
   const handlePropertyTypeChange = (type: string, checked: boolean) => {
     setFilters((prev) => ({
       ...prev,
@@ -292,7 +343,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
         <CardContent className="flex-1">
           <ScrollArea className="h-full pr-4">
             <div className="space-y-6">
-              {/* API Configuration Error */}
+              {/* API Configuration Alert */}
               {apiConfigError && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
@@ -302,6 +353,47 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                   </AlertDescription>
                 </Alert>
               )}
+
+              {/* API Status */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <Database className="h-4 w-4" />
+                    Real API Status
+                  </h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={checkAPIStatus}
+                    className="h-6 px-2 text-xs bg-transparent"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs">RentCast:</span>
+                    <Badge variant="outline" className={`text-xs ${getStatusColor(apiStatus.rentcast)}`}>
+                      {getStatusIcon(apiStatus.rentcast)}
+                      <span className="ml-1">{apiStatus.rentcast}</span>
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs">LoopNet:</span>
+                    <Badge variant="outline" className={`text-xs ${getStatusColor(apiStatus.loopnet)}`}>
+                      {getStatusIcon(apiStatus.loopnet)}
+                      <span className="ml-1">{apiStatus.loopnet}</span>
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs">Zillow:</span>
+                    <Badge variant="outline" className={`text-xs ${getStatusColor(apiStatus.zillow)}`}>
+                      {getStatusIcon(apiStatus.zillow)}
+                      <span className="ml-1">{apiStatus.zillow}</span>
+                    </Badge>
+                  </div>
+                </div>
+              </div>
 
               {/* Location Selection */}
               <div className="space-y-3">
@@ -422,7 +514,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
               {/* Search Button */}
               <Button
                 onClick={searchProperties}
-                disabled={!filters.state || !filters.msa || loading || !!apiConfigError}
+                disabled={!filters.state || !filters.msa || loading}
                 className="w-full"
               >
                 <Search className="h-4 w-4 mr-2" />
@@ -479,7 +571,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                   </Badge>
                   <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
                     <CheckCircle className="h-3 w-3 mr-1" />
-                    Real API Data Only
+                    Real API Data
                   </Badge>
                 </div>
               )}
@@ -491,19 +583,11 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                 <div className="flex flex-col items-center justify-center h-64 text-center p-8">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Searching Real APIs...</h3>
-                  <p className="text-gray-600">Fetching data from RentCast, LoopNet, and Zillow APIs</p>
-                </div>
-              ) : apiConfigError ? (
-                <div className="flex flex-col items-center justify-center h-64 text-center p-8">
-                  <AlertTriangle className="h-12 w-12 text-red-400 mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">API Configuration Required</h3>
-                  <p className="text-gray-600 mb-4">Please configure your API keys to search for real properties</p>
-                  <div className="text-sm text-gray-500 bg-gray-50 p-4 rounded-lg">
-                    <p className="font-semibold mb-2">Required Environment Variables:</p>
-                    <ul className="text-left space-y-1">
-                      <li>• RAPIDAPI_KEY (for LoopNet and Zillow APIs)</li>
-                      <li>• RENTCAST_API_KEY (for RentCast API)</li>
-                    </ul>
+                  <p className="text-gray-600">Fetching live data from RentCast, LoopNet, and Zillow APIs</p>
+                  <div className="mt-4 text-sm text-gray-500">
+                    <p>• RentCast: Single Family, Condo, Townhouse, Multi-Family, Apartment, Land</p>
+                    <p>• LoopNet: Commercial Properties</p>
+                    <p>• Zillow: Residential Sales</p>
                   </div>
                 </div>
               ) : properties.length === 0 ? (
@@ -512,9 +596,23 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No Real Properties Found</h3>
                   <p className="text-gray-600 mb-4">
                     {!filters.state || !filters.msa
-                      ? "Please select a state and enter an MSA to search for properties"
-                      : "No properties found from the APIs. Try adjusting your search filters or check your API subscriptions."}
+                      ? "Please select a state and enter an MSA to search for real properties"
+                      : apiConfigError
+                        ? "API configuration required to access real property data"
+                        : "Try adjusting your search filters to find more properties"}
                   </p>
+                  {apiConfigError && (
+                    <div className="text-sm text-orange-600 bg-orange-50 p-3 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Key className="h-4 w-4" />
+                        <span className="font-semibold">API Keys Required</span>
+                      </div>
+                      <p>
+                        Configure RENTCAST_API_KEY, LOOPNET_API_KEY, and ZILLOW_API_KEY environment variables to access
+                        real property data.
+                      </p>
+                    </div>
+                  )}
                   {!filters.state || !filters.msa ? (
                     <div className="text-sm text-gray-500">
                       <p>Example MSAs:</p>
@@ -536,13 +634,9 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                           <Card className="cursor-pointer hover:shadow-lg transition-shadow">
                             <div className="relative">
                               <img
-                                src={property.images[0] || "/placeholder.svg?height=200&width=300&text=Property"}
+                                src={property.images[0] || "/placeholder.svg"}
                                 alt={property.title}
                                 className="w-full h-48 object-cover rounded-t-lg"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement
-                                  target.src = "/placeholder.svg?height=200&width=300&text=Property+Image"
-                                }}
                               />
                               <Badge className={`absolute top-2 left-2 ${getPropertyTypeColor(property.propertyType)}`}>
                                 <PropertyIcon className="h-3 w-3 mr-1" />
@@ -594,7 +688,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                               {property.title}
                               <Badge className="bg-green-100 text-green-800">
                                 <CheckCircle className="h-3 w-3 mr-1" />
-                                Real API Data
+                                Real Data
                               </Badge>
                             </DialogTitle>
                           </DialogHeader>
@@ -610,13 +704,9 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                             <TabsContent value="overview" className="space-y-4">
                               <div className="grid grid-cols-2 gap-4">
                                 <img
-                                  src={property.images[0] || "/placeholder.svg?height=300&width=400&text=Property"}
+                                  src={property.images[0] || "/placeholder.svg"}
                                   alt={property.title}
                                   className="w-full h-64 object-cover rounded-lg"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement
-                                    target.src = "/placeholder.svg?height=300&width=400&text=Property+Image"
-                                  }}
                                 />
                                 <div className="space-y-4">
                                   <div>
@@ -841,6 +931,13 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                                       <span>{new Date(property.lastUpdated).toLocaleDateString()}</span>
                                     </div>
                                   </div>
+
+                                  <Button className="w-full mt-4" asChild>
+                                    <a href={property.listingSource.url} target="_blank" rel="noopener noreferrer">
+                                      <ExternalLink className="h-4 w-4 mr-2" />
+                                      View Original Listing
+                                    </a>
+                                  </Button>
                                 </div>
                               </div>
                             </TabsContent>

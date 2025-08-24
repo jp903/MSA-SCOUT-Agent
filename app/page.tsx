@@ -40,71 +40,6 @@ interface LiveMarketData {
   }
 }
 
-interface PropertyFilters {
-  state: string
-  msa: string
-  minPrice: number
-  maxPrice: number
-  minBedrooms: number
-  maxBedrooms: number
-  minBathrooms: number
-  maxBathrooms: number
-  propertyTypes: string[]
-}
-
-const US_STATES = [
-  "Alabama",
-  "Alaska",
-  "Arizona",
-  "Arkansas",
-  "California",
-  "Colorado",
-  "Connecticut",
-  "Delaware",
-  "Florida",
-  "Georgia",
-  "Hawaii",
-  "Idaho",
-  "Illinois",
-  "Indiana",
-  "Iowa",
-  "Kansas",
-  "Kentucky",
-  "Louisiana",
-  "Maine",
-  "Maryland",
-  "Massachusetts",
-  "Michigan",
-  "Minnesota",
-  "Mississippi",
-  "Missouri",
-  "Montana",
-  "Nebraska",
-  "Nevada",
-  "New Hampshire",
-  "New Jersey",
-  "New Mexico",
-  "New York",
-  "North Carolina",
-  "North Dakota",
-  "Ohio",
-  "Oklahoma",
-  "Oregon",
-  "Pennsylvania",
-  "Rhode Island",
-  "South Carolina",
-  "South Dakota",
-  "Tennessee",
-  "Texas",
-  "Utah",
-  "Vermont",
-  "Virginia",
-  "Washington",
-  "West Virginia",
-  "Wisconsin",
-  "Wyoming",
-]
-
 export default function HomePage() {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -126,17 +61,6 @@ export default function HomePage() {
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const [currentChat, setCurrentChat] = useState<ChatHistoryItem | null>(null)
-  const [filters, setFilters] = useState<PropertyFilters>({
-    state: "",
-    msa: "",
-    minPrice: 100000,
-    maxPrice: 2000000,
-    minBedrooms: 1,
-    maxBedrooms: 10,
-    minBathrooms: 1,
-    maxBathrooms: 10,
-    propertyTypes: ["residential"],
-  })
 
   // Check authentication on component mount
   useEffect(() => {
@@ -648,18 +572,6 @@ export default function HomePage() {
     return () => clearInterval(interval)
   }, [])
 
-  const updateFilters = (updates: Partial<PropertyFilters>) => {
-    setFilters((prev) => ({ ...prev, ...updates }))
-  }
-
-  const tabs = [
-    { id: "search", label: "Property Search", icon: Search },
-    { id: "insights", label: "Market Insights", icon: BarChart3 },
-    { id: "calculator", label: "Investment Calculator", icon: Calculator },
-    { id: "predictor", label: "Price Predictor", icon: TrendingUp },
-    { id: "chat", label: "AI Assistant", icon: Building2 },
-  ]
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -786,7 +698,7 @@ export default function HomePage() {
           )}
 
           {/* All other tools are available without authentication */}
-          {activeView === "deal-finder" && <PropertyListings filters={filters} />}
+          {activeView === "deal-finder" && <PropertyListings />}
           {activeView === "property-analysis" && <PropertyAnalysis />}
           {activeView === "portfolio-tracker" && <PortfolioTracker />}
           {activeView === "price-predictor" && <PricePredictor />}
