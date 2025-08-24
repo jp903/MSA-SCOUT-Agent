@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@ai-sdk/openai':
         specifier: latest
-        version: 2.0.19(zod@3.24.1)
+        version: 2.0.19(zod@3.23.8)
       '@hookform/resolvers':
         specifier: ^3.9.1
         version: 3.9.1(react-hook-form@7.62.0(react@19.0.0))
@@ -103,7 +103,7 @@ importers:
         version: 1.1.1
       ai:
         specifier: latest
-        version: 5.0.22(zod@3.24.1)
+        version: 5.0.22(zod@3.23.8)
       bcryptjs:
         specifier: latest
         version: 3.0.2
@@ -180,8 +180,8 @@ importers:
         specifier: latest
         version: 1.1.2(@types/react-dom@19.0.0)(@types/react@19.0.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       zod:
-        specifier: ^3.24.1
-        version: 3.24.1
+        specifier: 3.23.8
+        version: 3.23.8
     devDependencies:
       '@types/bcryptjs':
         specifier: ^2.4.6
@@ -3123,30 +3123,30 @@ packages:
     peerDependencies:
       zod: ^3.24.1
 
-  zod@3.24.1:
-    resolution: {integrity: sha512-muH7gBL9sI1nciMZV67X5fTKKBLtwpZ5VBp1vsOQzj1MhrBZ4wlVCm3gedKZWLp0Oyel8sIGfeiz54Su+OVT+A==}
+  zod@3.23.8:
+    resolution: {integrity: sha512-XBx9AXhXktjUqnepgTiE5flcKIYWi/rme0Eaj+5Y0lftuGBq+jyRu/md4WnuxqgP1ubdpNCsYEYPxrzVHD8d6g==}
 
 snapshots:
 
-  '@ai-sdk/gateway@1.0.11(zod@3.24.1)':
+  '@ai-sdk/gateway@1.0.11(zod@3.23.8)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.5(zod@3.24.1)
-      zod: 3.24.1
+      '@ai-sdk/provider-utils': 3.0.5(zod@3.23.8)
+      zod: 3.23.8
 
-  '@ai-sdk/openai@2.0.19(zod@3.24.1)':
+  '@ai-sdk/openai@2.0.19(zod@3.23.8)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.5(zod@3.24.1)
-      zod: 3.24.1
+      '@ai-sdk/provider-utils': 3.0.5(zod@3.23.8)
+      zod: 3.23.8
 
-  '@ai-sdk/provider-utils@3.0.5(zod@3.24.1)':
+  '@ai-sdk/provider-utils@3.0.5(zod@3.23.8)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
       '@standard-schema/spec': 1.0.0
       eventsource-parser: 3.0.3
-      zod: 3.24.1
-      zod-to-json-schema: 3.24.6(zod@3.24.1)
+      zod: 3.23.8
+      zod-to-json-schema: 3.24.6(zod@3.23.8)
 
   '@ai-sdk/provider@2.0.0':
     dependencies:
@@ -4343,13 +4343,13 @@ snapshots:
 
   acorn@8.15.0: {}
 
-  ai@5.0.22(zod@3.24.1):
+  ai@5.0.22(zod@3.23.8):
     dependencies:
-      '@ai-sdk/gateway': 1.0.11(zod@3.24.1)
+      '@ai-sdk/gateway': 1.0.11(zod@3.23.8)
       '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.5(zod@3.24.1)
+      '@ai-sdk/provider-utils': 3.0.5(zod@3.23.8)
       '@opentelemetry/api': 1.9.0
-      zod: 3.24.1
+      zod: 3.23.8
 
   ajv@6.12.6:
     dependencies:
@@ -6335,8 +6335,8 @@ snapshots:
 
   yocto-queue@0.1.0: {}
 
-  zod-to-json-schema@3.24.6(zod@3.24.1):
+  zod-to-json-schema@3.24.6(zod@3.23.8):
     dependencies:
-      zod: 3.24.1
+      zod: 3.23.8
 
-  zod@3.24.1: {}
+  zod@3.23.8: {}
