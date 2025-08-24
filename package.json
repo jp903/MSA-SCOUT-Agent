@@ -8,13 +8,9 @@
     "lint": "next lint",
     "start": "next start"
   },
-  "resolutions": {
-    "@ai-sdk/openai": "0.0.66",
-    "ai": "3.4.32",
-    "zod": "3.23.8"
-  },
   "dependencies": {
     "@ai-sdk/openai": "latest",
+    "@ant-design/icons": "latest",
     "@hookform/resolvers": "^3.9.1",
     "@neondatabase/serverless": "latest",
     "@radix-ui/react-accordion": "latest",
@@ -84,12 +80,5 @@
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"
-  },
-  "pnpm": {
-    "overrides": {
-      "@ai-sdk/openai": "0.0.66",
-      "ai": "3.4.32",
-      "zod": "3.23.8"
-    }
   }
 }
