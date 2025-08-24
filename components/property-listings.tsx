@@ -30,12 +30,10 @@ import {
   Star,
   RefreshCw,
   Database,
-  Wifi,
-  WifiOff,
   Loader2,
-  AlertTriangle,
   CheckCircle,
-  Key,
+  AlertTriangle,
+  XCircle,
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import type { PropertyListing, PropertySearchFilters, MSAInfo, APIStatus } from "@/lib/property-search-agent"
@@ -149,6 +147,15 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
         const data = await response.json()
         if (data.success) {
           setApiStatus(data.apiStatus)
+
+          // Check if no API keys are configured
+          if (!data.environment.rapidApiConfigured && !data.environment.rentcastConfigured) {
+            setApiConfigError(
+              "No API keys configured. Please add RAPIDAPI_KEY and/or RENTCAST_API_KEY to your environment variables.",
+            )
+          } else {
+            setApiConfigError(null)
+          }
         }
       }
     } catch (error) {
@@ -198,33 +205,26 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
 
       if (!response.ok) {
         const errorData = await response.json()
-
-        // Check if it's an API configuration error
-        if (errorData.missingKeys) {
-          setApiConfigError(
-            `Missing API Keys: ${errorData.missingKeys.join(", ")}. Please configure these environment variables to access real property data.`,
-          )
-        }
-
         throw new Error(errorData.details || errorData.error || `HTTP ${response.status}`)
       }
 
       const data = await response.json()
-      console.log("📊 REAL API response data:", data)
+      console.log("📊 API response data:", data)
 
       if (data.success && Array.isArray(data.properties)) {
         setProperties(data.properties)
         setApiStatus(data.apiStatus || apiStatus)
 
-        if (data.dataSource === "REAL_API_DATA") {
+        if (data.properties.length > 0) {
           toast({
             title: "Real Data Retrieved!",
-            description: `Found ${data.properties.length} REAL properties from live APIs`,
+            description: `Found ${data.properties.length} REAL properties from live APIs: ${data.sources?.join(", ")}`,
           })
         } else {
           toast({
-            title: "Search Complete",
-            description: `Found ${data.properties.length} properties`,
+            title: "No Properties Found",
+            description: "No properties found matching your criteria from the APIs. Try adjusting your search filters.",
+            variant: "destructive",
           })
         }
       } else {
@@ -232,11 +232,22 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
       }
     } catch (error: any) {
       console.error("❌ Property search error:", error)
-      toast({
-        title: "Search Error",
-        description: error.message || "Failed to search properties. Please try again.",
-        variant: "destructive",
-      })
+
+      if (error.message.includes("API keys not configured") || error.message.includes("API Configuration Error")) {
+        setApiConfigError(error.message)
+        toast({
+          title: "API Configuration Error",
+          description: "Please configure your API keys in the environment variables.",
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Search Error",
+          description:
+            error.message || "Failed to search properties. Please check your API configuration and try again.",
+          variant: "destructive",
+        })
+      }
       setProperties([])
     } finally {
       setLoading(false)
@@ -315,11 +326,11 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "connected":
-        return <Wifi className="h-3 w-3" />
+        return <CheckCircle className="h-3 w-3" />
       case "connecting":
         return <Loader2 className="h-3 w-3 animate-spin" />
       default:
-        return <WifiOff className="h-3 w-3" />
+        return <XCircle className="h-3 w-3" />
     }
   }
 
@@ -343,7 +354,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
         <CardContent className="flex-1">
           <ScrollArea className="h-full pr-4">
             <div className="space-y-6">
-              {/* API Configuration Alert */}
+              {/* API Configuration Error */}
               {apiConfigError && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
@@ -359,7 +370,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-sm flex items-center gap-2">
                     <Database className="h-4 w-4" />
-                    Real API Status
+                    API Status
                   </h3>
                   <Button
                     variant="outline"
@@ -514,7 +525,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
               {/* Search Button */}
               <Button
                 onClick={searchProperties}
-                disabled={!filters.state || !filters.msa || loading}
+                disabled={!filters.state || !filters.msa || loading || !!apiConfigError}
                 className="w-full"
               >
                 <Search className="h-4 w-4 mr-2" />
@@ -571,7 +582,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                   </Badge>
                   <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
                     <CheckCircle className="h-3 w-3 mr-1" />
-                    Real API Data
+                    Real API Data Only
                   </Badge>
                 </div>
               )}
@@ -583,11 +594,19 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                 <div className="flex flex-col items-center justify-center h-64 text-center p-8">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Searching Real APIs...</h3>
-                  <p className="text-gray-600">Fetching live data from RentCast, LoopNet, and Zillow APIs</p>
-                  <div className="mt-4 text-sm text-gray-500">
-                    <p>• RentCast: Single Family, Condo, Townhouse, Multi-Family, Apartment, Land</p>
-                    <p>• LoopNet: Commercial Properties</p>
-                    <p>• Zillow: Residential Sales</p>
+                  <p className="text-gray-600">Fetching data from RentCast, LoopNet, and Zillow APIs</p>
+                </div>
+              ) : apiConfigError ? (
+                <div className="flex flex-col items-center justify-center h-64 text-center p-8">
+                  <AlertTriangle className="h-12 w-12 text-red-400 mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">API Configuration Required</h3>
+                  <p className="text-gray-600 mb-4">Please configure your API keys to search for real properties</p>
+                  <div className="text-sm text-gray-500 bg-gray-50 p-4 rounded-lg">
+                    <p className="font-semibold mb-2">Required Environment Variables:</p>
+                    <ul className="text-left space-y-1">
+                      <li>• RAPIDAPI_KEY (for LoopNet and Zillow APIs)</li>
+                      <li>• RENTCAST_API_KEY (for RentCast API)</li>
+                    </ul>
                   </div>
                 </div>
               ) : properties.length === 0 ? (
@@ -596,23 +615,9 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No Real Properties Found</h3>
                   <p className="text-gray-600 mb-4">
                     {!filters.state || !filters.msa
-                      ? "Please select a state and enter an MSA to search for real properties"
-                      : apiConfigError
-                        ? "API configuration required to access real property data"
-                        : "Try adjusting your search filters to find more properties"}
+                      ? "Please select a state and enter an MSA to search for properties"
+                      : "No properties found from the APIs. Try adjusting your search filters or check your API subscriptions."}
                   </p>
-                  {apiConfigError && (
-                    <div className="text-sm text-orange-600 bg-orange-50 p-3 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Key className="h-4 w-4" />
-                        <span className="font-semibold">API Keys Required</span>
-                      </div>
-                      <p>
-                        Configure RENTCAST_API_KEY, LOOPNET_API_KEY, and ZILLOW_API_KEY environment variables to access
-                        real property data.
-                      </p>
-                    </div>
-                  )}
                   {!filters.state || !filters.msa ? (
                     <div className="text-sm text-gray-500">
                       <p>Example MSAs:</p>
@@ -634,9 +639,13 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                           <Card className="cursor-pointer hover:shadow-lg transition-shadow">
                             <div className="relative">
                               <img
-                                src={property.images[0] || "/placeholder.svg"}
+                                src={property.images[0] || "/placeholder.svg?height=200&width=300&text=Property"}
                                 alt={property.title}
                                 className="w-full h-48 object-cover rounded-t-lg"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement
+                                  target.src = "/placeholder.svg?height=200&width=300&text=Property+Image"
+                                }}
                               />
                               <Badge className={`absolute top-2 left-2 ${getPropertyTypeColor(property.propertyType)}`}>
                                 <PropertyIcon className="h-3 w-3 mr-1" />
@@ -688,7 +697,7 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                               {property.title}
                               <Badge className="bg-green-100 text-green-800">
                                 <CheckCircle className="h-3 w-3 mr-1" />
-                                Real Data
+                                Real API Data
                               </Badge>
                             </DialogTitle>
                           </DialogHeader>
@@ -704,9 +713,13 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                             <TabsContent value="overview" className="space-y-4">
                               <div className="grid grid-cols-2 gap-4">
                                 <img
-                                  src={property.images[0] || "/placeholder.svg"}
+                                  src={property.images[0] || "/placeholder.svg?height=300&width=400&text=Property"}
                                   alt={property.title}
                                   className="w-full h-64 object-cover rounded-lg"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement
+                                    target.src = "/placeholder.svg?height=300&width=400&text=Property+Image"
+                                  }}
                                 />
                                 <div className="space-y-4">
                                   <div>

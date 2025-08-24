@@ -142,11 +142,12 @@ export default function PropertyListingsPage() {
         onDeleteChat={handleDeleteChat}
       />
       <SidebarInset>
-        <div className="p-6">
+        <div className="container mx-auto p-6">
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">Property Listings</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Deal Finder</h1>
             <p className="text-gray-600 mt-2">
-              Search and analyze investment properties across US markets with real-time data
+              Search for investment properties using real estate APIs. Configure your RAPIDAPI_KEY and RENTCAST_API_KEY
+              for live data.
             </p>
           </div>
 

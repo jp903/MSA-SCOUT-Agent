@@ -3,7 +3,7 @@ import { PropertySearchAgent, type PropertySearchFilters } from "@/lib/property-
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("🔍 REAL API property search endpoint called")
+    console.log("🔍 REAL API ONLY - Property search endpoint called")
 
     const body = await request.json()
     console.log("📋 Received search filters:", body)
@@ -21,23 +21,38 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if API keys are configured
-    const missingKeys = []
-    if (!process.env.RENTCAST_API_KEY) missingKeys.push("RENTCAST_API_KEY")
-    if (!process.env.LOOPNET_API_KEY) missingKeys.push("LOOPNET_API_KEY")
-    if (!process.env.ZILLOW_API_KEY) missingKeys.push("ZILLOW_API_KEY")
+    // Log environment variables (safely)
+    console.log("🔧 Environment check:")
+    console.log("  - RAPIDAPI_KEY configured:", !!process.env.RAPIDAPI_KEY)
+    console.log("  - RENTCAST_API_KEY configured:", !!process.env.RENTCAST_API_KEY)
 
-    if (missingKeys.length > 0) {
-      console.warn("⚠️ Missing API keys:", missingKeys)
+    // FAIL FAST if no API keys configured
+    if (!process.env.RAPIDAPI_KEY && !process.env.RENTCAST_API_KEY) {
+      console.error("❌ NO API KEYS CONFIGURED")
       return NextResponse.json(
         {
           error: "API Configuration Error",
-          details: `Missing API keys: ${missingKeys.join(", ")}. Please configure these environment variables.`,
+          details:
+            "No API keys configured. Please add RAPIDAPI_KEY and/or RENTCAST_API_KEY to your environment variables.",
           success: false,
-          missingKeys,
+          requiredKeys: ["RAPIDAPI_KEY", "RENTCAST_API_KEY"],
+          configuredKeys: {
+            rapidApi: !!process.env.RAPIDAPI_KEY,
+            rentcast: !!process.env.RENTCAST_API_KEY,
+          },
         },
         { status: 500 },
       )
+    }
+
+    if (process.env.RAPIDAPI_KEY) {
+      console.log("  - RAPIDAPI_KEY length:", process.env.RAPIDAPI_KEY.length)
+      console.log("  - RAPIDAPI_KEY preview:", process.env.RAPIDAPI_KEY.substring(0, 15) + "...")
+    }
+
+    if (process.env.RENTCAST_API_KEY) {
+      console.log("  - RENTCAST_API_KEY length:", process.env.RENTCAST_API_KEY.length)
+      console.log("  - RENTCAST_API_KEY preview:", process.env.RENTCAST_API_KEY.substring(0, 15) + "...")
     }
 
     // Build search filters with defaults
@@ -58,30 +73,112 @@ export async function POST(request: NextRequest) {
 
     console.log("🎯 Processed search filters:", filters)
 
-    // Create search agent and search for REAL properties from APIs
+    // Create search agent and search for REAL properties from APIs ONLY
     const searchAgent = new PropertySearchAgent()
-    const { properties, apiStatus } = await searchAgent.searchProperties(filters)
+    const searchStart = Date.now()
 
-    console.log(`✅ REAL API search completed successfully. Found ${properties.length} properties`)
+    try {
+      const { properties, apiStatus } = await searchAgent.searchProperties(filters)
+      const searchDuration = Date.now() - searchStart
 
-    return NextResponse.json({
-      success: true,
-      properties: properties,
-      count: properties.length,
-      filters: filters,
-      apiStatus: apiStatus,
-      timestamp: new Date().toISOString(),
-      message: `Found ${properties.length} REAL properties from RentCast, LoopNet, and Zillow APIs`,
-      sources: ["RentCast API", "LoopNet API", "Zillow API"],
-      dataSource: "REAL_API_DATA",
-    })
+      console.log(`🔍 API returned ${properties.length} properties after all processing`)
+
+      // Calculate search metrics
+      const sourceBreakdown: Record<string, number> = {}
+      properties.forEach((property) => {
+        const source = property.listingSource.website
+        sourceBreakdown[source] = (sourceBreakdown[source] || 0) + 1
+      })
+
+      const searchMetrics = {
+        totalProperties: properties.length,
+        searchDuration: `${searchDuration}ms`,
+        sourceBreakdown: sourceBreakdown,
+        filters: {
+          location: `${filters.msa}, ${filters.state}`,
+          priceRange: `$${filters.minPrice.toLocaleString()} - $${filters.maxPrice.toLocaleString()}`,
+          bedrooms: `${filters.minBedrooms} - ${filters.maxBedrooms}`,
+          bathrooms: `${filters.minBathrooms} - ${filters.maxBathrooms}`,
+          propertyTypes: filters.propertyType.join(", "),
+        },
+        apiStatus: apiStatus,
+      }
+
+      console.log(`✅ REAL API search completed successfully. Found ${properties.length} REAL properties`)
+      console.log("📊 Search metrics:", searchMetrics)
+
+      // Log sample properties for debugging
+      if (properties.length > 0) {
+        console.log("🔍 Sample properties being returned:")
+        properties.slice(0, 3).forEach((prop, index) => {
+          console.log(`  ${index + 1}. ${prop.title} - $${prop.price} - ${prop.address}`)
+        })
+      }
+
+      return NextResponse.json({
+        success: true,
+        properties: properties,
+        count: properties.length,
+        searchMetrics: searchMetrics,
+        filters: filters,
+        apiStatus: apiStatus,
+        timestamp: new Date().toISOString(),
+        message: `Found ${properties.length} REAL properties from live APIs`,
+        sources: Object.keys(sourceBreakdown),
+        dataSource: "REAL_API_DATA",
+        debug: {
+          rapidApiConfigured: !!process.env.RAPIDAPI_KEY,
+          rentcastConfigured: !!process.env.RENTCAST_API_KEY,
+          rapidApiLength: process.env.RAPIDAPI_KEY?.length || 0,
+          rentcastLength: process.env.RENTCAST_API_KEY?.length || 0,
+          propertiesReturned: properties.length,
+          sampleProperty: properties.length > 0 ? properties[0] : null,
+        },
+      })
+    } catch (searchError: any) {
+      console.error("❌ Property search failed:", searchError.message)
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Property search failed",
+          details: searchError.message,
+          properties: [],
+          count: 0,
+          apiStatus: {
+            rentcast: "error",
+            loopnet: "error",
+            zillow: "error",
+          },
+          timestamp: new Date().toISOString(),
+          dataSource: "ERROR",
+          troubleshooting: {
+            possibleCauses: [
+              "Invalid API keys or expired subscriptions",
+              "API rate limits exceeded",
+              "Network connectivity issues",
+              "API endpoints temporarily unavailable",
+              "Invalid search parameters",
+            ],
+            solutions: [
+              "Verify your API keys are valid and active",
+              "Check your RapidAPI subscription status",
+              "Ensure you have credits/quota remaining",
+              "Try searching in a different location",
+              "Wait a few minutes and try again",
+            ],
+          },
+        },
+        { status: 500 },
+      )
+    }
   } catch (error: any) {
     console.error("❌ REAL API property search error:", error)
 
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to search REAL properties from APIs",
+        error: "Internal server error",
         details: error.message || "Unknown error occurred",
         properties: [],
         count: 0,
@@ -100,49 +197,46 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   return NextResponse.json({
-    message: "REAL API Property Search Service",
-    version: "4.0.0",
+    message: "REAL API Property Search Service - NO DEMO DATA",
+    version: "8.1.0",
     status: "active",
-    description: "Searches REAL properties from RentCast, LoopNet, and Zillow APIs",
+    description: "Searches REAL properties from RentCast, LoopNet (RapidAPI), and Zillow (RapidAPI) APIs ONLY",
     endpoints: {
       "POST /api/property-search": "Search for REAL investment properties with filters",
       "GET /api/property-search/status": "Check REAL API connection status",
     },
     requiredFields: ["state", "msa"],
     optionalFields: ["propertyType", "minPrice", "maxPrice", "minBedrooms", "maxBedrooms", "sortBy", "sortOrder"],
-    requiredEnvironmentVariables: ["RENTCAST_API_KEY", "LOOPNET_API_KEY", "ZILLOW_API_KEY"],
+    requiredEnvironmentVariables: ["RENTCAST_API_KEY", "RAPIDAPI_KEY"],
+    environmentStatus: {
+      rapidApiConfigured: !!process.env.RAPIDAPI_KEY,
+      rentcastConfigured: !!process.env.RENTCAST_API_KEY,
+      rapidApiLength: process.env.RAPIDAPI_KEY?.length || 0,
+      rentcastLength: process.env.RENTCAST_API_KEY?.length || 0,
+    },
     dataSources: [
       {
         name: "RentCast API",
         type: "Residential & Commercial Properties",
         status: "active",
         url: "https://api.rentcast.io",
+        authentication: "X-Api-Key header",
       },
       {
-        name: "LoopNet API",
+        name: "LoopNet API (RapidAPI)",
         type: "Commercial Properties",
         status: "active",
-        url: "https://api.loopnet.com",
+        url: "https://loopnet-com.p.rapidapi.com",
+        authentication: "X-RapidAPI-Key and X-RapidAPI-Host headers",
       },
       {
-        name: "Zillow API",
+        name: "Zillow API (RapidAPI)",
         type: "Residential Sales",
         status: "active",
-        url: "https://api.zillow.com",
+        url: "https://zillow-com1.p.rapidapi.com",
+        authentication: "X-RapidAPI-Key and X-RapidAPI-Host headers",
       },
     ],
-    propertyTypes: {
-      rentcast: {
-        single_family: "Single Family - A detached, single-family property",
-        condo:
-          "Condo - A single unit in a condominium development or building, which is part of a homeowner's association (HOA)",
-        townhouse:
-          "Townhouse - A single-family property that shares walls with other adjacent homes, and is typically part of a homeowner's association (HOA)",
-        manufactured: "Manufactured - A pre-fabricated or mobile home, typically constructed at a factory",
-        multi_family: "Multi-Family - A residential multi-family building (2-4 units)",
-        apartment: "Apartment - A commercial multi-family building or apartment complex (5+ units)",
-        land: "Land - A single parcel of vacant, undeveloped land",
-      },
-    },
+    note: "DEMO DATA REMOVED - Only real API data is returned. Ensure API keys are configured.",
   })
 }
