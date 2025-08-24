@@ -82,5 +82,12 @@
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"
+  },
+  "pnpm": {
+    "overrides": {
+      "@ai-sdk/openai": "0.0.66",
+      "ai": "3.4.32",
+      "zod": "3.23.8"
+    }
   }
 }
