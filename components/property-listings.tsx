@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -26,17 +26,12 @@ import {
   Square,
   Phone,
   Mail,
-  ExternalLink,
   Star,
-  RefreshCw,
-  Database,
-  Loader2,
   CheckCircle,
   AlertTriangle,
-  XCircle,
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import type { PropertyListing, PropertySearchFilters, MSAInfo, APIStatus } from "@/lib/property-search-agent"
+import type { PropertyListing, PropertySearchFilters, MSAInfo } from "@/lib/property-search-agent"
 
 const US_STATES = [
   "Alabama",
@@ -109,11 +104,6 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
   const [loading, setLoading] = useState(false)
   const [selectedProperty, setSelectedProperty] = useState<PropertyListing | null>(null)
   const [apiConfigError, setApiConfigError] = useState<string | null>(null)
-  const [apiStatus, setApiStatus] = useState<APIStatus>({
-    loopnet: "connecting",
-    zillow: "connecting",
-    rentcast: "connecting",
-  })
 
   // Filter states
   const [filters, setFilters] = useState<PropertySearchFilters>({
@@ -133,35 +123,6 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
 
   const [priceRange, setPriceRange] = useState([100000, 1000000])
   const [bedroomRange, setBedroomRange] = useState([1, 10])
-
-  useEffect(() => {
-    checkAPIStatus()
-    const interval = setInterval(checkAPIStatus, 30000) // Check every 30 seconds
-    return () => clearInterval(interval)
-  }, [])
-
-  const checkAPIStatus = async () => {
-    try {
-      const response = await fetch("/api/property-search/status")
-      if (response.ok) {
-        const data = await response.json()
-        if (data.success) {
-          setApiStatus(data.apiStatus)
-
-          // Check if no API keys are configured
-          if (!data.environment.rapidApiConfigured && !data.environment.rentcastConfigured) {
-            setApiConfigError(
-              "No API keys configured. Please add RAPIDAPI_KEY and/or RENTCAST_API_KEY to your environment variables.",
-            )
-          } else {
-            setApiConfigError(null)
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Failed to check API status:", error)
-    }
-  }
 
   const searchProperties = async () => {
     if (!filters.state || !filters.msa) {
@@ -213,7 +174,6 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
 
       if (data.success && Array.isArray(data.properties)) {
         setProperties(data.properties)
-        setApiStatus(data.apiStatus || apiStatus)
 
         if (data.properties.length > 0) {
           toast({
@@ -312,28 +272,6 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
     return colors[type as keyof typeof colors] || colors.residential
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "connected":
-        return "bg-green-100 text-green-800 border-green-300"
-      case "connecting":
-        return "bg-yellow-100 text-yellow-800 border-yellow-300"
-      default:
-        return "bg-red-100 text-red-800 border-red-300"
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "connected":
-        return <CheckCircle className="h-3 w-3" />
-      case "connecting":
-        return <Loader2 className="h-3 w-3 animate-spin" />
-      default:
-        return <XCircle className="h-3 w-3" />
-    }
-  }
-
   const handlePropertyTypeChange = (type: string, checked: boolean) => {
     setFilters((prev) => ({
       ...prev,
@@ -364,47 +302,6 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                   </AlertDescription>
                 </Alert>
               )}
-
-              {/* API Status */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-sm flex items-center gap-2">
-                    <Database className="h-4 w-4" />
-                    API Status
-                  </h3>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={checkAPIStatus}
-                    className="h-6 px-2 text-xs bg-transparent"
-                  >
-                    <RefreshCw className="h-3 w-3" />
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs">RentCast:</span>
-                    <Badge variant="outline" className={`text-xs ${getStatusColor(apiStatus.rentcast)}`}>
-                      {getStatusIcon(apiStatus.rentcast)}
-                      <span className="ml-1">{apiStatus.rentcast}</span>
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs">LoopNet:</span>
-                    <Badge variant="outline" className={`text-xs ${getStatusColor(apiStatus.loopnet)}`}>
-                      {getStatusIcon(apiStatus.loopnet)}
-                      <span className="ml-1">{apiStatus.loopnet}</span>
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs">Zillow:</span>
-                    <Badge variant="outline" className={`text-xs ${getStatusColor(apiStatus.zillow)}`}>
-                      {getStatusIcon(apiStatus.zillow)}
-                      <span className="ml-1">{apiStatus.zillow}</span>
-                    </Badge>
-                  </div>
-                </div>
-              </div>
 
               {/* Location Selection */}
               <div className="space-y-3">
@@ -944,13 +841,6 @@ export default function PropertyListings({ onPropertySelect }: PropertyListingsP
                                       <span>{new Date(property.lastUpdated).toLocaleDateString()}</span>
                                     </div>
                                   </div>
-
-                                  <Button className="w-full mt-4" asChild>
-                                    <a href={property.listingSource.url} target="_blank" rel="noopener noreferrer">
-                                      <ExternalLink className="h-4 w-4 mr-2" />
-                                      View Original Listing
-                                    </a>
-                                  </Button>
                                 </div>
                               </div>
                             </TabsContent>

@@ -302,11 +302,15 @@ export class PropertySearchAgent {
       const [city, state] = location.split(", ")
       console.log(`🏠 RentCast API - Searching city: ${city}, state: ${state}`)
 
+      // Generate random limit between 20-40
+      const randomLimit = Math.floor(Math.random() * (40 - 20 + 1)) + 20
+      console.log(`🔢 Using random limit: ${randomLimit} properties`)
+
       // Try multiple RentCast endpoints
       const endpoints = [
-        `https://api.rentcast.io/v1/listings/sale?city=${encodeURIComponent(city)}&state=${state}&limit=25`,
-        `https://api.rentcast.io/v1/properties?city=${encodeURIComponent(city)}&state=${state}&limit=25`,
-        `https://api.rentcast.io/v1/listings/rental?city=${encodeURIComponent(city)}&state=${state}&limit=25`,
+        `https://api.rentcast.io/v1/listings/sale?city=${encodeURIComponent(city)}&state=${state}&limit=${randomLimit}`,
+        `https://api.rentcast.io/v1/properties?city=${encodeURIComponent(city)}&state=${state}&limit=${randomLimit}`,
+        `https://api.rentcast.io/v1/listings/rental?city=${encodeURIComponent(city)}&state=${state}&limit=${randomLimit}`,
       ]
 
       for (const apiUrl of endpoints) {
@@ -387,6 +391,10 @@ export class PropertySearchAgent {
     try {
       console.log(`🏢 LoopNet API - Searching location: ${location}`)
 
+      // Generate random limit between 20-40
+      const randomLimit = Math.floor(Math.random() * (40 - 20 + 1)) + 20
+      console.log(`🔢 Using random limit: ${randomLimit} properties`)
+
       // Try multiple LoopNet endpoints on RapidAPI
       const endpoints = [
         {
@@ -407,7 +415,7 @@ export class PropertySearchAgent {
         try {
           const queryParams = new URLSearchParams({
             location: location,
-            limit: "15",
+            limit: randomLimit.toString(),
             propertyType: "office,retail,industrial,warehouse",
           })
 
@@ -473,6 +481,10 @@ export class PropertySearchAgent {
     try {
       console.log(`🏠 Zillow API - Searching location: ${location}`)
 
+      // Generate random limit between 20-40
+      const randomLimit = Math.floor(Math.random() * (40 - 20 + 1)) + 20
+      console.log(`🔢 Using random limit: ${randomLimit} properties`)
+
       // Try multiple Zillow endpoints on RapidAPI
       const endpoints = [
         {
@@ -494,7 +506,7 @@ export class PropertySearchAgent {
           const queryParams = new URLSearchParams({
             location: location,
             status_type: "ForSale",
-            limit: "15",
+            limit: randomLimit.toString(),
             home_type: "Houses,Condos,Townhomes",
           })
 
@@ -562,7 +574,8 @@ export class PropertySearchAgent {
     const [city, state] = location.split(", ")
     console.log(`🔄 Transforming ${properties.length} RentCast properties`)
 
-    const transformedProperties = properties.slice(0, 15).map((property: any, index: number) => {
+    // Use all properties instead of limiting to 15
+    const transformedProperties = properties.map((property: any, index: number) => {
       console.log(`🔄 Transforming property ${index + 1}:`, JSON.stringify(property, null, 2))
 
       // Extract price - try multiple fields
@@ -663,7 +676,8 @@ export class PropertySearchAgent {
   private transformLoopNetData(properties: any[], filters: PropertySearchFilters, location: string): PropertyListing[] {
     const [city, state] = location.split(", ")
 
-    return properties.slice(0, 8).map((property: any, index: number) => ({
+    // Use all properties instead of limiting to 8
+    return properties.map((property: any, index: number) => ({
       id: `loopnet_${property.id || Date.now() + index}`,
       title:
         property.title ||
@@ -727,7 +741,8 @@ export class PropertySearchAgent {
   private transformZillowData(properties: any[], filters: PropertySearchFilters, location: string): PropertyListing[] {
     const [city, state] = location.split(", ")
 
-    return properties.slice(0, 8).map((property: any, index: number) => ({
+    // Use all properties instead of limiting to 8
+    return properties.map((property: any, index: number) => ({
       id: `zillow_${property.zpid || Date.now() + index}`,
       title: `${property.bedrooms || 3}BR/${property.bathrooms || 2}BA ${property.homeType || "House"}`,
       address:
