@@ -819,35 +819,6 @@ export class PropertySearchAgent {
     })
   }
 
-  async getMSAInfo(msa: string, state: string): Promise<MSAInfo> {
-    // Use FRED API for real MSA data if available
-    const fredApiKey = process.env.FRED_API_KEY
-
-    if (fredApiKey) {
-      try {
-        // Try to get real MSA data from FRED API
-        console.log("📊 Fetching real MSA data from FRED API...")
-        // Implementation would go here for FRED API calls
-      } catch (error) {
-        console.warn("⚠️ FRED API failed, using fallback data")
-      }
-    }
-
-    // Fallback to reasonable defaults for MSA data
-    const population = Math.floor(Math.random() * 2000000) + 500000
-    const medianIncome = Math.floor(Math.random() * 40000) + 50000
-    const averageHomePrice = Math.floor(Math.random() * 300000) + 250000
-
-    return {
-      name: `${msa}, ${state}`,
-      population,
-      medianIncome,
-      averageHomePrice,
-      unemploymentRate: Math.round((Math.random() * 5 + 2) * 100) / 100,
-      populationGrowth: Math.round((Math.random() * 4 + 1) * 100) / 100,
-    }
-  }
-
   async checkAPIStatus(): Promise<APIStatus> {
     const status: APIStatus = {
       loopnet: "connecting",
@@ -869,9 +840,11 @@ export class PropertySearchAgent {
             headers: {
               "X-Api-Key": this.RENTCAST_API_KEY,
               Accept: "application/json",
+              "User-Agent": "PropertyInvestmentAgent/1.0",
             },
           })
-          console.log("📡 RentCast Status Response:", response.status)
+
+          console.log("📡 RentCast Response Status:", response.status)
           status.rentcast = response.ok ? "connected" : "error"
         } catch (error) {
           console.error("❌ RentCast status check failed:", error)
@@ -921,3 +894,6 @@ export class PropertySearchAgent {
     return status
   }
 }
+
+// Create and export a singleton instance
+export const propertySearchAgent = new PropertySearchAgent()
