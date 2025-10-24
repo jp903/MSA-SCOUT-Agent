@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const marketData = await fetchRealTimeMarketData()
 
     const { text } = await generateText({
-      model: openai("gpt-4o"),
+      model: openai("gpt-5"),
       messages: messages.map((msg: any) => ({
         role: msg.role,
         content: msg.content,
@@ -390,7 +390,7 @@ async function generateReport(messages: any[]) {
     console.log("📄 Generating report from conversation...")
 
     const { text } = await generateText({
-      model: openai("gpt-4o"),
+      model: openai(""),gpt-5
       messages: messages.map((msg: any) => ({
         role: msg.role,
         content: msg.content,
@@ -441,7 +441,7 @@ Which format would you prefer?`,
 async function generatePDFReport(messages: any[]) {
   try {
     const { text } = await generateText({
-      model: openai("gpt-4o"),
+      model: openai("gpt-5"),
       messages: messages.map((msg: any) => ({
         role: msg.role,
         content: msg.content,
@@ -497,7 +497,7 @@ Your investment analysis report is ready for download in PDF-ready format.`,
 async function generateDOCXReport(messages: any[]) {
   try {
     const { text } = await generateText({
-      model: openai("gpt-4o"),
+      model: openai("gpt-5"),
       messages: messages.map((msg: any) => ({
         role: msg.role,
         content: msg.content,
