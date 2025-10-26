@@ -95,12 +95,12 @@ export async function initializeDatabase() {
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP`
       
-      // Ensure required columns exist with appropriate defaults if needed
+      // Check for all required columns that might be missing
       const columnsResult = await sql`
         SELECT column_name, is_nullable 
         FROM information_schema.columns 
         WHERE table_name = 'users' 
-        AND column_name IN ('first_name', 'last_name')
+        AND column_name IN ('first_name', 'last_name', 'phone', 'company')
       `
       
       const existingColumns = columnsResult.map((col: any) => col.column_name)
@@ -117,6 +117,16 @@ export async function initializeDatabase() {
         await sql`ALTER TABLE users ADD COLUMN last_name VARCHAR(100) NOT NULL DEFAULT 'Unknown'`
         // Remove the default after adding some value
         await sql`ALTER TABLE users ALTER COLUMN last_name DROP DEFAULT`
+      }
+      
+      if (!existingColumns.includes('phone')) {
+        // If phone doesn't exist, add it (it's nullable)
+        await sql`ALTER TABLE users ADD COLUMN phone VARCHAR(20)`
+      }
+      
+      if (!existingColumns.includes('company')) {
+        // If company doesn't exist, add it (it's nullable)
+        await sql`ALTER TABLE users ADD COLUMN company VARCHAR(255)`
       }
     } catch (error) {
       console.warn("Warning adding columns to users table:", error)
