@@ -17,7 +17,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calculator, TrendingUp, Building2, BarChart3, FileText, Users, DollarSign, Search, PanelLeft } from "lucide-react"
 import type { ChatHistoryItem, User } from "@/lib/portfolio-types"
-import { chatManagerDB } from "@/lib/chat-manager-db"
 import { toast } from "@/hooks/use-toast"
 
 interface LiveMarketData {
@@ -341,7 +340,7 @@ export default function HomePage() {
         // Update local state
         setChatHistory((prev) =>
           prev.map((chat) =>
-            chat.id === currentChatId ? { ...chat, messages, title: title || chat.title, updatedAt: new Date() } : chat,
+            chat.id === currentChatId ? { ...chat, messages, title: title || chat.title, updatedAt: new Date().toISOString() } : chat,
           ),
         )
 
@@ -352,7 +351,7 @@ export default function HomePage() {
                   ...prev,
                   messages,
                   title: title || prev.title,
-                  updatedAt: new Date(),
+                  updatedAt: new Date().toISOString(),
                 }
               : null,
           )
@@ -628,7 +627,7 @@ export default function HomePage() {
     <SidebarProvider>
       <AppSidebar
         activeView={activeView}
-        onViewChange={setActiveView}
+        onViewChange={(view: string) => setActiveView(view as any)}
         onNewChat={handleNewChat}
         chatHistory={chatHistory}
         currentChatId={currentChatId}

@@ -5,7 +5,6 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import PortfolioTracker from "@/components/portfolio-tracker"
 import type { ChatHistoryItem } from "@/lib/portfolio-types"
-import { chatManagerDB } from "@/lib/chat-manager-db"
 import { toast } from "@/hooks/use-toast"
 
 export default function PortfolioTrackerPage() {
@@ -61,19 +60,25 @@ export default function PortfolioTrackerPage() {
 
   const handleChatSelect = async (chatId: string) => {
     try {
-      const chat = await chatManagerDB.getChat(chatId, null) // No user context
+      const response = await fetch(`/api/chat-history/${chatId}`)
+      if (!response.ok) {
+        if (response.status === 404) {
+          // Remove from history if not found
+          setChatHistory((prev) => prev.filter((c) => c.id !== chatId))
+          toast({
+            title: "Chat Not Found",
+            description: "This chat may have been deleted",
+            variant: "destructive",
+          })
+        }
+        return
+      }
+      
+      const chat = await response.json()
       if (chat) {
         setCurrentChatId(chatId)
         // Navigate back to main page with selected chat
         window.location.href = `/?chat=${chatId}`
-      } else {
-        // Remove from history if not found
-        setChatHistory((prev) => prev.filter((c) => c.id !== chatId))
-        toast({
-          title: "Chat Not Found",
-          description: "This chat may have been deleted",
-          variant: "destructive",
-        })
       }
     } catch (error) {
       toast({
@@ -86,7 +91,13 @@ export default function PortfolioTrackerPage() {
 
   const handleDeleteChat = async (chatId: string) => {
     try {
-      await chatManagerDB.deleteChat(chatId, null) // No user context
+      const response = await fetch(`/api/chat-history/${chatId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete chat")
+      }
 
       // Remove from history
       setChatHistory((prev) => prev.filter((chat) => chat.id !== chatId))

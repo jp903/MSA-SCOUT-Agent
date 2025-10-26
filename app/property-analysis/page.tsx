@@ -27,7 +27,6 @@ import {
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import type { ChatHistoryItem } from "@/lib/portfolio-types"
-import { chatManagerDB } from "@/lib/chat-manager-db"
 
 // Force dynamic rendering to avoid static generation issues
 export const dynamic = "force-dynamic"
