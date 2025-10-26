@@ -95,36 +95,51 @@ export async function initializeDatabase() {
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP`
       
-      // Check for all required columns that might be missing
-      const columnsResult = await sql`
-        SELECT column_name, is_nullable 
+      // Check for all required columns that might be missing using separate queries for compatibility
+      const firstNameCheck = await sql`
+        SELECT column_name 
         FROM information_schema.columns 
-        WHERE table_name = 'users' 
-        AND column_name IN ('first_name', 'last_name', 'phone', 'company')
+        WHERE table_name = 'users' AND column_name = 'first_name'
       `
       
-      const existingColumns = columnsResult.map((col: any) => col.column_name)
-      
-      if (!existingColumns.includes('first_name')) {
+      if (firstNameCheck.length === 0) {
         // If first_name doesn't exist, add it with a default value
         await sql`ALTER TABLE users ADD COLUMN first_name VARCHAR(100) NOT NULL DEFAULT 'User'`
         // Remove the default after adding some value
         await sql`ALTER TABLE users ALTER COLUMN first_name DROP DEFAULT`
       }
       
-      if (!existingColumns.includes('last_name')) {
+      const lastNameCheck = await sql`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'last_name'
+      `
+      
+      if (lastNameCheck.length === 0) {
         // If last_name doesn't exist, add it with a default value  
         await sql`ALTER TABLE users ADD COLUMN last_name VARCHAR(100) NOT NULL DEFAULT 'Unknown'`
         // Remove the default after adding some value
         await sql`ALTER TABLE users ALTER COLUMN last_name DROP DEFAULT`
       }
       
-      if (!existingColumns.includes('phone')) {
+      const phoneCheck = await sql`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'phone'
+      `
+      
+      if (phoneCheck.length === 0) {
         // If phone doesn't exist, add it (it's nullable)
         await sql`ALTER TABLE users ADD COLUMN phone VARCHAR(20)`
       }
       
-      if (!existingColumns.includes('company')) {
+      const companyCheck = await sql`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'company'
+      `
+      
+      if (companyCheck.length === 0) {
         // If company doesn't exist, add it (it's nullable)
         await sql`ALTER TABLE users ADD COLUMN company VARCHAR(255)`
       }

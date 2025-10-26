@@ -10,7 +10,9 @@ export async function GET(request: NextRequest) {
     let userId = null;
     if (sessionToken) {
       const user = await AuthService.verifySession(sessionToken);
-      userId = user?.id || null;
+      if (user) {
+        userId = user.id;
+      }
     }
 
     const chatHistory = await chatManagerDB.getAllChats(userId)
