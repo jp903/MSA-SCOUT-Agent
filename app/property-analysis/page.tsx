@@ -29,6 +29,9 @@ import { toast } from "@/hooks/use-toast"
 import type { ChatHistoryItem } from "@/lib/portfolio-types"
 import { chatManagerDB } from "@/lib/chat-manager-db"
 
+// Force dynamic rendering to avoid static generation issues
+export const dynamic = "force-dynamic"
+
 interface PropertyAnalysisData {
   name: string
   address: string
@@ -425,7 +428,7 @@ export default function PropertyAnalysisPage() {
   }
 
   return (
-    <SidebarProvider>
+    <div className="flex w-full">
       <AppSidebar
         activeView="home"
         onViewChange={handleViewChange}
@@ -847,7 +850,7 @@ export default function PropertyAnalysisPage() {
                         </div>
 
                         <div className="space-y-4">
-                          <h4 className="font-semibold text-gray-900 dark:text-gray-100">Investment Metrics</h4>
+                          <h4 className="font-semibold text-gray-900 dark:text-gray-300">Investment Metrics</h4>
                           <div className="space-y-2">
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-300">Cap Rate:</span>
@@ -876,6 +879,6 @@ export default function PropertyAnalysisPage() {
           </Tabs>
         </div>
       </SidebarInset>
-    </SidebarProvider>
+    </div>
   )
 }
