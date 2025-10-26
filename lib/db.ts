@@ -88,11 +88,36 @@ export async function initializeDatabase() {
 
     // Add missing columns to users table if they don't exist
     try {
+      // Add columns that might be missing from older schema versions
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255)`
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP`
+      
+      // Ensure required columns exist with appropriate defaults if needed
+      const columnsResult = await sql`
+        SELECT column_name, is_nullable 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' 
+        AND column_name IN ('first_name', 'last_name')
+      `
+      
+      const existingColumns = columnsResult.map((col: any) => col.column_name)
+      
+      if (!existingColumns.includes('first_name')) {
+        // If first_name doesn't exist, add it with a default value
+        await sql`ALTER TABLE users ADD COLUMN first_name VARCHAR(100) NOT NULL DEFAULT 'User'`
+        // Remove the default after adding some value
+        await sql`ALTER TABLE users ALTER COLUMN first_name DROP DEFAULT`
+      }
+      
+      if (!existingColumns.includes('last_name')) {
+        // If last_name doesn't exist, add it with a default value  
+        await sql`ALTER TABLE users ADD COLUMN last_name VARCHAR(100) NOT NULL DEFAULT 'Unknown'`
+        // Remove the default after adding some value
+        await sql`ALTER TABLE users ALTER COLUMN last_name DROP DEFAULT`
+      }
     } catch (error) {
       console.warn("Warning adding columns to users table:", error)
     }
