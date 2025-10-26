@@ -1,4 +1,4 @@
-import { sql } from "./db"
+import { sql, ensureDatabaseInitialized } from "./db"
 import type { Property, PortfolioMetrics, PropertyPerformance, PropertyImage } from "./portfolio-types"
 
 export class PortfolioManagerDB {

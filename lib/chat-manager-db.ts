@@ -1,11 +1,11 @@
 import { neon } from "@neondatabase/serverless"
 import type { ChatHistoryItem } from "./portfolio-types"
+import { ensureDatabaseInitialized } from "./db"
 
 // Create SQL connection with fallback handling
 const createSqlConnection = () => {
   const databaseUrl =
-    process.env.DATABASE_URL ||
-    "postgresql://neondb_owner:npg_mJ9dhet5vsMw@ep-icy-tree-aeb06nzf-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+    process.env.DATABASE_URL
 
   if (!databaseUrl) {
     throw new Error("No database connection string available")
@@ -69,6 +69,9 @@ export class ChatManagerDB {
     // Try database first
     if (this.sql) {
       try {
+        // Ensure database is initialized
+        await ensureDatabaseInitialized();
+
         await this.sql`
           INSERT INTO chat_history (id, title, messages, created_at, updated_at)
           VALUES (${id}, ${title}, ${JSON.stringify([])}, ${now.toISOString()}, ${now.toISOString()})
@@ -90,6 +93,9 @@ export class ChatManagerDB {
     // Try database first
     if (this.sql) {
       try {
+        // Ensure database is initialized
+        await ensureDatabaseInitialized();
+
         const result = await this.sql`
           SELECT * FROM chat_history WHERE id = ${id}
         `
@@ -118,6 +124,9 @@ export class ChatManagerDB {
     // Try database first
     if (this.sql) {
       try {
+        // Ensure database is initialized
+        await ensureDatabaseInitialized();
+
         const result = await this.sql`
           SELECT * FROM chat_history 
           ORDER BY updated_at DESC
@@ -146,6 +155,9 @@ export class ChatManagerDB {
     // Try database first
     if (this.sql) {
       try {
+        // Ensure database is initialized
+        await ensureDatabaseInitialized();
+
         if (title) {
           await this.sql`
             UPDATE chat_history 
@@ -181,6 +193,9 @@ export class ChatManagerDB {
     // Try database first
     if (this.sql) {
       try {
+        // Ensure database is initialized
+        await ensureDatabaseInitialized();
+
         await this.sql`
           DELETE FROM chat_history WHERE id = ${id}
         `

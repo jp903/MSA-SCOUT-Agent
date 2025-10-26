@@ -418,7 +418,7 @@ export default function HomePage() {
   return (
     <>
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+        <header className="flex h-12 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 h-4" />
@@ -437,13 +437,13 @@ export default function HomePage() {
             <div className="max-w-6xl mx-auto w-full space-y-8 p-6">
               {/* Header */}
               <div className="text-center">
-                <h1 className="text-4xl font-bold text-gray-900 mb-2">MSASCOUT AI Agent</h1>
-                <p className="text-gray-600">Advanced property investment analysis powered by real-time market data</p>
+                <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">MSASCOUT AI Agent</h1>
+                <p className="text-gray-600 dark:text-gray-300">Advanced property investment analysis powered by real-time market data</p>
               </div>
 
               {/* Main Tools */}
               <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-gray-900">Tools & Analysis</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Tools & Analysis</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {mainTools.map((tool) => (
                     <Card
@@ -457,8 +457,8 @@ export default function HomePage() {
                         >
                           <tool.icon className="h-8 w-8 text-white" />
                         </div>
-                        <h3 className="font-semibold text-gray-900 mb-2">{tool.label}</h3>
-                        <p className="text-sm text-gray-600">{tool.description}</p>
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">{tool.label}</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">{tool.description}</p>
                       </CardContent>
                     </Card>
                   ))}
@@ -481,7 +481,7 @@ export default function HomePage() {
                         >
                           <tool.icon className="h-6 w-6 text-white" />
                         </div>
-                        <h3 className="font-medium text-xs text-gray-900">{tool.label}</h3>
+                        <h3 className="font-medium text-xs text-gray-900 dark:text-gray-100">{tool.label}</h3>
                       </CardContent>
                     </Card>
                   ))}
@@ -492,8 +492,8 @@ export default function HomePage() {
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="text-center flex-1">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Live Market Intelligence</h2>
-                    <p className="text-gray-600">
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Live Market Intelligence</h2>
+                    <p className="text-gray-600 dark:text-gray-300">
                       Real-time data from Census Bureau and Bureau of Labor Statistics with AI-powered analysis
                     </p>
                   </div>
@@ -518,7 +518,7 @@ export default function HomePage() {
                   <div className="flex items-center justify-center py-12">
                     <div className="text-center">
                       <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-                      <p className="text-gray-600">Loading live market data...</p>
+                      <p className="text-gray-600 dark:text-gray-300">Loading live market data...</p>
                     </div>
                   </div>
                 ) : liveMarketData.length > 0 ? (
@@ -555,7 +555,7 @@ export default function HomePage() {
                         <CardContent className="space-y-4">
                           <div className="grid grid-cols-2 gap-3">
                             <div className="bg-gray-50 p-3 rounded-lg">
-                              <span className="text-xs text-gray-600">Population Growth</span>
+                              <span className="text-xs text-gray-600 dark:text-gray-400">Population Growth</span>
                               <p className="font-semibold text-green-600">{state.population_growth}%</p>
                             </div>
 
@@ -646,14 +646,14 @@ export default function HomePage() {
                   </div>
                 ) : (
                   <div className="text-center py-12">
-                    <p className="text-gray-600">No market data available</p>
+                    <p className="text-gray-600 dark:text-gray-300">No market data available</p>
                   </div>
                 )}
               </div>
 
               {/* Market Overview */}
               <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-gray-900">Market Overview</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Market Overview</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {marketOverview.map((metric) => (
                     <Card key={metric.title} className="border-0 bg-white/80 backdrop-blur-sm">

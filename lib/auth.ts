@@ -2,6 +2,8 @@ import bcrypt from "bcryptjs"
 import { neon } from "@neondatabase/serverless"
 import { v4 as uuidv4 } from "uuid"
 
+import { ensureDatabaseInitialized } from "./db"
+
 const sql = neon(process.env.DATABASE_URL!)
 
 export interface User {
@@ -36,6 +38,9 @@ export interface SignInData {
 export class AuthService {
   static async createUser(userData: CreateUserData): Promise<User> {
     try {
+      // Ensure database is initialized
+      await ensureDatabaseInitialized();
+
       const {
         email,
         password,
@@ -120,6 +125,9 @@ export class AuthService {
 
   static async findUserByEmail(email: string): Promise<User | null> {
     try {
+      // Ensure database is initialized
+      await ensureDatabaseInitialized();
+
       const result = await sql`
         SELECT * FROM users WHERE email = ${email}
       `
@@ -133,6 +141,9 @@ export class AuthService {
 
   static async findUserByGoogleId(googleId: string): Promise<User | null> {
     try {
+      // Ensure database is initialized
+      await ensureDatabaseInitialized();
+
       const result = await sql`
         SELECT * FROM users WHERE google_id = ${googleId}
       `
@@ -145,6 +156,9 @@ export class AuthService {
   }
 
   static async updateGoogleUser(userId: string, data: { google_id: string; avatar_url?: string }): Promise<User> {
+    // Ensure database is initialized
+    await ensureDatabaseInitialized();
+
     const result = await sql`
       UPDATE users 
       SET google_id = ${data.google_id}, 
@@ -159,6 +173,9 @@ export class AuthService {
 
   static async signIn(signInData: SignInData): Promise<{ user: User; sessionToken: string }> {
     const { email, password } = signInData
+
+    // Ensure database is initialized
+    await ensureDatabaseInitialized();
 
     // Get user with password hash
     const userResult = await sql`
@@ -196,6 +213,9 @@ export class AuthService {
   }
 
   static async createSession(userId: string): Promise<string> {
+    // Ensure database is initialized
+    await ensureDatabaseInitialized();
+
     const sessionToken = this.generateSessionToken()
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
 
@@ -203,12 +223,12 @@ export class AuthService {
 
     // Clean up any existing sessions for this user first
     await sql`
-      DELETE FROM user_sessions WHERE user_id = ${userId}
+      DELETE FROM sessions WHERE user_id = ${userId}
     `
 
     // Store new session
     await sql`
-      INSERT INTO user_sessions (user_id, session_token, expires_at, created_at)
+      INSERT INTO sessions (user_id, token, expires_at, created_at)
       VALUES (${userId}, ${sessionToken}, ${expiresAt}, NOW())
     `
 
@@ -222,14 +242,17 @@ export class AuthService {
 
   static async verifySession(sessionToken: string): Promise<User | null> {
     try {
+      // Ensure database is initialized
+      await ensureDatabaseInitialized();
+
       console.log("Verifying session token:", sessionToken.substring(0, 10) + "...")
 
       const result = await sql`
         SELECT u.id, u.email, u.first_name, u.last_name, u.phone, u.company, u.google_id, u.avatar_url, u.created_at, u.updated_at,
                s.expires_at
         FROM users u
-        JOIN user_sessions s ON u.id = s.user_id
-        WHERE s.session_token = ${sessionToken}
+        JOIN sessions s ON u.id = s.user_id
+        WHERE s.token = ${sessionToken}
       `
 
       console.log("Session query result:", result.length > 0 ? "found" : "not found")
@@ -249,7 +272,7 @@ export class AuthService {
         console.log("Session has expired")
         // Clean up expired session
         await sql`
-          DELETE FROM user_sessions WHERE session_token = ${sessionToken}
+          DELETE FROM sessions WHERE token = ${sessionToken}
         `
         return null
       }
@@ -263,15 +286,21 @@ export class AuthService {
   }
 
   static async signOut(sessionToken: string): Promise<void> {
+    // Ensure database is initialized
+    await ensureDatabaseInitialized();
+
     await sql`
-      DELETE FROM user_sessions WHERE session_token = ${sessionToken}
+      DELETE FROM sessions WHERE token = ${sessionToken}
     `
   }
 
   static async cleanupExpiredSessions(): Promise<void> {
     try {
+      // Ensure database is initialized
+      await ensureDatabaseInitialized();
+
       const result = await sql`
-        DELETE FROM user_sessions WHERE expires_at < NOW()
+        DELETE FROM sessions WHERE expires_at < NOW()
       `
       console.log("Cleaned up expired sessions:", result.length)
     } catch (error) {
@@ -287,6 +316,9 @@ export class AuthService {
     avatar_url?: string
   }): Promise<User> {
     try {
+      // Ensure database is initialized
+      await ensureDatabaseInitialized();
+
       // Check if user already exists by email
       const existingUser = await this.findUserByEmail(googleData.email)
 

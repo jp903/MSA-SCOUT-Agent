@@ -329,29 +329,31 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)] max-w-4xl mx-auto">
+    <div className="flex flex-col h-[calc(100vh-2rem)] max-w-4xl mx-auto bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl shadow-lg overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b bg-white rounded-t-lg">
-        <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-          <Bot className="h-5 w-5 text-white" />
+      <div className="flex items-center gap-3 p-5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-xl">
+        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+          <Bot className="h-6 w-6 text-white" />
         </div>
         <div>
-          <h2 className="font-semibold text-lg">MSASCOUT AI Assistant</h2>
-          <p className="text-sm text-gray-600">Real-time market data • Investment analysis • Report generation</p>
+          <h2 className="font-bold text-xl">MSASCOUT AI Assistant</h2>
+          <p className="text-blue-100 text-sm">Real-time market data • Investment analysis • Report generation</p>
         </div>
       </div>
 
       {/* Messages Area */}
-      <ScrollArea className="flex-1 p-4 bg-gray-50">
+      <ScrollArea className="flex-1 p-5 bg-gradient-to-b from-gray-50 to-gray-100">
         {messages.length === 0 ? (
-          <div className="space-y-6">
+          <div className="space-y-6 animate-fade-in">
             {/* Welcome Message */}
             <div className="text-center py-8">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Bot className="h-8 w-8 text-white" />
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg transform hover:scale-105 transition-transform duration-300">
+                <Bot className="h-10 w-10 text-white" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Welcome to MSASCOUT AI</h3>
-              <p className="text-gray-600 max-w-md mx-auto">
+              <h3 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                Welcome to MSASCOUT AI
+              </h3>
+              <p className="text-gray-600 max-w-md mx-auto text-lg">
                 I'm your AI property investment assistant with access to real-time Census, BLS, and FRED data. Ask me
                 about market conditions, generate reports, or use our specialized tools.
               </p>
@@ -359,22 +361,25 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
 
             {/* Quick Actions */}
             <div className="space-y-4">
-              <h4 className="font-semibold text-gray-900">Quick Actions</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {quickActions.map((action) => (
+              <h4 className="font-bold text-gray-800 text-lg">Quick Actions</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {quickActions.map((action, index) => (
                   <Card
                     key={action.id}
-                    className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-105"
+                    className={`cursor-pointer hover:shadow-xl transition-all duration-300 hover:scale-105 transform border-0 shadow-md bg-gradient-to-br from-white to-gray-50 animate-fade-in-up ${
+                      index % 2 === 0 ? "hover:rotate-1" : "hover:-rotate-1"
+                    }`}
+                    style={{ animationDelay: `${index * 0.1}s` }}
                     onClick={() => handleQuickAction(action.id)}
                   >
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 ${action.color} rounded-lg flex items-center justify-center`}>
-                          <action.icon className="h-5 w-5 text-white" />
+                    <CardContent className="p-5">
+                      <div className="flex items-center gap-4">
+                        <div className={`${action.color} rounded-xl p-3 shadow-md`}>
+                          <action.icon className="h-6 w-6 text-white" />
                         </div>
                         <div>
-                          <h5 className="font-medium text-sm">{action.title}</h5>
-                          <p className="text-xs text-gray-600">{action.description}</p>
+                          <h5 className="font-bold text-base">{action.title}</h5>
+                          <p className="text-sm text-gray-600">{action.description}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -385,16 +390,19 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
 
             {/* Suggested Questions */}
             <div className="space-y-4">
-              <h4 className="font-semibold text-gray-900">Ask About Real-Time Market Data</h4>
-              <div className="space-y-2">
+              <h4 className="font-bold text-gray-800 text-lg">Ask About Real-Time Market Data</h4>
+              <div className="space-y-3">
                 {suggestedQuestions.map((question, index) => (
                   <Button
                     key={index}
                     variant="outline"
-                    className="w-full text-left justify-start h-auto p-3 text-wrap bg-transparent"
+                    className="w-full text-left justify-start h-auto p-4 text-wrap bg-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 text-gray-700 rounded-xl"
                     onClick={() => handleSuggestedQuestion(question)}
                   >
-                    {question}
+                    <span className="flex items-start">
+                      <span className="mr-3 mt-1 text-blue-500">•</span>
+                      {question}
+                    </span>
                   </Button>
                 ))}
               </div>
@@ -402,22 +410,25 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
           </div>
         ) : (
           <div className="space-y-4">
-            {messages.map((message) => (
+            {messages.map((message, index) => (
               <div
                 key={message.id}
-                className={`flex gap-3 ${message.sender === "user" ? "justify-end" : "justify-start"}`}
+                className={`flex gap-3 animate-fade-in-up ${message.sender === "user" ? "justify-end" : "justify-start"}`}
+                style={{ animationDelay: `${index * 0.05}s` }}
               >
                 {message.sender === "ai" && (
-                  <Avatar className="w-8 h-8 flex-shrink-0">
+                  <Avatar className="w-10 h-10 flex-shrink-0 shadow-md">
                     <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white">
-                      <Bot className="h-4 w-4" />
+                      <Bot className="h-5 w-5" />
                     </AvatarFallback>
                   </Avatar>
                 )}
 
                 <div
-                  className={`max-w-[80%] rounded-lg p-3 ${
-                    message.sender === "user" ? "bg-blue-600 text-white" : "bg-white border shadow-sm"
+                  className={`max-w-[80%] rounded-2xl p-4 shadow-md ${
+                    message.sender === "user" 
+                      ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-br-none" 
+                      : "bg-gradient-to-r from-white to-gray-50 border border-gray-200 rounded-bl-none"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -435,7 +446,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                       {message.action === "download_slides" && message.actionData && (
                         <Button
                           onClick={() => handleDownload(message)}
-                          className="mt-3 bg-green-600 hover:bg-green-700 text-white"
+                          className="mt-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-md"
                           size="sm"
                         >
                           <Presentation className="h-4 w-4 mr-2" />
@@ -446,7 +457,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                       {message.action === "download_pdf" && message.actionData && (
                         <Button
                           onClick={() => handleDownload(message)}
-                          className="mt-3 bg-red-600 hover:bg-red-700 text-white"
+                          className="mt-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-md"
                           size="sm"
                         >
                           <FileText className="h-4 w-4 mr-2" />
@@ -457,7 +468,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                       {message.action === "download_docx" && message.actionData && (
                         <Button
                           onClick={() => handleDownload(message)}
-                          className="mt-3 bg-blue-600 hover:bg-blue-700 text-white"
+                          className="mt-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md"
                           size="sm"
                         >
                           <FileText className="h-4 w-4 mr-2" />
@@ -466,11 +477,11 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                       )}
 
                       {message.action === "ask_report_format" && (
-                        <div className="mt-3 space-x-2">
+                        <div className="mt-3 flex flex-wrap gap-2">
                           <Button
                             size="sm"
                             onClick={() => handleReportFormat("pdf")}
-                            className="bg-red-600 hover:bg-red-700 text-white"
+                            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-md"
                           >
                             <FileText className="h-4 w-4 mr-1" />
                             PDF
@@ -478,7 +489,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                           <Button
                             size="sm"
                             onClick={() => handleReportFormat("docx")}
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md"
                           >
                             <FileText className="h-4 w-4 mr-1" />
                             DOCX
@@ -491,12 +502,12 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                       variant="ghost"
                       size="sm"
                       onClick={() => copyToClipboard(message.content, message.id)}
-                      className="flex-shrink-0 h-6 w-6 p-0 ml-2"
+                      className="flex-shrink-0 h-8 w-8 p-0 ml-2 bg-gray-100 hover:bg-gray-200 text-gray-600"
                     >
                       {copiedMessageId === message.id ? (
-                        <Check className="h-3 w-3 text-green-600" />
+                        <Check className="h-4 w-4 text-green-600" />
                       ) : (
-                        <Copy className="h-3 w-3" />
+                        <Copy className="h-4 w-4" />
                       )}
                     </Button>
                   </div>
@@ -507,9 +518,9 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                 </div>
 
                 {message.sender === "user" && (
-                  <Avatar className="w-8 h-8 flex-shrink-0">
-                    <AvatarFallback className="bg-gray-600 text-white">
-                      <User className="h-4 w-4" />
+                  <Avatar className="w-10 h-10 flex-shrink-0 shadow-md">
+                    <AvatarFallback className="bg-gradient-to-br from-gray-600 to-gray-700 text-white">
+                      <User className="h-5 w-5" />
                     </AvatarFallback>
                   </Avatar>
                 )}
@@ -517,15 +528,15 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
             ))}
 
             {isLoading && (
-              <div className="flex gap-3 justify-start">
-                <Avatar className="w-8 h-8">
+              <div className="flex gap-3 justify-start animate-pulse">
+                <Avatar className="w-10 h-10">
                   <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white">
-                    <Bot className="h-4 w-4" />
+                    <Bot className="h-5 w-5" />
                   </AvatarFallback>
                 </Avatar>
-                <div className="bg-white border shadow-sm rounded-lg p-3">
+                <div className="bg-gradient-to-r from-white to-gray-50 border border-gray-200 rounded-2xl rounded-bl-none p-4 shadow-md">
                   <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
                     <span className="text-sm text-gray-600">Analyzing market data...</span>
                   </div>
                 </div>
@@ -538,22 +549,22 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
       </ScrollArea>
 
       {/* Input Area */}
-      <div className="p-4 border-t bg-white rounded-b-lg">
-        <div className="flex gap-2">
+      <div className="p-5 bg-gradient-to-r from-gray-100 to-gray-200 border-t border-gray-200">
+        <div className="flex gap-3">
           <Input
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Ask about market conditions, generate reports, or request analysis..."
             disabled={isLoading}
-            className="flex-1"
+            className="flex-1 h-12 rounded-xl border-0 shadow-md focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 bg-white"
           />
           <Button
             onClick={() => handleSendMessage()}
             disabled={!inputValue.trim() || isLoading}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            className="h-12 w-12 flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-200"
           >
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
           </Button>
         </div>
       </div>

@@ -8,12 +8,35 @@ function createDummySql(): NeonQueryFunction<any[]> {
   }
 }
 
-// Use the provided database URL or fallback to environment variable
-const databaseUrl =
-  process.env.DATABASE_URL ||
-  "postgresql://neondb_owner:npg_mJ9dhet5vsMw@ep-icy-tree-aeb06nzf-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+// Use the database URL from environment variable
+const databaseUrl = process.env.DATABASE_URL
 
 export const sql: NeonQueryFunction<any[]> = databaseUrl ? neon(databaseUrl) : createDummySql()
+
+// Flag to track initialization status
+let isInitialized = false;
+
+export async function ensureDatabaseInitialized() {
+  if (isInitialized) {
+    return true;
+  }
+  
+  if (!databaseUrl) {
+    console.warn("DATABASE_URL is not set – skipping database initialization.");
+    return false;
+  }
+  
+  try {
+    console.log("🔧 Initializing database tables...");
+    await initializeDatabase();
+    isInitialized = true;
+    console.log("✅ Database initialized successfully");
+    return true;
+  } catch (error) {
+    console.error("❌ Error initializing database:", error);
+    return false;
+  }
+}
 
 export async function testConnection() {
   if (!databaseUrl) {
@@ -41,9 +64,65 @@ export async function initializeDatabase() {
     // Test connection first
     await testConnection()
 
+    // Enable required extensions
+    await sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`
+    await sql`CREATE EXTENSION IF NOT EXISTS pgcrypto`
+
+    // Create users table if it doesn't exist
+    await sql`
+      CREATE TABLE IF NOT EXISTS users (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email VARCHAR(255) UNIQUE NOT NULL,
+        first_name VARCHAR(100) NOT NULL,
+        last_name VARCHAR(100) NOT NULL,
+        password_hash VARCHAR(255),
+        company VARCHAR(255),
+        phone VARCHAR(20),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_login TIMESTAMP,
+        google_id VARCHAR(255),
+        avatar_url TEXT
+      )
+    `
+
+    // Add missing columns to users table if they don't exist
+    try {
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255)`
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP`
+    } catch (error) {
+      console.warn("Warning adding columns to users table:", error)
+    }
+
+    // Create sessions table if it doesn't exist
+    await sql`
+      CREATE TABLE IF NOT EXISTS sessions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        token VARCHAR(255) UNIQUE NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        ip_address VARCHAR(45),
+        user_agent TEXT
+      )
+    `
+
+    // Add missing columns to sessions table if they don't exist
+    try {
+      await sql`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45)`
+      await sql`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_agent TEXT`
+    } catch (error) {
+      console.warn("Warning adding columns to sessions table:", error)
+    }
+
+    // Create properties table if it doesn't exist
     await sql`
       CREATE TABLE IF NOT EXISTS properties (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE SET NULL,
         name VARCHAR(255) NOT NULL,
         address TEXT NOT NULL,
         state VARCHAR(100) NOT NULL,
@@ -64,6 +143,7 @@ export async function initializeDatabase() {
       )
     `
 
+    // Create property_images table if it doesn't exist
     await sql`
       CREATE TABLE IF NOT EXISTS property_images (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -77,15 +157,26 @@ export async function initializeDatabase() {
       )
     `
 
+    // Create chat_history table if it doesn't exist
     await sql`
       CREATE TABLE IF NOT EXISTS chat_history (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE SET NULL,
         title VARCHAR(255) NOT NULL,
         messages JSONB NOT NULL DEFAULT '[]',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
+
+    // Create indexes for better performance
+    await sql`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`
+    await sql`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)`
+    await sql`CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)`
+    await sql`CREATE INDEX IF NOT EXISTS idx_properties_user_id ON properties(user_id)`
+    await sql`CREATE INDEX IF NOT EXISTS idx_property_images_property_id ON property_images(property_id)`
+    await sql`CREATE INDEX IF NOT EXISTS idx_chat_history_user_id ON chat_history(user_id)`
+    await sql`CREATE INDEX IF NOT EXISTS idx_chat_history_updated_at ON chat_history(updated_at DESC)`
 
     console.log("✅ Database tables initialized successfully")
     return true

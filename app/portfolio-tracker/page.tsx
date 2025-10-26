@@ -134,7 +134,7 @@ export default function PortfolioTrackerPage() {
   }
 
   return (
-    <>
+    <SidebarProvider>
       <AppSidebar
         activeView="home" // Set as active since this is a portfolio tracker page
         onViewChange={handleViewChange}
@@ -150,6 +150,6 @@ export default function PortfolioTrackerPage() {
           <PortfolioTracker />
         </div>
       </SidebarInset>
-    </>
+    </SidebarProvider>
   )
 }

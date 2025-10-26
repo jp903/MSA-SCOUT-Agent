@@ -1,10 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-const FRED_API_KEY = "92763eac36c730f3c68b927ab71d3ae4"
-const FRED_BASE_URL = "https://api.stlouisfed.org/fred"
+const FRED_API_KEY = process.env.FRED_API_KEY
+const FRED_BASE_URL = "https://api.stlouisfed.org"
 
 export async function GET(request: NextRequest) {
   try {
+    if (!FRED_API_KEY) {
+      return NextResponse.json({ error: "FRED_API_KEY environment variable is not configured" }, { status: 500 })
+    }
+
     const { searchParams } = new URL(request.url)
     const series = searchParams.get("series")
 
@@ -14,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch data from FRED API
     const response = await fetch(
-      `${FRED_BASE_URL}/series/observations?series_id=${series}&api_key=${FRED_API_KEY}&file_type=json&limit=1&sort_order=desc`,
+      `${FRED_BASE_URL}/fred/series/observations?series_id=${series}&api_key=${FRED_API_KEY}&file_type=json&limit=1&sort_order=desc`,
     )
 
     if (!response.ok) {

@@ -13,6 +13,10 @@ import {
   User,
   LogOut,
   Settings,
+  Moon,
+  Sun,
+  PanelLeft,
+  PanelRight,
 } from "lucide-react"
 
 import {
@@ -38,6 +42,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useTheme } from "next-themes"
+import { useSidebar } from "@/components/ui/sidebar"
 import type { ChatHistoryItem, User as UserType } from "@/lib/portfolio-types"
 
 interface AppSidebarProps {
@@ -122,21 +128,34 @@ export function AppSidebar({
   user,
   onSignOut,
 }: AppSidebarProps) {
+  const { theme, setTheme } = useTheme();
+  const { toggleSidebar } = useSidebar();
   const getUserInitials = (firstName: string, lastName: string) => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
   }
 
   return (
-    <Sidebar>
+    <Sidebar collapsible="offcanvas">
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-1">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-            <Building2 className="h-5 w-5 text-white" />
+        <div className="flex items-center justify-between px-2 py-1">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+              <Building2 className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h2 className="font-bold text-lg">MSASCOUT</h2>
+              <p className="text-xs text-gray-600">AI Property Agent</p>
+            </div>
           </div>
-          <div>
-            <h2 className="font-bold text-lg">MSASCOUT</h2>
-            <p className="text-xs text-gray-600">AI Property Agent</p>
-          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className="h-8 w-8"
+          >
+            <PanelLeft className="h-4 w-4" />
+            <span className="sr-only">Toggle Sidebar</span>
+          </Button>
         </div>
       </SidebarHeader>
 
@@ -220,6 +239,19 @@ export function AppSidebar({
       </SidebarContent>
 
       <SidebarFooter>
+        {/* Theme Toggle */}
+        <div className="flex flex-col gap-1 p-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="w-full justify-start"
+          >
+            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 mr-2" />
+            <Moon className="h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 mr-2" />
+          </Button>
+        </div>
+        
         {/* User Profile - Show different content based on auth status */}
         <div className="p-2">
           {user ? (

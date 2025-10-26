@@ -425,7 +425,7 @@ export default function PropertyAnalysisPage() {
   }
 
   return (
-    <>
+    <SidebarProvider>
       <AppSidebar
         activeView="home"
         onViewChange={handleViewChange}
@@ -441,7 +441,7 @@ export default function PropertyAnalysisPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Calculator className="h-6 w-6 text-blue-600" />
-              <h1 className="text-2xl font-bold text-gray-900">Property Analysis</h1>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Property Analysis</h1>
             </div>
           </div>
 
@@ -604,7 +604,7 @@ export default function PropertyAnalysisPage() {
                             disabled
                             className="bg-gray-100"
                           />
-                          <p className="text-xs text-gray-500 mt-1">Auto-calculated: Purchase Price - Down Payment</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Auto-calculated: Purchase Price - Down Payment</p>
                         </div>
                         <div>
                           <Label htmlFor="interestRate">Interest Rate (%)</Label>
@@ -639,7 +639,7 @@ export default function PropertyAnalysisPage() {
                             disabled
                             className="bg-gray-100"
                           />
-                          <p className="text-xs text-gray-500 mt-1">Full purchase price paid in cash</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Full purchase price paid in cash</p>
                         </div>
                       </div>
                     )}
@@ -725,17 +725,17 @@ export default function PropertyAnalysisPage() {
                           <Badge className={getRecommendationColor(analysisResults.recommendation)}>
                             {analysisResults.recommendation}
                           </Badge>
-                          <p className="text-sm text-gray-600 mt-1">Recommendation</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Recommendation</p>
                         </div>
                         <div className="text-center">
                           <Badge className={getRiskColor(analysisResults.riskLevel)}>
                             {analysisResults.riskLevel} Risk
                           </Badge>
-                          <p className="text-sm text-gray-600 mt-1">Risk Level</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Risk Level</p>
                         </div>
                         <div className="text-center">
                           <Badge variant="outline">{formatPercentage(analysisResults.capRate)}</Badge>
-                          <p className="text-sm text-gray-600 mt-1">Cap Rate</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Cap Rate</p>
                         </div>
                       </div>
                     </CardContent>
@@ -747,7 +747,7 @@ export default function PropertyAnalysisPage() {
                       <CardContent className="p-6">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-medium text-gray-600">Monthly Cash Flow</p>
+                            <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Monthly Cash Flow</p>
                             <p
                               className={`text-2xl font-bold ${analysisResults.monthlyCashFlow >= 0 ? "text-green-600" : "text-red-600"}`}
                             >
@@ -765,7 +765,7 @@ export default function PropertyAnalysisPage() {
                       <CardContent className="p-6">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-medium text-gray-600">Annual Cash Flow</p>
+                            <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Annual Cash Flow</p>
                             <p
                               className={`text-2xl font-bold ${analysisResults.annualCashFlow >= 0 ? "text-green-600" : "text-red-600"}`}
                             >
@@ -783,7 +783,7 @@ export default function PropertyAnalysisPage() {
                       <CardContent className="p-6">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-medium text-gray-600">Cash-on-Cash Return</p>
+                            <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Cash-on-Cash Return</p>
                             <p className="text-2xl font-bold text-purple-600">
                               {formatPercentage(analysisResults.cashOnCashReturn)}
                             </p>
@@ -799,7 +799,7 @@ export default function PropertyAnalysisPage() {
                       <CardContent className="p-6">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-medium text-gray-600">Total ROI</p>
+                            <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Total ROI</p>
                             <p className="text-2xl font-bold text-orange-600">
                               {formatPercentage(analysisResults.totalROI)}
                             </p>
@@ -820,18 +820,18 @@ export default function PropertyAnalysisPage() {
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-4">
-                          <h4 className="font-semibold text-gray-900">Monthly Analysis</h4>
+                          <h4 className="font-semibold text-gray-900 dark:text-gray-100">Monthly Analysis</h4>
                           <div className="space-y-2">
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Monthly Rent:</span>
+                              <span className="text-gray-600 dark:text-gray-300">Monthly Rent:</span>
                               <span className="font-medium">{formatCurrency(propertyData.monthlyRent)}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Monthly Expenses:</span>
+                              <span className="text-gray-600 dark:text-gray-300">Monthly Expenses:</span>
                               <span className="font-medium">{formatCurrency(propertyData.monthlyExpenses)}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Monthly Mortgage:</span>
+                              <span className="text-gray-600 dark:text-gray-300">Monthly Mortgage:</span>
                               <span className="font-medium">{formatCurrency(analysisResults.monthlyMortgage)}</span>
                             </div>
                             <Separator />
@@ -847,22 +847,22 @@ export default function PropertyAnalysisPage() {
                         </div>
 
                         <div className="space-y-4">
-                          <h4 className="font-semibold text-gray-900">Investment Metrics</h4>
+                          <h4 className="font-semibold text-gray-900 dark:text-gray-100">Investment Metrics</h4>
                           <div className="space-y-2">
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Cap Rate:</span>
+                              <span className="text-gray-600 dark:text-gray-300">Cap Rate:</span>
                               <span className="font-medium">{formatPercentage(analysisResults.capRate)}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Cash-on-Cash Return:</span>
+                              <span className="text-gray-600 dark:text-gray-300">Cash-on-Cash Return:</span>
                               <span className="font-medium">{formatPercentage(analysisResults.cashOnCashReturn)}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Break-Even Ratio:</span>
+                              <span className="text-gray-600 dark:text-gray-300">Break-Even Ratio:</span>
                               <span className="font-medium">{analysisResults.breakEvenRatio.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Total ROI:</span>
+                              <span className="text-gray-600 dark:text-gray-300">Total ROI:</span>
                               <span className="font-medium">{formatPercentage(analysisResults.totalROI)}</span>
                             </div>
                           </div>
@@ -876,6 +876,6 @@ export default function PropertyAnalysisPage() {
           </Tabs>
         </div>
       </SidebarInset>
-    </>
+    </SidebarProvider>
   )
 }
