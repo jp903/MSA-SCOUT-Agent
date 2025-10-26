@@ -96,52 +96,27 @@ export async function initializeDatabase() {
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP`
       
       // Check for all required columns that might be missing using separate queries for compatibility
-      const firstNameCheck = await sql`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'users' AND column_name = 'first_name'
-      `
+      // Add missing columns to users table if they don't exist
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(100)`
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(100)`
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)`
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS company VARCHAR(255)`
       
-      if (firstNameCheck.length === 0) {
-        // If first_name doesn't exist, add it with a default value
-        await sql`ALTER TABLE users ADD COLUMN first_name VARCHAR(100) NOT NULL DEFAULT 'User'`
-        // Remove the default after adding some value
-        await sql`ALTER TABLE users ALTER COLUMN first_name DROP DEFAULT`
+      // Update any existing records that might have NULL required fields
+      await sql`UPDATE users SET first_name = 'User' WHERE first_name IS NULL`
+      await sql`UPDATE users SET last_name = 'Unknown' WHERE last_name IS NULL`
+      
+      // Now ensure NOT NULL constraints (this may fail if there are still NULL values)
+      try {
+        await sql`ALTER TABLE users ALTER COLUMN first_name SET NOT NULL`
+      } catch (error) {
+        console.warn("Could not set first_name as NOT NULL:", error)
       }
       
-      const lastNameCheck = await sql`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'users' AND column_name = 'last_name'
-      `
-      
-      if (lastNameCheck.length === 0) {
-        // If last_name doesn't exist, add it with a default value  
-        await sql`ALTER TABLE users ADD COLUMN last_name VARCHAR(100) NOT NULL DEFAULT 'Unknown'`
-        // Remove the default after adding some value
-        await sql`ALTER TABLE users ALTER COLUMN last_name DROP DEFAULT`
-      }
-      
-      const phoneCheck = await sql`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'users' AND column_name = 'phone'
-      `
-      
-      if (phoneCheck.length === 0) {
-        // If phone doesn't exist, add it (it's nullable)
-        await sql`ALTER TABLE users ADD COLUMN phone VARCHAR(20)`
-      }
-      
-      const companyCheck = await sql`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'users' AND column_name = 'company'
-      `
-      
-      if (companyCheck.length === 0) {
-        // If company doesn't exist, add it (it's nullable)
-        await sql`ALTER TABLE users ADD COLUMN company VARCHAR(255)`
+      try {
+        await sql`ALTER TABLE users ALTER COLUMN last_name SET NOT NULL`
+      } catch (error) {
+        console.warn("Could not set last_name as NOT NULL:", error)
       }
     } catch (error) {
       console.warn("Warning adding columns to users table:", error)
