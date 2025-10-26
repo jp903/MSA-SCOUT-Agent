@@ -54,3 +54,26 @@ export interface PropertyPerformance {
   appreciation: number
   appreciationPercent: number
 }
+
+export interface ChatMessage {
+  role: string
+  content: string
+  timestamp?: string | number
+}
+
+export interface ChatHistoryItem {
+  id: string
+  title: string
+  messages: ChatMessage[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface User {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  company?: string
+  avatarUrl?: string
+}

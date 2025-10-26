@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { SidebarInset } from "@/components/ui/sidebar"
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import PortfolioTracker from "@/components/portfolio-tracker"
 import type { ChatHistoryItem } from "@/lib/portfolio-types"
@@ -122,14 +122,15 @@ export default function PortfolioTrackerPage() {
     }
   }
 
-  const handleViewChange = (view: "home" | "chat" | "calculator" | "insights") => {
+  const handleViewChange = (view: string) => {
     // Navigate to main page with the selected view
-    const viewMap = {
+    const viewMap: Record<string, string> = {
       home: "/?view=home",
       chat: "/?view=chat",
       calculator: "/?view=calculator",
       insights: "/?view=insights",
     }
+
     window.location.href = viewMap[view] || "/"
   }
 
@@ -143,6 +144,8 @@ export default function PortfolioTrackerPage() {
         currentChatId={currentChatId}
         onChatSelect={handleChatSelect}
         onDeleteChat={handleDeleteChat}
+        user={null}
+        onSignOut={() => {}}
       />
       <SidebarInset>
         <header className="h-4" />
