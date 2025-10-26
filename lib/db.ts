@@ -23,7 +23,9 @@ export async function ensureDatabaseInitialized() {
   
   if (!databaseUrl) {
     console.warn("DATABASE_URL is not set – skipping database initialization.");
-    return false;
+    // Don't fail initialization if database URL is not set, just mark as initialized
+    isInitialized = true; 
+    return true;
   }
   
   try {
@@ -34,6 +36,8 @@ export async function ensureDatabaseInitialized() {
     return true;
   } catch (error) {
     console.error("❌ Error initializing database:", error);
+    // Even if initialization fails, we should still mark as initialized to avoid repeated failures
+    isInitialized = true;
     return false;
   }
 }
