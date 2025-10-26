@@ -133,8 +133,11 @@ export default function HomePage() {
 
   const loadChatHistory = async () => {
     try {
-      const userId = user?.id || null
-      const history = await chatManagerDB.getAllChats(userId)
+      const response = await fetch("/api/chat-history")
+      if (!response.ok) {
+        throw new Error("Failed to load chat history")
+      }
+      const history = await response.json()
       setChatHistory(history)
     } catch (error) {
       toast({
@@ -225,20 +228,25 @@ export default function HomePage() {
     }
 
     try {
-      const userId = user.id
-      const chat = await chatManagerDB.getChat(chatId, userId)
+      const response = await fetch(`/api/chat-history/${chatId}`)
+      if (!response.ok) {
+        if (response.status === 404) {
+          // Remove from history if not found
+          setChatHistory((prev) => prev.filter((c) => c.id !== chatId))
+          toast({
+            title: "Chat Not Found",
+            description: "This chat may have been deleted",
+            variant: "destructive",
+          })
+        }
+        throw new Error("Failed to load chat")
+      }
+      
+      const chat = await response.json()
       if (chat) {
         setCurrentChatId(chatId)
         setCurrentChat(chat)
         setActiveView("home")
-      } else {
-        // Remove from history if not found
-        setChatHistory((prev) => prev.filter((c) => c.id !== chatId))
-        toast({
-          title: "Chat Not Found",
-          description: "This chat may have been deleted",
-          variant: "destructive",
-        })
       }
     } catch (error) {
       toast({
@@ -256,8 +264,13 @@ export default function HomePage() {
     }
 
     try {
-      const userId = user.id
-      await chatManagerDB.deleteChat(chatId, userId)
+      const response = await fetch(`/api/chat-history/${chatId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete chat")
+      }
 
       // Remove from history
       setChatHistory((prev) => prev.filter((chat) => chat.id !== chatId))
@@ -288,31 +301,52 @@ export default function HomePage() {
     }
 
     try {
-      const userId = user.id
-
-      // If no current chat exists, create one
+      // If no current chat exists, create one via API
       if (!currentChatId && messages.length > 0) {
-        const newChat = await chatManagerDB.createChat(title || "New Chat", userId)
+        // Create chat via API route which handles authentication
+        const response = await fetch("/api/chat-history", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: title || "New Chat",
+            messages,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to create chat")
+        }
+
+        const newChat = await response.json()
         setCurrentChatId(newChat.id)
         setCurrentChat(newChat)
 
         // Add to history
         setChatHistory((prev) => [newChat, ...prev])
 
-        // Now update with messages
-        await chatManagerDB.updateChat(newChat.id, messages, title, userId)
-
-        // Update local state
-        const updatedChat = { ...newChat, messages, title: title || newChat.title, updatedAt: new Date() }
-        setCurrentChat(updatedChat)
-        setChatHistory((prev) => prev.map((chat) => (chat.id === newChat.id ? updatedChat : chat)))
-
         return
       }
 
-      // Update existing chat
+      // Update existing chat via API
       if (currentChatId) {
-        await chatManagerDB.updateChat(currentChatId, messages, title, userId)
+        const response = await fetch(`/api/chat-history/${currentChatId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: title,
+            messages,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to update chat")
+        }
+
+        const updatedChat = await response.json()
 
         // Update local state
         setChatHistory((prev) =>

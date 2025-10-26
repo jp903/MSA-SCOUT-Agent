@@ -1,12 +1,10 @@
 import { neon } from "@neondatabase/serverless"
 import type { ChatHistoryItem } from "./portfolio-types"
 import { ensureDatabaseInitialized } from "./db"
-import { AuthService } from "./auth"
 
 // Create SQL connection with fallback handling
 const createSqlConnection = () => {
-  const databaseUrl =
-    process.env.DATABASE_URL
+  const databaseUrl = process.env.DATABASE_URL
 
   if (!databaseUrl) {
     throw new Error("No database connection string available")
@@ -34,13 +32,6 @@ export class ChatManagerDB {
     }
   }
 
-  private async getCurrentUserId(): Promise<string | null> {
-    // Extract session token from cookie in Node.js environment
-    // This would typically be passed as a parameter since we can't access cookies from within a library file
-    // The actual cookie extraction should be done in the API routes
-    return null; // Placeholder - this needs to be handled differently
-  }
-
   private getLocalChats(): ChatHistoryItem[] {
     if (!this.isClient) return []
 
@@ -62,238 +53,342 @@ export class ChatManagerDB {
     }
   }
 
+  // Create a new chat. If running in browser, call API so server persists it (and associates user).
   async createChat(title = "New Chat", userId: string | null = null): Promise<ChatHistoryItem> {
     const id = crypto.randomUUID()
-    const now = new Date()
+    const nowIso = new Date().toISOString()
 
     const newChat: ChatHistoryItem = {
       id,
       title,
       messages: [],
-      createdAt: now,
-      updatedAt: now,
+      createdAt: nowIso,
+      updatedAt: nowIso,
     }
 
-    // Try database first
-    if (this.sql) {
+    // Server-side direct DB write if we have connection (used by API routes)
+    if (!this.isClient && this.sql) {
       try {
-        // Ensure database is initialized
-        await ensureDatabaseInitialized();
+        await ensureDatabaseInitialized()
 
         if (userId) {
-          // Insert chat with user ID
           await this.sql`
             INSERT INTO chat_history (id, user_id, title, messages, created_at, updated_at)
-            VALUES (${id}, ${userId}, ${title}, ${JSON.stringify([])}, ${now.toISOString()}, ${now.toISOString()})
+            VALUES (${id}, ${userId}, ${title}, ${JSON.stringify([])}, ${nowIso}, ${nowIso})
           `
         } else {
-          // Insert chat without user ID (for non-authenticated users)
           await this.sql`
             INSERT INTO chat_history (id, title, messages, created_at, updated_at)
-            VALUES (${id}, ${title}, ${JSON.stringify([])}, ${now.toISOString()}, ${now.toISOString()})
+            VALUES (${id}, ${title}, ${JSON.stringify([])}, ${nowIso}, ${nowIso})
           `
         }
+
         return newChat
       } catch (error) {
-        console.warn("Database insert failed, using localStorage:", error)
+        console.warn("Database insert failed, falling back to other persistence:", error)
       }
     }
 
-    // Fallback to localStorage
+    // Browser: call API endpoint which will persist the chat on the server side
+    if (this.isClient) {
+      try {
+        const res = await fetch("/api/chat-history", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, messages: [] }),
+        })
+
+        if (res.ok) {
+          const data = await res.json()
+          return {
+            id: data.id,
+            title: data.title,
+            messages: data.messages || [],
+            createdAt: data.createdAt || data.created_at || nowIso,
+            updatedAt: data.updatedAt || data.updated_at || nowIso,
+          }
+        } else {
+          console.warn("API createChat returned non-ok:", res.status)
+        }
+      } catch (err) {
+        console.warn("API createChat failed, falling back to localStorage:", err)
+      }
+
+      // fallback to localStorage
+      const chats = this.getLocalChats()
+      chats.unshift(newChat)
+      this.saveLocalChats(chats)
+      return newChat
+    }
+
+    // Default fallback (server w/o DB or unknown env): use local storage via the getLocalChats method (no-op server-side)
     const chats = this.getLocalChats()
     chats.unshift(newChat)
     this.saveLocalChats(chats)
     return newChat
   }
 
+  // Get a single chat by id. Uses DB server-side, API client-side, localStorage fallback.
   async getChat(id: string, userId: string | null = null): Promise<ChatHistoryItem | null> {
-    // Try database first
-    if (this.sql) {
+    // Server-side direct DB read
+    if (!this.isClient && this.sql) {
       try {
-        // Ensure database is initialized
-        await ensureDatabaseInitialized();
+        await ensureDatabaseInitialized()
 
         if (userId) {
-          // Get chat ensuring it belongs to the user
           const result = await this.sql`
             SELECT * FROM chat_history WHERE id = ${id} AND (user_id = ${userId} OR user_id IS NULL)
           `
-          
           if (result.length > 0) {
             const chat = result[0]
             return {
               id: chat.id,
               title: chat.title,
               messages: JSON.parse(chat.messages || "[]"),
-              createdAt: new Date(chat.created_at),
-              updatedAt: new Date(chat.updated_at),
+              createdAt: new Date(chat.created_at).toISOString(),
+              updatedAt: new Date(chat.updated_at).toISOString(),
             }
-          } else {
-            // Chat doesn't belong to the user
-            return null
           }
+          return null
         } else {
-          // Get chat without user check
           const result = await this.sql`
             SELECT * FROM chat_history WHERE id = ${id}
           `
-
           if (result.length > 0) {
             const chat = result[0]
             return {
               id: chat.id,
               title: chat.title,
               messages: JSON.parse(chat.messages || "[]"),
-              createdAt: new Date(chat.created_at),
-              updatedAt: new Date(chat.updated_at),
+              createdAt: new Date(chat.created_at).toISOString(),
+              updatedAt: new Date(chat.updated_at).toISOString(),
             }
           }
+          return null
         }
       } catch (error) {
-        console.warn("Database query failed, using localStorage:", error)
+        console.warn("Database query failed, falling back to other persistence:", error)
       }
     }
 
-    // Fallback to localStorage
-    const chats = this.getLocalChats()
-    return chats.find((chat) => chat.id === id) || null
+    // Client-side: call API
+    if (this.isClient) {
+      try {
+        const res = await fetch(`/api/chat-history/${encodeURIComponent(id)}`, { credentials: "include" })
+        if (res.ok) {
+          const data = await res.json()
+          return {
+            id: data.id,
+            title: data.title,
+            messages: data.messages || [],
+            createdAt: data.createdAt || data.created_at || new Date().toISOString(),
+            updatedAt: data.updatedAt || data.updated_at || new Date().toISOString(),
+          }
+        }
+      } catch (err) {
+        console.warn("API getChat failed, falling back to localStorage:", err)
+      }
+
+      const chats = this.getLocalChats()
+      return chats.find((c) => c.id === id) || null
+    }
+
+    // Fallback
+    const chats2 = this.getLocalChats()
+    return chats2.find((c) => c.id === id) || null
   }
 
+  // Get all chats for the current session/user
   async getAllChats(userId: string | null = null): Promise<ChatHistoryItem[]> {
-    // Try database first
-    if (this.sql) {
+    // Server-side direct DB read
+    if (!this.isClient && this.sql) {
       try {
-        // Ensure database is initialized
-        await ensureDatabaseInitialized();
+        await ensureDatabaseInitialized()
 
         if (userId) {
-          // Get all chats for the specific user
           const result = await this.sql`
-            SELECT * FROM chat_history 
+            SELECT * FROM chat_history
             WHERE user_id = ${userId} OR user_id IS NULL
             ORDER BY updated_at DESC
             LIMIT 50
           `
-
           return result.map((chat: any) => ({
             id: chat.id,
             title: chat.title,
             messages: JSON.parse(chat.messages || "[]"),
-            createdAt: new Date(chat.created_at),
-            updatedAt: new Date(chat.updated_at),
+            createdAt: new Date(chat.created_at).toISOString(),
+            updatedAt: new Date(chat.updated_at).toISOString(),
           }))
         } else {
-          // Get all chats that don't have a user ID (anonymous chats)
           const result = await this.sql`
-            SELECT * FROM chat_history 
+            SELECT * FROM chat_history
             WHERE user_id IS NULL
             ORDER BY updated_at DESC
             LIMIT 50
           `
-
           return result.map((chat: any) => ({
             id: chat.id,
             title: chat.title,
             messages: JSON.parse(chat.messages || "[]"),
-            createdAt: new Date(chat.created_at),
-            updatedAt: new Date(chat.updated_at),
+            createdAt: new Date(chat.created_at).toISOString(),
+            updatedAt: new Date(chat.updated_at).toISOString(),
           }))
         }
       } catch (error) {
-        console.warn("Database query failed, using localStorage:", error)
+        console.warn("Database query failed, falling back to other persistence:", error)
       }
     }
 
-    // Fallback to localStorage
+    // Client-side: call API (server will use session to return user's chats)
+    if (this.isClient) {
+      try {
+        const res = await fetch("/api/chat-history", { credentials: "include" })
+        if (res.ok) {
+          const data = await res.json()
+          return (data || []).map((chat: any) => ({
+            id: chat.id,
+            title: chat.title,
+            messages: chat.messages || [],
+            createdAt: chat.createdAt || chat.created_at || new Date().toISOString(),
+            updatedAt: chat.updatedAt || chat.updated_at || new Date().toISOString(),
+          }))
+        }
+      } catch (err) {
+        console.warn("API getAllChats failed, falling back to localStorage:", err)
+      }
+
+      return this.getLocalChats()
+    }
+
+    // Fallback
     return this.getLocalChats()
   }
 
+  // Update chat messages/title
   async updateChat(id: string, messages: any[], title?: string, userId: string | null = null): Promise<void> {
-    const now = new Date()
+    const nowIso = new Date().toISOString()
 
-    // Try database first
-    if (this.sql) {
+    // Server-side DB update
+    if (!this.isClient && this.sql) {
       try {
-        // Ensure database is initialized
-        await ensureDatabaseInitialized();
+        await ensureDatabaseInitialized()
 
         if (userId) {
-          // Update chat ensuring it belongs to the user
           if (title) {
             await this.sql`
-              UPDATE chat_history 
-              SET messages = ${JSON.stringify(messages)}, title = ${title}, updated_at = ${now.toISOString()}
+              UPDATE chat_history
+              SET messages = ${JSON.stringify(messages)}, title = ${title}, updated_at = ${nowIso}
               WHERE id = ${id} AND user_id = ${userId}
             `
           } else {
             await this.sql`
-              UPDATE chat_history 
-              SET messages = ${JSON.stringify(messages)}, updated_at = ${now.toISOString()}
+              UPDATE chat_history
+              SET messages = ${JSON.stringify(messages)}, updated_at = ${nowIso}
               WHERE id = ${id} AND user_id = ${userId}
             `
           }
         } else {
-          // Update chat without user ID check
           if (title) {
             await this.sql`
-              UPDATE chat_history 
-              SET messages = ${JSON.stringify(messages)}, title = ${title}, updated_at = ${now.toISOString()}
+              UPDATE chat_history
+              SET messages = ${JSON.stringify(messages)}, title = ${title}, updated_at = ${nowIso}
               WHERE id = ${id}
             `
           } else {
             await this.sql`
-              UPDATE chat_history 
-              SET messages = ${JSON.stringify(messages)}, updated_at = ${now.toISOString()}
+              UPDATE chat_history
+              SET messages = ${JSON.stringify(messages)}, updated_at = ${nowIso}
               WHERE id = ${id}
             `
           }
         }
         return
       } catch (error) {
-        console.warn("Database update failed, using localStorage:", error)
+        console.warn("Database update failed, falling back to other persistence:", error)
       }
     }
 
-    // Fallback to localStorage
-    const chats = this.getLocalChats()
-    const chatIndex = chats.findIndex((chat) => chat.id === id)
+    // Client-side: call API to update
+    if (this.isClient) {
+      try {
+        await fetch(`/api/chat-history/${encodeURIComponent(id)}`, {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, messages }),
+        })
+        return
+      } catch (err) {
+        console.warn("API updateChat failed, falling back to localStorage:", err)
+      }
 
-    if (chatIndex >= 0) {
-      chats[chatIndex].messages = messages
-      if (title) chats[chatIndex].title = title
-      chats[chatIndex].updatedAt = now
-      this.saveLocalChats(chats)
+      const chats = this.getLocalChats()
+      const idx = chats.findIndex((c) => c.id === id)
+      if (idx >= 0) {
+        chats[idx].messages = messages
+        if (title) chats[idx].title = title
+        chats[idx].updatedAt = nowIso
+        this.saveLocalChats(chats)
+      }
+      return
+    }
+
+    // Fallback
+    const chats3 = this.getLocalChats()
+    const idx = chats3.findIndex((c) => c.id === id)
+    if (idx >= 0) {
+      chats3[idx].messages = messages
+      if (title) chats3[idx].title = title
+      chats3[idx].updatedAt = nowIso
+      this.saveLocalChats(chats3)
     }
   }
 
+  // Delete chat
   async deleteChat(id: string, userId: string | null = null): Promise<void> {
-    // Try database first
-    if (this.sql) {
+    // Server-side DB delete
+    if (!this.isClient && this.sql) {
       try {
-        // Ensure database is initialized
-        await ensureDatabaseInitialized();
+        await ensureDatabaseInitialized()
 
         if (userId) {
-          // Delete chat ensuring it belongs to the user
           await this.sql`
             DELETE FROM chat_history WHERE id = ${id} AND user_id = ${userId}
           `
         } else {
-          // Delete chat without user check
           await this.sql`
             DELETE FROM chat_history WHERE id = ${id}
           `
         }
         return
       } catch (error) {
-        console.warn("Database delete failed, using localStorage:", error)
+        console.warn("Database delete failed, falling back to other persistence:", error)
       }
     }
 
-    // Fallback to localStorage
-    const chats = this.getLocalChats()
-    const filteredChats = chats.filter((chat) => chat.id !== id)
-    this.saveLocalChats(filteredChats)
+    // Client-side: call API
+    if (this.isClient) {
+      try {
+        await fetch(`/api/chat-history/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          credentials: "include",
+        })
+        return
+      } catch (err) {
+        console.warn("API deleteChat failed, falling back to localStorage:", err)
+      }
+
+      const chats = this.getLocalChats()
+      const filtered = chats.filter((c) => c.id !== id)
+      this.saveLocalChats(filtered)
+      return
+    }
+
+    // Fallback
+    const chats4 = this.getLocalChats()
+    const filtered = chats4.filter((c) => c.id !== id)
+    this.saveLocalChats(filtered)
   }
 }
 
