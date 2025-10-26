@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
 import { openai } from "@ai-sdk/openai"
+import { AuthService } from "@/lib/auth"
 
 export async function POST(request: NextRequest) {
   try {
@@ -109,6 +110,21 @@ Always provide specific, data-driven insights with actual numbers from real-time
     })
 
     console.log("✅ Chat API generated response successfully")
+
+    // Extract session token from cookies to associate chat with user
+    const sessionToken = request.cookies.get("session_token")?.value
+    let userId = null;
+    if (sessionToken) {
+      const user = await AuthService.verifySession(sessionToken);
+      userId = user?.id || null;
+    }
+
+    // Save the conversation to the database if user is authenticated
+    if (userId && messages && messages.length > 0) {
+      // This is a simplified implementation - in practice you'd want more sophisticated chat handling
+      // For now, let's just return the response immediately since this is the chat API, not the history API
+      // The actual chat saving would happen in the client-side code
+    }
 
     return NextResponse.json({ message: text })
   } catch (error) {

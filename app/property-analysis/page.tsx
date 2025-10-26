@@ -128,7 +128,7 @@ export default function PropertyAnalysisPage() {
 
   const loadChatHistory = async () => {
     try {
-      const history = await chatManagerDB.getAllChats()
+      const history = await chatManagerDB.getAllChats(null) // No user context in this page
       setChatHistory(history)
     } catch (error) {
       toast({
@@ -154,7 +154,7 @@ export default function PropertyAnalysisPage() {
 
   const handleChatSelect = async (chatId: string) => {
     try {
-      const chat = await chatManagerDB.getChat(chatId)
+      const chat = await chatManagerDB.getChat(chatId, null) // No user context in this page
       if (chat) {
         setCurrentChatId(chatId)
         // Navigate back to main page with selected chat
@@ -179,7 +179,7 @@ export default function PropertyAnalysisPage() {
 
   const handleDeleteChat = async (chatId: string) => {
     try {
-      await chatManagerDB.deleteChat(chatId)
+      await chatManagerDB.deleteChat(chatId, null) // No user context in this page
 
       // Remove from history
       setChatHistory((prev) => prev.filter((chat) => chat.id !== chatId))

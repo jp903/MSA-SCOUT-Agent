@@ -1,6 +1,7 @@
 import { neon } from "@neondatabase/serverless"
 import type { ChatHistoryItem } from "./portfolio-types"
 import { ensureDatabaseInitialized } from "./db"
+import { AuthService } from "./auth"
 
 // Create SQL connection with fallback handling
 const createSqlConnection = () => {
@@ -33,6 +34,13 @@ export class ChatManagerDB {
     }
   }
 
+  private async getCurrentUserId(): Promise<string | null> {
+    // Extract session token from cookie in Node.js environment
+    // This would typically be passed as a parameter since we can't access cookies from within a library file
+    // The actual cookie extraction should be done in the API routes
+    return null; // Placeholder - this needs to be handled differently
+  }
+
   private getLocalChats(): ChatHistoryItem[] {
     if (!this.isClient) return []
 
@@ -54,7 +62,7 @@ export class ChatManagerDB {
     }
   }
 
-  async createChat(title = "New Chat"): Promise<ChatHistoryItem> {
+  async createChat(title = "New Chat", userId: string | null = null): Promise<ChatHistoryItem> {
     const id = crypto.randomUUID()
     const now = new Date()
 
@@ -72,10 +80,19 @@ export class ChatManagerDB {
         // Ensure database is initialized
         await ensureDatabaseInitialized();
 
-        await this.sql`
-          INSERT INTO chat_history (id, title, messages, created_at, updated_at)
-          VALUES (${id}, ${title}, ${JSON.stringify([])}, ${now.toISOString()}, ${now.toISOString()})
-        `
+        if (userId) {
+          // Insert chat with user ID
+          await this.sql`
+            INSERT INTO chat_history (id, user_id, title, messages, created_at, updated_at)
+            VALUES (${id}, ${userId}, ${title}, ${JSON.stringify([])}, ${now.toISOString()}, ${now.toISOString()})
+          `
+        } else {
+          // Insert chat without user ID (for non-authenticated users)
+          await this.sql`
+            INSERT INTO chat_history (id, title, messages, created_at, updated_at)
+            VALUES (${id}, ${title}, ${JSON.stringify([])}, ${now.toISOString()}, ${now.toISOString()})
+          `
+        }
         return newChat
       } catch (error) {
         console.warn("Database insert failed, using localStorage:", error)
@@ -89,25 +106,47 @@ export class ChatManagerDB {
     return newChat
   }
 
-  async getChat(id: string): Promise<ChatHistoryItem | null> {
+  async getChat(id: string, userId: string | null = null): Promise<ChatHistoryItem | null> {
     // Try database first
     if (this.sql) {
       try {
         // Ensure database is initialized
         await ensureDatabaseInitialized();
 
-        const result = await this.sql`
-          SELECT * FROM chat_history WHERE id = ${id}
-        `
+        if (userId) {
+          // Get chat ensuring it belongs to the user
+          const result = await this.sql`
+            SELECT * FROM chat_history WHERE id = ${id} AND (user_id = ${userId} OR user_id IS NULL)
+          `
+          
+          if (result.length > 0) {
+            const chat = result[0]
+            return {
+              id: chat.id,
+              title: chat.title,
+              messages: JSON.parse(chat.messages || "[]"),
+              createdAt: new Date(chat.created_at),
+              updatedAt: new Date(chat.updated_at),
+            }
+          } else {
+            // Chat doesn't belong to the user
+            return null
+          }
+        } else {
+          // Get chat without user check
+          const result = await this.sql`
+            SELECT * FROM chat_history WHERE id = ${id}
+          `
 
-        if (result.length > 0) {
-          const chat = result[0]
-          return {
-            id: chat.id,
-            title: chat.title,
-            messages: JSON.parse(chat.messages || "[]"),
-            createdAt: new Date(chat.created_at),
-            updatedAt: new Date(chat.updated_at),
+          if (result.length > 0) {
+            const chat = result[0]
+            return {
+              id: chat.id,
+              title: chat.title,
+              messages: JSON.parse(chat.messages || "[]"),
+              createdAt: new Date(chat.created_at),
+              updatedAt: new Date(chat.updated_at),
+            }
           }
         }
       } catch (error) {
@@ -120,26 +159,46 @@ export class ChatManagerDB {
     return chats.find((chat) => chat.id === id) || null
   }
 
-  async getAllChats(): Promise<ChatHistoryItem[]> {
+  async getAllChats(userId: string | null = null): Promise<ChatHistoryItem[]> {
     // Try database first
     if (this.sql) {
       try {
         // Ensure database is initialized
         await ensureDatabaseInitialized();
 
-        const result = await this.sql`
-          SELECT * FROM chat_history 
-          ORDER BY updated_at DESC
-          LIMIT 50
-        `
+        if (userId) {
+          // Get all chats for the specific user
+          const result = await this.sql`
+            SELECT * FROM chat_history 
+            WHERE user_id = ${userId} OR user_id IS NULL
+            ORDER BY updated_at DESC
+            LIMIT 50
+          `
 
-        return result.map((chat: any) => ({
-          id: chat.id,
-          title: chat.title,
-          messages: JSON.parse(chat.messages || "[]"),
-          createdAt: new Date(chat.created_at),
-          updatedAt: new Date(chat.updated_at),
-        }))
+          return result.map((chat: any) => ({
+            id: chat.id,
+            title: chat.title,
+            messages: JSON.parse(chat.messages || "[]"),
+            createdAt: new Date(chat.created_at),
+            updatedAt: new Date(chat.updated_at),
+          }))
+        } else {
+          // Get all chats that don't have a user ID (anonymous chats)
+          const result = await this.sql`
+            SELECT * FROM chat_history 
+            WHERE user_id IS NULL
+            ORDER BY updated_at DESC
+            LIMIT 50
+          `
+
+          return result.map((chat: any) => ({
+            id: chat.id,
+            title: chat.title,
+            messages: JSON.parse(chat.messages || "[]"),
+            createdAt: new Date(chat.created_at),
+            updatedAt: new Date(chat.updated_at),
+          }))
+        }
       } catch (error) {
         console.warn("Database query failed, using localStorage:", error)
       }
@@ -149,7 +208,7 @@ export class ChatManagerDB {
     return this.getLocalChats()
   }
 
-  async updateChat(id: string, messages: any[], title?: string): Promise<void> {
+  async updateChat(id: string, messages: any[], title?: string, userId: string | null = null): Promise<void> {
     const now = new Date()
 
     // Try database first
@@ -158,18 +217,36 @@ export class ChatManagerDB {
         // Ensure database is initialized
         await ensureDatabaseInitialized();
 
-        if (title) {
-          await this.sql`
-            UPDATE chat_history 
-            SET messages = ${JSON.stringify(messages)}, title = ${title}, updated_at = ${now.toISOString()}
-            WHERE id = ${id}
-          `
+        if (userId) {
+          // Update chat ensuring it belongs to the user
+          if (title) {
+            await this.sql`
+              UPDATE chat_history 
+              SET messages = ${JSON.stringify(messages)}, title = ${title}, updated_at = ${now.toISOString()}
+              WHERE id = ${id} AND user_id = ${userId}
+            `
+          } else {
+            await this.sql`
+              UPDATE chat_history 
+              SET messages = ${JSON.stringify(messages)}, updated_at = ${now.toISOString()}
+              WHERE id = ${id} AND user_id = ${userId}
+            `
+          }
         } else {
-          await this.sql`
-            UPDATE chat_history 
-            SET messages = ${JSON.stringify(messages)}, updated_at = ${now.toISOString()}
-            WHERE id = ${id}
-          `
+          // Update chat without user ID check
+          if (title) {
+            await this.sql`
+              UPDATE chat_history 
+              SET messages = ${JSON.stringify(messages)}, title = ${title}, updated_at = ${now.toISOString()}
+              WHERE id = ${id}
+            `
+          } else {
+            await this.sql`
+              UPDATE chat_history 
+              SET messages = ${JSON.stringify(messages)}, updated_at = ${now.toISOString()}
+              WHERE id = ${id}
+            `
+          }
         }
         return
       } catch (error) {
@@ -189,16 +266,24 @@ export class ChatManagerDB {
     }
   }
 
-  async deleteChat(id: string): Promise<void> {
+  async deleteChat(id: string, userId: string | null = null): Promise<void> {
     // Try database first
     if (this.sql) {
       try {
         // Ensure database is initialized
         await ensureDatabaseInitialized();
 
-        await this.sql`
-          DELETE FROM chat_history WHERE id = ${id}
-        `
+        if (userId) {
+          // Delete chat ensuring it belongs to the user
+          await this.sql`
+            DELETE FROM chat_history WHERE id = ${id} AND user_id = ${userId}
+          `
+        } else {
+          // Delete chat without user check
+          await this.sql`
+            DELETE FROM chat_history WHERE id = ${id}
+          `
+        }
         return
       } catch (error) {
         console.warn("Database delete failed, using localStorage:", error)

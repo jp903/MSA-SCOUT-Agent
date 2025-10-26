@@ -133,7 +133,8 @@ export default function HomePage() {
 
   const loadChatHistory = async () => {
     try {
-      const history = await chatManagerDB.getAllChats()
+      const userId = user?.id || null
+      const history = await chatManagerDB.getAllChats(userId)
       setChatHistory(history)
     } catch (error) {
       toast({
@@ -224,7 +225,8 @@ export default function HomePage() {
     }
 
     try {
-      const chat = await chatManagerDB.getChat(chatId)
+      const userId = user.id
+      const chat = await chatManagerDB.getChat(chatId, userId)
       if (chat) {
         setCurrentChatId(chatId)
         setCurrentChat(chat)
@@ -254,7 +256,8 @@ export default function HomePage() {
     }
 
     try {
-      await chatManagerDB.deleteChat(chatId)
+      const userId = user.id
+      await chatManagerDB.deleteChat(chatId, userId)
 
       // Remove from history
       setChatHistory((prev) => prev.filter((chat) => chat.id !== chatId))
@@ -285,9 +288,11 @@ export default function HomePage() {
     }
 
     try {
+      const userId = user.id
+
       // If no current chat exists, create one
       if (!currentChatId && messages.length > 0) {
-        const newChat = await chatManagerDB.createChat(title || "New Chat")
+        const newChat = await chatManagerDB.createChat(title || "New Chat", userId)
         setCurrentChatId(newChat.id)
         setCurrentChat(newChat)
 
@@ -295,7 +300,7 @@ export default function HomePage() {
         setChatHistory((prev) => [newChat, ...prev])
 
         // Now update with messages
-        await chatManagerDB.updateChat(newChat.id, messages, title)
+        await chatManagerDB.updateChat(newChat.id, messages, title, userId)
 
         // Update local state
         const updatedChat = { ...newChat, messages, title: title || newChat.title, updatedAt: new Date() }
@@ -307,7 +312,7 @@ export default function HomePage() {
 
       // Update existing chat
       if (currentChatId) {
-        await chatManagerDB.updateChat(currentChatId, messages, title)
+        await chatManagerDB.updateChat(currentChatId, messages, title, userId)
 
         // Update local state
         setChatHistory((prev) =>

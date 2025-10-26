@@ -48,7 +48,7 @@ export default function PortfolioTrackerPage() {
 
   const loadChatHistory = async () => {
     try {
-      const history = await chatManagerDB.getAllChats()
+      const history = await chatManagerDB.getAllChats(null) // No user context
       setChatHistory(history)
     } catch (error) {
       toast({
@@ -74,7 +74,7 @@ export default function PortfolioTrackerPage() {
 
   const handleChatSelect = async (chatId: string) => {
     try {
-      const chat = await chatManagerDB.getChat(chatId)
+      const chat = await chatManagerDB.getChat(chatId, null) // No user context
       if (chat) {
         setCurrentChatId(chatId)
         // Navigate back to main page with selected chat
@@ -99,7 +99,7 @@ export default function PortfolioTrackerPage() {
 
   const handleDeleteChat = async (chatId: string) => {
     try {
-      await chatManagerDB.deleteChat(chatId)
+      await chatManagerDB.deleteChat(chatId, null) // No user context
 
       // Remove from history
       setChatHistory((prev) => prev.filter((chat) => chat.id !== chatId))

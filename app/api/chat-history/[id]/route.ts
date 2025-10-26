@@ -1,10 +1,21 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { ChatManagerDB } from "@/lib/chat-manager-db"
+import { chatManagerDB } from "@/lib/chat-manager-db"  // Note: changed to instance, not class
+import { AuthService } from "@/lib/auth"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     console.log("🔍 API: Getting chat with ID:", params.id)
-    const chat = await ChatManagerDB.getChat(params.id)
+    
+    // Extract session token from cookies
+    const sessionToken = request.cookies.get("session_token")?.value
+
+    let userId = null;
+    if (sessionToken) {
+      const user = await AuthService.verifySession(sessionToken);
+      userId = user?.id || null;
+    }
+
+    const chat = await chatManagerDB.getChat(params.id, userId)
 
     if (chat) {
       console.log("✅ API: Chat found:", chat.id)
@@ -24,8 +35,17 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     console.log("💾 API: Updating chat:", params.id)
     const { title, messages } = await request.json()
 
-    await ChatManagerDB.updateChat(params.id, messages, title)
-    const updatedChat = await ChatManagerDB.getChat(params.id)
+    // Extract session token from cookies
+    const sessionToken = request.cookies.get("session_token")?.value
+
+    let userId = null;
+    if (sessionToken) {
+      const user = await AuthService.verifySession(sessionToken);
+      userId = user?.id || null;
+    }
+
+    await chatManagerDB.updateChat(params.id, messages, title, userId)
+    const updatedChat = await chatManagerDB.getChat(params.id, userId)
 
     if (updatedChat) {
       console.log("✅ API: Chat updated successfully:", params.id)
@@ -43,7 +63,17 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     console.log("🗑️ API: Deleting chat:", params.id)
-    await ChatManagerDB.deleteChat(params.id)
+
+    // Extract session token from cookies
+    const sessionToken = request.cookies.get("session_token")?.value
+
+    let userId = null;
+    if (sessionToken) {
+      const user = await AuthService.verifySession(sessionToken);
+      userId = user?.id || null;
+    }
+
+    await chatManagerDB.deleteChat(params.id, userId)
 
     console.log("✅ API: Chat deleted successfully:", params.id)
     return NextResponse.json({ success: true })
