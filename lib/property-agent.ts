@@ -1,5 +1,6 @@
 import { generateText, tool } from "ai"
 import { openai } from "@ai-sdk/openai"
+import { MODEL } from "@/lib/ai-config"
 import { z } from "zod"
 
 // Investment calculation tool
@@ -22,6 +23,14 @@ const calculateROI = tool({
     loanInterestRate,
     loanTermYears,
     location,
+  }: {
+    purchasePrice: number
+    monthlyRent: number
+    monthlyExpenses: number
+    downPayment: number
+    loanInterestRate: number
+    loanTermYears: number
+    location: string
   }) => {
     const loanAmount = purchasePrice - downPayment
     const monthlyInterestRate = loanInterestRate / 12
@@ -53,7 +62,7 @@ const calculateROI = tool({
       aiRecommendation: marketRiskScore > 70 ? "Strong Buy" : marketRiskScore > 50 ? "Buy" : "Hold",
     }
   },
-})
+} as any)
 
 // AI-powered market comparison tool
 const compareMarkets = tool({
@@ -63,7 +72,7 @@ const compareMarkets = tool({
     propertyType: z.string().describe("Type of property (single-family, multi-family, etc.)"),
     investmentGoals: z.string().describe("Investment goals (cash flow, appreciation, etc.)"),
   }),
-  execute: async ({ locations, propertyType, investmentGoals }) => {
+  execute: async ({ locations, propertyType, investmentGoals }: { locations: string[]; propertyType: string; investmentGoals: string }) => {
     // AI-enhanced market comparison with multiple factors
     return {
       comparison: locations.map((location) => {
@@ -86,7 +95,7 @@ const compareMarkets = tool({
       aiRecommendation: "Based on AI analysis of demographic trends, economic indicators, and market sentiment",
     }
   },
-})
+} as any)
 
 // AI-powered property analysis tool
 const analyzePropertyWithAI = tool({
@@ -97,7 +106,7 @@ const analyzePropertyWithAI = tool({
     budget: z.number().describe("Investment budget"),
     goals: z.string().describe("Investment goals"),
   }),
-  execute: async ({ address, propertyType, budget, goals }) => {
+  execute: async ({ address, propertyType, budget, goals }: { address: string; propertyType: string; budget: number; goals: string }) => {
     // Simulate AI analysis of property
     const aiAnalysis = {
       propertyScore: 70 + Math.random() * 30, // AI property score
@@ -126,7 +135,7 @@ const analyzePropertyWithAI = tool({
 
     return aiAnalysis
   },
-})
+} as any)
 
 // Web search tool for current market data with AI enhancement
 const searchPropertyDataWithAI = tool({
@@ -135,7 +144,7 @@ const searchPropertyDataWithAI = tool({
     query: z.string().describe("Search query for property data"),
     location: z.string().describe("Specific location or state"),
   }),
-  execute: async ({ query, location }) => {
+  execute: async ({ query, location }: { query: string; location: string }) => {
     // AI-enhanced market data search
     return {
       searchResults: [
@@ -156,11 +165,11 @@ const searchPropertyDataWithAI = tool({
       aiSummary: `Based on AI analysis of ${location}, market conditions show strong fundamentals with predictive models indicating continued growth potential.`,
     }
   },
-})
+} as any)
 
 export async function analyzePropertyInvestment(location: string, investmentGoals: string, budget: number) {
   const result = await generateText({
-    model: openai("gpt-4o"),
+    model: MODEL,
     system: `You are MSASCOUT, a professional real estate investment advisor powered by advanced AI and machine learning models. You have access to real-time data analysis, predictive modeling, and comprehensive market intelligence.
     
     Your AI capabilities include:
@@ -189,7 +198,6 @@ export async function analyzePropertyInvestment(location: string, investmentGoal
       analyzePropertyWithAI,
       searchPropertyDataWithAI,
     },
-    maxSteps: 5,
   })
 
   return result

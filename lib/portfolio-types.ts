@@ -18,6 +18,10 @@ export interface Property {
   createdAt: string
   updatedAt: string
   images: PropertyImage[]
+  // Optional enriched fields used by portfolio analysis
+  equity?: number
+  location?: string
+  dateAdded?: string
 }
 
 export interface PropertyImage {
@@ -76,4 +80,24 @@ export interface User {
   email: string
   company?: string
   avatarUrl?: string
+}
+
+export interface Portfolio {
+  properties: Property[]
+  totalValue: number
+  totalEquity: number
+  totalMonthlyIncome: number
+  totalMonthlyExpenses: number
+  totalCashFlow: number
+  propertyCount: number
+}
+
+export interface PortfolioAnalysis {
+  portfolio: Portfolio
+  aiAnalysis: string
+  aiMetrics: Record<string, any>
+  recommendations: string[]
+  riskFactors: string[]
+  opportunities: string[]
+  projectedPerformance: Record<string, any>
 }

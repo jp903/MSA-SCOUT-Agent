@@ -1,5 +1,6 @@
 import { generateText } from "ai"
 import { openai } from "@ai-sdk/openai"
+import { MODEL } from "@/lib/ai-config"
 
 export interface CensusData {
   state: string
@@ -182,7 +183,7 @@ export class ResearchAgent {
       `
 
       const { text } = await generateText({
-        model: openai("gpt-4o"),
+        model: MODEL,
         prompt: analysisPrompt,
         system: `You are a professional real estate market analyst with expertise in demographic and economic data analysis. 
         Provide data-driven insights based on Census and Bureau of Labor Statistics data. 

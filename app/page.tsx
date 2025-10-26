@@ -103,10 +103,7 @@ export default function HomePage() {
 
   const initializeApp = async () => {
     try {
-      // Initialize database first
-      await initializeDatabase()
-
-      // Then load chat history
+      // Load chat history - database will be initialized automatically when needed
       await loadChatHistory()
     } catch (error) {
       console.error("App initialization error:", error)
@@ -118,23 +115,16 @@ export default function HomePage() {
     }
   }
 
-  const initializeDatabase = async () => {
-    try {
-      const response = await fetch("/api/init-db", { method: "POST" })
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error)
-      }
-    } catch (error) {
-      throw error
-    }
-  }
-
   const loadChatHistory = async () => {
     try {
       const response = await fetch("/api/chat-history")
       if (!response.ok) {
+        // If unauthorized, the API route will handle the authentication properly
+        if (response.status === 401 || response.status === 403) {
+          console.log("User not authenticated for chat history")
+          setChatHistory([]) // Set empty history for unauthenticated users
+          return
+        }
         throw new Error("Failed to load chat history")
       }
       const history = await response.json()

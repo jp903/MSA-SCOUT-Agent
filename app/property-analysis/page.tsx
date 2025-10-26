@@ -99,10 +99,7 @@ export default function PropertyAnalysisPage() {
 
   const initializeApp = async () => {
     try {
-      // Initialize database first
-      await initializeDatabase()
-
-      // Then load chat history
+      // Load chat history - database will be initialized automatically when needed
       await loadChatHistory()
     } catch (error) {
       toast({
@@ -113,29 +110,19 @@ export default function PropertyAnalysisPage() {
     }
   }
 
-  const initializeDatabase = async () => {
-    try {
-      const response = await fetch("/api/init-db", { method: "POST" })
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error)
-      }
-    } catch (error) {
-      throw error
-    }
-  }
-
   const loadChatHistory = async () => {
     try {
-      const history = await chatManagerDB.getAllChats(null) // No user context in this page
+      const response = await fetch("/api/chat-history")
+      if (!response.ok) {
+        // For property analysis, we might not need authenticated chat history
+        setChatHistory([]) // Set empty history
+        return
+      }
+      const history = await response.json()
       setChatHistory(history)
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load chat history",
-        variant: "destructive",
-      })
+      // Silently fail for property analysis as it may not need chat history
+      setChatHistory([])
     }
   }
 

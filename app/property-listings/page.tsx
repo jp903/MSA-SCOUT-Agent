@@ -13,42 +13,24 @@ export default function PropertyListingsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    initializeDatabase()
     loadChatHistory()
   }, [])
-
-  const initializeDatabase = async () => {
-    try {
-      const response = await fetch("/api/init-db", { method: "POST" })
-      if (!response.ok) {
-        throw new Error("Failed to initialize database")
-      }
-      console.log("✅ Database initialized")
-    } catch (error) {
-      console.error("❌ Database initialization error:", error)
-      toast({
-        title: "Database Error",
-        description: "Failed to initialize database",
-        variant: "destructive",
-      })
-    }
-  }
 
   const loadChatHistory = async () => {
     try {
       setLoading(true)
       const response = await fetch("/api/chat-history")
-      if (!response.ok) throw new Error("Failed to load chat history")
+      if (!response.ok) {
+        // For property listings, we might not need authenticated chat history
+        setChatHistory([]) // Set empty history
+        return
+      }
 
       const data = await response.json()
-      setChatHistory(data.chats || [])
+      setChatHistory(data || [])
     } catch (error) {
-      console.error("❌ Error loading chat history:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load chat history",
-        variant: "destructive",
-      })
+      // Silently fail for property listings as it may not need chat history
+      setChatHistory([])
     } finally {
       setLoading(false)
     }

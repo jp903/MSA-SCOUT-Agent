@@ -1,5 +1,5 @@
 import { generateText } from "ai"
-import { openai } from "@ai-sdk/openai"
+import { MODEL } from "./ai-config"
 import type { Property, Portfolio, PortfolioAnalysis } from "./portfolio-types"
 
 export class PortfolioManager {
@@ -9,7 +9,7 @@ export class PortfolioManager {
     const newProperty: Property = {
       ...property,
       id: crypto.randomUUID(),
-      dateAdded: new Date(),
+      dateAdded: new Date().toISOString(),
     }
 
     this.properties.push(newProperty)
@@ -44,7 +44,7 @@ export class PortfolioManager {
 
   async getPortfolio(): Promise<Portfolio> {
     const totalValue = this.properties.reduce((sum, p) => sum + p.currentValue, 0)
-    const totalEquity = this.properties.reduce((sum, p) => sum + p.equity, 0)
+    const totalEquity = this.properties.reduce((sum, p) => sum + (p.equity ?? 0), 0)
     const totalMonthlyIncome = this.properties.reduce((sum, p) => sum + p.monthlyRent, 0)
     const totalMonthlyExpenses = this.properties.reduce((sum, p) => sum + p.monthlyExpenses, 0)
     const totalCashFlow = totalMonthlyIncome - totalMonthlyExpenses
@@ -65,7 +65,7 @@ export class PortfolioManager {
 
     // Use AI to analyze the portfolio
     const { text } = await generateText({
-      model: openai("gpt-4o"),
+      model: MODEL,
       system: `You are an AI-powered portfolio analyst specializing in real estate investments. Analyze the provided portfolio data and provide comprehensive insights using advanced analytics and machine learning models.
 
 Your analysis should include:
