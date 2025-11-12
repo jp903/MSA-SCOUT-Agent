@@ -1,58 +1,128 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Building2, Send, User } from "lucide-react"
-
-interface Message {
-  id: string
-  content: string
-  sender: "user" | "ai"
-  timestamp: string
-}
+import { chatManagerDB } from "@/lib/chat-manager-db"
+import type { ChatHistoryItem, ChatMessage as Message } from "@/lib/portfolio-types"
 
 export default function AIChat() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      content: "Hello! I'm MSASCOUT AI Agent, your investment agent How can I help you today?",
-      sender: "ai",
-      timestamp: new Date().toISOString(),
-    },
-  ])
+  const [messages, setMessages] = useState<Message[]>([])
   const [inputMessage, setInputMessage] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [chatId, setChatId] = useState<string | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const scrollToBottom = () => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    }
+    scrollToBottom()
+  }, [messages])
+
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      setIsLoading(true)
+      try {
+        const history = await chatManagerDB.getAllChats()
+        if (history && history.length > 0) {
+          const mostRecentChat = history[0]
+          setMessages(mostRecentChat.messages)
+          setChatId(mostRecentChat.id)
+        } else {
+          setMessages([
+            {
+              id: "1",
+              role: "assistant",
+              content: "Hello! I'm MSASCOUT AI Agent, your investment agent. How can I help you today?",
+            },
+          ])
+        }
+      } catch (error) {
+        console.error("Failed to load chat history:", error)
+        setMessages([
+          {
+            id: "1",
+            role: "assistant",
+            content: "Hello! I'm MSASCOUT AI Agent. I'm having trouble loading our past conversations, but I'm ready to help.",
+          },
+        ])
+      }
+      setIsLoading(false)
+    }
+    loadChatHistory()
+  }, [])
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return
 
     const userMessage: Message = {
       id: crypto.randomUUID(),
+      role: "user",
       content: inputMessage,
-      sender: "user",
-      timestamp: new Date().toISOString(),
     }
 
-    setMessages((prev) => [...prev, userMessage])
+    const newMessages = [...messages, userMessage]
+    setMessages(newMessages)
     setInputMessage("")
     setIsLoading(true)
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      let currentChatId = chatId
+      const messageHistory = newMessages.map(({ id, ...rest }) => rest)
+
+      if (!chatId) {
+        // Create a new chat session if it's the first message
+        const newChat = await chatManagerDB.createChat("New Chat", null, newMessages.map(({ id, ...rest }) => ({ role: rest.role, content: rest.content })))
+        setChatId(newChat.id)
+        currentChatId = newChat.id
+      } else {
+        // Otherwise, update the existing chat with the user's message
+        await chatManagerDB.updateChat(chatId, newMessages.map(({ id, ...rest }) => ({ role: rest.role, content: rest.content })))
+      }
+
+      // Get AI response
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: messageHistory }),
+      })
+
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || "Failed to get AI response")
+      }
+
+      const { message: aiContent } = await res.json()
+
       const aiMessage: Message = {
         id: crypto.randomUUID(),
-        content: `I understand you're asking about "${inputMessage}". As your investment AI agent, I can help you analyze properties, calculate ROI, research markets, and provide investment insights. What specific aspect would you like to explore?`,
-        sender: "ai",
-        timestamp: new Date().toISOString(),
+        role: "assistant",
+        content: aiContent,
       }
-      setMessages((prev) => [...prev, aiMessage])
+
+      const finalMessages = [...newMessages, aiMessage]
+      setMessages(finalMessages)
+
+      // Update the chat history with the AI's response
+      if (currentChatId) {
+        await chatManagerDB.updateChat(currentChatId, finalMessages.map(({ id, ...rest }) => ({ role: rest.role, content: rest.content })))
+      }
+    } catch (error) {
+      console.error("Error handling message:", error)
+      const errorMessage: Message = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: "Sorry, I encountered an error. Please try again.",
+      }
+      setMessages([...newMessages, errorMessage])
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -80,23 +150,20 @@ export default function AIChat() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (
-          <div key={message.id} className={`flex gap-3 ${message.sender === "user" ? "justify-end" : ""}`}>
-            {message.sender === "ai" && (
+          <div key={message.id} className={`flex gap-3 ${message.role === "user" ? "justify-end" : ""}`}>
+            {message.role === "assistant" && (
               <Avatar className="w-8 h-8 rounded-xl">
                 <AvatarFallback className="rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 text-white text-xs">
                   AI
                 </AvatarFallback>
               </Avatar>
             )}
-            <Card className={`max-w-[70%] ${message.sender === "user" ? "bg-blue-600 text-white" : "bg-gray-50"}`}>
+            <Card className={`max-w-[70%] ${message.role === "user" ? "bg-blue-600 text-white" : "bg-gray-50"}`}>
               <CardContent className="p-3">
                 <p className="text-sm">{message.content}</p>
-                <p className={`text-xs mt-1 ${message.sender === "user" ? "text-blue-100" : "text-gray-500"}`}>
-                  {new Date(message.timestamp).toLocaleTimeString()}
-                </p>
               </CardContent>
             </Card>
-            {message.sender === "user" && (
+            {message.role === "user" && (
               <Avatar className="w-8 h-8 rounded-xl">
                 <AvatarFallback className="rounded-xl bg-gray-600 text-white text-xs">
                   <User className="h-4 w-4" />
@@ -119,10 +186,11 @@ export default function AIChat() {
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
                 </div>
-              </CardContent>
+              </CArdContent>
             </Card>
           </div>
         )}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}

@@ -60,9 +60,9 @@ export interface PropertyPerformance {
 }
 
 export interface ChatMessage {
-  role: string
+  id: string
+  role: "user" | "assistant" | "system"
   content: string
-  timestamp?: string | number
 }
 
 export interface ChatHistoryItem {
