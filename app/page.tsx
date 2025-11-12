@@ -16,7 +16,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calculator, TrendingUp, Building2, BarChart3, FileText, Users, DollarSign, Search, PanelLeft } from "lucide-react"
-import type { ChatHistoryItem, User, ChatMessage as Message } from "@/lib/portfolio-types"
+import type { ChatHistoryItem, ChatMessage as Message } from "@/lib/chat-types"
+import type { User } from "@/lib/user-types"
 import { toast } from "@/hooks/use-toast"
 
 interface LiveMarketData {

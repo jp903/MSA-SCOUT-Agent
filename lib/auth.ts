@@ -3,21 +3,11 @@ import { neon } from "@neondatabase/serverless"
 import { v4 as uuidv4 } from "uuid"
 
 import { ensureDatabaseInitialized } from "./db"
+import { User } from "./user-types"
 
 const sql = neon(process.env.DATABASE_URL!)
 
-export interface User {
-  id: string
-  email: string
-  first_name: string
-  last_name: string
-  phone?: string | null
-  company?: string | null
-  google_id?: string | null
-  avatar_url?: string | null
-  created_at: Date
-  updated_at: Date
-}
+
 
 export interface CreateUserData {
   email: string

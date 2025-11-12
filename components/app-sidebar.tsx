@@ -44,7 +44,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useTheme } from "next-themes"
 import { useSidebar } from "@/components/ui/sidebar"
-import type { ChatHistoryItem, User as UserType } from "@/lib/portfolio-types"
+import type { ChatHistoryItem, ChatMessage } from "@/lib/chat-types"
+import type { User as UserType } from "@/lib/user-types"
 
 interface AppSidebarProps {
   activeView: string

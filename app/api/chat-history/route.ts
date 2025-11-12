@@ -6,13 +6,19 @@ export async function GET(request: NextRequest) {
   try {
     // Extract session token from cookies
     const sessionToken = request.cookies.get("session_token")?.value
+    console.log("API /chat-history GET: sessionToken =", sessionToken ? "present" : "absent")
 
     let userId = null;
     if (sessionToken) {
       const user = await AuthService.verifySession(sessionToken);
       if (user) {
         userId = user.id;
+        console.log("API /chat-history GET: userId from session =", userId)
+      } else {
+        console.log("API /chat-history GET: session token invalid, userId is null")
       }
+    } else {
+      console.log("API /chat-history GET: no session token, userId is null")
     }
 
     const chatHistory = await chatManagerDB.getAllChats(userId)
@@ -27,11 +33,19 @@ export async function POST(request: NextRequest) {
   try {
     // Extract session token from cookies
     const sessionToken = request.cookies.get("session_token")?.value
+    console.log("API /chat-history POST: sessionToken =", sessionToken ? "present" : "absent")
 
     let userId = null
     if (sessionToken) {
       const user = await AuthService.verifySession(sessionToken)
-      userId = user?.id || null
+      if (user) {
+        userId = user.id
+        console.log("API /chat-history POST: userId from session =", userId)
+      } else {
+        console.log("API /chat-history POST: session token invalid, userId is null")
+      }
+    } else {
+      console.log("API /chat-history POST: no session token, userId is null")
     }
 
     const { title, messages } = await request.json()

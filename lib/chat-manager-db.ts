@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless"
-import type { ChatHistoryItem } from "./portfolio-types"
+import type { ChatHistoryItem } from "./chat-types"
 import { ensureDatabaseInitialized } from "./db"
 
 // Create SQL connection with fallback handling
@@ -183,18 +183,18 @@ export class ChatManagerDB {
             createdAt: data.createdAt || data.created_at || new Date().toISOString(),
             updatedAt: data.updatedAt || data.updated_at || new Date().toISOString(),
           }
+        } else {
+          throw new Error(`API getChat for ${id} returned non-ok status: ${res.status}`)
         }
       } catch (err) {
-        console.warn(`API getChat for ${id} failed, falling back to localStorage:`, err)
+        console.error(`API getChat for ${id} failed:`, err)
+        throw err
       }
-
-      const chats = this.getLocalChats()
-      return chats.find((c) => c.id === id) || null
     }
 
-    // Fallback
-    const chats2 = this.getLocalChats()
-    return chats2.find((c) => c.id === id) || null
+    // Fallback for server-side without DB connection, or if client-side API fails and no localStorage
+    console.warn("getChat is returning null due to unexpected fallback.")
+    return null
   }
 
   // Get all chats for the current session/user
@@ -245,16 +245,21 @@ export class ChatManagerDB {
             createdAt: chat.createdAt || chat.created_at || new Date().toISOString(),
             updatedAt: chat.updatedAt || chat.updated_at || new Date().toISOString(),
           }))
+        } else {
+          // If API call fails, re-throw the error to be caught by the caller
+          throw new Error(`API getAllChats returned non-ok status: ${res.status}`)
         }
       } catch (err) {
-        console.warn("API getAllChats failed, falling back to localStorage:", err)
+        console.error("API getAllChats failed:", err)
+        throw err // Re-throw to indicate failure to the caller
       }
-
-      return this.getLocalChats()
     }
 
-    // Fallback
-    return this.getLocalChats()
+    // Fallback for server-side without DB connection, or if client-side API fails and no localStorage
+    // This part should ideally not be reached if the client-side API is expected to work.
+    // If it is reached, it means there's a fundamental issue with data retrieval.
+    console.warn("getAllChats is returning an empty array due to unexpected fallback.")
+    return []
   }
 
   // Update chat messages/title
@@ -314,29 +319,13 @@ export class ChatManagerDB {
         })
         return
       } catch (err) {
-        console.warn(`API updateChat for ${id} failed, falling back to localStorage:`, err)
+        console.error(`API updateChat for ${id} failed:`, err)
+        throw err
       }
-
-      const chats = this.getLocalChats()
-      const idx = chats.findIndex((c) => c.id === id)
-      if (idx >= 0) {
-        chats[idx].messages = messages
-        if (title) chats[idx].title = title
-        chats[idx].updatedAt = nowIso
-        this.saveLocalChats(chats)
-      }
-      return
     }
 
-    // Fallback
-    const chats3 = this.getLocalChats()
-    const idx = chats3.findIndex((c) => c.id === id)
-    if (idx >= 0) {
-      chats3[idx].messages = messages
-      if (title) chats3[idx].title = title
-      chats3[idx].updatedAt = nowIso
-      this.saveLocalChats(chats3)
-    }
+    // Fallback for server-side without DB connection, or if client-side API fails and no localStorage
+    console.warn("updateChat is not persisting changes due to unexpected fallback.")
   }
 
   // Delete chat
@@ -370,19 +359,13 @@ export class ChatManagerDB {
         })
         return
       } catch (err) {
-        console.warn("API deleteChat failed, falling back to localStorage:", err)
+        console.error("API deleteChat failed:", err)
+        throw err
       }
-
-      const chats = this.getLocalChats()
-      const filtered = chats.filter((c) => c.id !== id)
-      this.saveLocalChats(filtered)
-      return
     }
 
-    // Fallback
-    const chats4 = this.getLocalChats()
-    const filtered = chats4.filter((c) => c.id !== id)
-    this.saveLocalChats(filtered)
+    // Fallback for server-side without DB connection, or if client-side API fails and no localStorage
+    console.warn("deleteChat is not persisting changes due to unexpected fallback.")
   }
 }
 

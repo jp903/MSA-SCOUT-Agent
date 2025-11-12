@@ -23,7 +23,7 @@ import {
   Presentation,
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import type { ChatHistoryItem, ChatMessage as Message } from "@/lib/portfolio-types"
+import type { ChatHistoryItem, ChatMessage as Message } from "@/lib/chat-types"
 
 interface EnhancedChatProps {
   onToolSelect: (toolId: string) => void
