@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,21 +23,12 @@ import {
   Presentation,
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import type { ChatHistoryItem } from "@/lib/portfolio-types"
-
-interface Message {
-  id: string
-  content: string
-  sender: "user" | "ai"
-  timestamp: string
-  action?: string
-  actionData?: any
-}
+import type { ChatHistoryItem, ChatMessage as Message } from "@/lib/portfolio-types"
 
 interface EnhancedChatProps {
   onToolSelect: (toolId: string) => void
   currentChat: ChatHistoryItem | null
-  onChatUpdate: (messages: Message[], title?: string) => void
+  onChatUpdate: (messages: Omit<Message, 'id'>[], title?: string) => void
 }
 
 const quickActions = [
@@ -98,14 +88,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
   // Load current chat messages when currentChat changes
   useEffect(() => {
     if (currentChat && currentChat.messages) {
-      setMessages(
-        currentChat.messages.map((msg) => ({
-          id: msg.id,
-          content: msg.content,
-          sender: msg.sender,
-          timestamp: msg.timestamp,
-        })),
-      )
+      setMessages(currentChat.messages)
     } else {
       setMessages([])
     }
@@ -118,10 +101,6 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
   useEffect(() => {
     scrollToBottom()
   }, [messages])
-
-  const generateMessageId = () => {
-    return Date.now().toString() + Math.random().toString(36).substr(2, 9)
-  }
 
   const copyToClipboard = async (content: string, messageId: string) => {
     try {
@@ -146,10 +125,9 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     if (!messageToSend || isLoading) return
 
     const userMessage: Message = {
-      id: generateMessageId(),
+      id: crypto.randomUUID(),
       content: messageToSend,
-      sender: "user",
-      timestamp: new Date().toISOString(),
+      role: "user",
     }
 
     const newMessages = [...messages, userMessage]
@@ -167,7 +145,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
         },
         body: JSON.stringify({
           messages: newMessages.map((msg) => ({
-            role: msg.sender === "user" ? "user" : "assistant",
+            role: msg.role,
             content: msg.content,
           })),
           action: action,
@@ -185,32 +163,29 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
       const data = await response.json()
       console.log("✅ Response received:", data)
 
-      const aiResponse: Message = {
-        id: generateMessageId(),
+      const aiMessage: Message = {
+        id: crypto.randomUUID(),
         content: data.message,
-        sender: "ai",
-        timestamp: new Date().toISOString(),
-        action: data.action,
-        actionData: data,
+        role: "assistant",
       }
 
-      const finalMessages = [...newMessages, aiResponse]
+      const finalMessages = [...newMessages, aiMessage]
       setMessages(finalMessages)
 
       // Generate title from first message if this is a new chat
       const title = messages.length === 0 ? generateChatTitle(messageToSend) : undefined
+      
+      // Update chat in parent component, removing the client-side 'id'
+      onChatUpdate(finalMessages.map(({id, ...rest}) => rest), title)
 
-      // Update chat in parent component
-      onChatUpdate(finalMessages, title)
     } catch (error) {
       console.error("❌ Chat error:", error)
 
       // Add error message to chat
       const errorMessage: Message = {
-        id: generateMessageId(),
+        id: crypto.randomUUID(),
         content: `I apologize, but I encountered an error: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.`,
-        sender: "ai",
-        timestamp: new Date().toISOString(),
+        role: "assistant",
       }
 
       const finalMessages = [...newMessages, errorMessage]
@@ -246,7 +221,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     handleSendMessage(question)
   }
 
-  const handleDownload = (message: Message) => {
+  const handleDownload = (message: any) => {
     if (message.actionData?.content && message.actionData?.filename) {
       try {
         const blob = new Blob([message.actionData.content], {
@@ -413,10 +388,10 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
             {messages.map((message, index) => (
               <div
                 key={message.id}
-                className={`flex gap-3 animate-fade-in-up ${message.sender === "user" ? "justify-end" : "justify-start"}`}
+                className={`flex gap-3 animate-fade-in-up ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 style={{ animationDelay: `${index * 0.05}s` }}
               >
-                {message.sender === "ai" && (
+                {message.role === "assistant" && (
                   <Avatar className="w-10 h-10 flex-shrink-0 shadow-md">
                     <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white">
                       <Bot className="h-5 w-5" />
@@ -426,14 +401,14 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
 
                 <div
                   className={`max-w-[80%] rounded-2xl p-4 shadow-md ${
-                    message.sender === "user" 
+                    message.role === "user" 
                       ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-br-none" 
                       : "bg-gradient-to-r from-white to-gray-50 border border-gray-200 rounded-bl-none"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      {message.sender === "ai" ? (
+                      {message.role === "assistant" ? (
                         <div
                           className="prose prose-sm max-w-none"
                           dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }}
@@ -512,12 +487,12 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                     </Button>
                   </div>
 
-                  <p className={`text-xs mt-2 ${message.sender === "user" ? "text-blue-100" : "text-gray-500"}`}>
-                    {new Date(message.timestamp).toLocaleTimeString()}
+                  <p className={`text-xs mt-2 ${message.role === "user" ? "text-blue-100" : "text-gray-500"}`}>
+                    {new Date().toLocaleTimeString()}
                   </p>
                 </div>
 
-                {message.sender === "user" && (
+                {message.role === "user" && (
                   <Avatar className="w-10 h-10 flex-shrink-0 shadow-md">
                     <AvatarFallback className="bg-gradient-to-br from-gray-600 to-gray-700 text-white">
                       <User className="h-5 w-5" />
