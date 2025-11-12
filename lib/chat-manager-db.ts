@@ -78,11 +78,13 @@ export class ChatManagerDB {
         const messagesJson = JSON.stringify(messages)
 
         if (userId) {
+          console.log("DB: createChat - Inserting chat with userId:", userId)
           await this.sql`
             INSERT INTO chat_history (id, user_id, title, messages, created_at, updated_at)
             VALUES (${id}, ${userId}, ${title}, ${messagesJson}, ${nowIso}, ${nowIso})
           `
         } else {
+          console.log("DB: createChat - Inserting chat without userId (public/unauthenticated)")
           await this.sql`
             INSERT INTO chat_history (id, title, messages, created_at, updated_at)
             VALUES (${id}, ${title}, ${messagesJson}, ${nowIso}, ${nowIso})
@@ -206,6 +208,7 @@ export class ChatManagerDB {
 
         let result;
         if (userId) {
+          console.log("DB: getAllChats - Fetching chats for userId:", userId)
           result = await this.sql`
             SELECT * FROM chat_history
             WHERE user_id = ${userId}
@@ -213,6 +216,7 @@ export class ChatManagerDB {
             LIMIT 50
           `
         } else {
+          console.log("DB: getAllChats - Fetching public/unauthenticated chats (userId is NULL)")
           result = await this.sql`
             SELECT * FROM chat_history
             WHERE user_id IS NULL
