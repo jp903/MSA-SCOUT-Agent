@@ -198,6 +198,9 @@ export async function initializeDatabase() {
       )
     `
 
+    // Add user_id to chat_history table if it doesn't exist
+    await sql`ALTER TABLE chat_history ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL`
+
     // Create indexes for better performance
     await sql`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`
     await sql`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)`
