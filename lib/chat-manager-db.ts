@@ -59,7 +59,6 @@ export class ChatManagerDB {
     userId: string | null = null,
     messages: any[] = []
   ): Promise<ChatHistoryItem> {
-    console.log(`[ChatManagerDB] createChat called. UserID: ${userId}. isClient: ${this.isClient}`);
     const id = crypto.randomUUID()
     const nowIso = new Date().toISOString()
 
@@ -77,7 +76,6 @@ export class ChatManagerDB {
         await ensureDatabaseInitialized()
 
         const messagesJson = JSON.stringify(messages)
-        console.log(`[ChatManagerDB] Inserting new chat for user ${userId} into DB.`);
 
         if (userId) {
           await this.sql`
@@ -90,10 +88,10 @@ export class ChatManagerDB {
             VALUES (${id}, ${title}, ${messagesJson}, ${nowIso}, ${nowIso})
           `
         }
-        console.log(`[ChatManagerDB] DB INSERT successful for chat ${id}.`);
+
         return newChat
       } catch (error) {
-        console.error("[ChatManagerDB] Database insert failed in createChat:", error)
+        console.error("Database insert failed in createChat:", error)
         // Re-throw the error to be caught by the API route
         throw error
       }
@@ -101,7 +99,6 @@ export class ChatManagerDB {
 
     // Browser: call API endpoint which will persist the chat on the server side
     if (this.isClient) {
-      console.log("[ChatManagerDB] Calling API to create chat.");
       try {
         const res = await fetch("/api/chat-history", {
           method: "POST",
@@ -112,7 +109,6 @@ export class ChatManagerDB {
 
         if (res.ok) {
           const data = await res.json()
-          console.log("[ChatManagerDB] API createChat successful:", data.id);
           return {
             id: data.id,
             title: data.title,
@@ -121,27 +117,27 @@ export class ChatManagerDB {
             updatedAt: data.updatedAt || data.updated_at || nowIso,
           }
         } else {
-          console.warn("[ChatManagerDB] API createChat returned non-ok:", res.status)
+          console.warn("API createChat returned non-ok:", res.status)
         }
       } catch (err) {
-        console.warn("[ChatManagerDB] API createChat failed, falling back to localStorage:", err)
+        console.warn("API createChat failed, falling back to localStorage:", err)
       }
 
       // fallback to localStorage
-      console.log("[ChatManagerDB] Falling back to localStorage for createChat.");
       const chats = this.getLocalChats()
       chats.unshift(newChat)
       this.saveLocalChats(chats)
       return newChat
     }
 
-    console.warn("[ChatManagerDB] createChat returning non-persistent chat object on server.");
+    // This part should ideally not be reached on the server if sql connection is available.
+    // If it is, it means the server has no DB connection, and we're returning a non-persistent chat.
+    console.warn("createChat is returning a non-persistent chat object on the server.")
     return newChat
   }
 
   // Get a single chat by id. Uses DB server-side, API client-side, localStorage fallback.
   async getChat(id: string, userId: string | null = null): Promise<ChatHistoryItem | null> {
-    console.log(`[ChatManagerDB] getChat called for ID: ${id}. UserID: ${userId}. isClient: ${this.isClient}`);
     // Server-side direct DB read
     if (!this.isClient && this.sql) {
       try {
@@ -159,7 +155,6 @@ export class ChatManagerDB {
         }
         
         if (result.length > 0) {
-          console.log(`[ChatManagerDB] Found chat ${id} in DB.`);
           const chat = result[0]
           return {
             id: chat.id,
@@ -169,21 +164,18 @@ export class ChatManagerDB {
             updatedAt: new Date(chat.updated_at).toISOString(),
           }
         }
-        console.log(`[ChatManagerDB] Chat ${id} not found in DB for user ${userId}.`);
         return null
       } catch (error) {
-        console.warn("[ChatManagerDB] Database query failed in getChat:", error)
+        console.warn("Database query failed in getChat:", error)
       }
     }
 
     // Client-side: call API
     if (this.isClient) {
-      console.log(`[ChatManagerDB] Calling API to get chat ${id}.`);
       try {
         const res = await fetch(`/api/chat-history/${encodeURIComponent(id)}`, { credentials: "include" })
         if (res.ok) {
           const data = await res.json()
-          console.log(`[ChatManagerDB] API getChat successful for ${id}.`);
           return {
             id: data.id,
             title: data.title,
@@ -193,24 +185,20 @@ export class ChatManagerDB {
           }
         }
       } catch (err) {
-        console.warn(`[ChatManagerDB] API getChat for ${id} failed, falling back to localStorage:`, err)
+        console.warn(`API getChat for ${id} failed, falling back to localStorage:`, err)
       }
 
       const chats = this.getLocalChats()
-      const chat = chats.find((c) => c.id === id) || null
-      console.log(`[ChatManagerDB] Found chat ${id} in localStorage:`, !!chat);
-      return chat;
+      return chats.find((c) => c.id === id) || null
     }
 
     // Fallback
-    console.log(`[ChatManagerDB] getChat falling back for ID ${id}.`);
     const chats2 = this.getLocalChats()
     return chats2.find((c) => c.id === id) || null
   }
 
   // Get all chats for the current session/user
   async getAllChats(userId: string | null = null): Promise<ChatHistoryItem[]> {
-    console.log(`[ChatManagerDB] getAllChats called. UserID: ${userId}. isClient: ${this.isClient}`);
     // Server-side direct DB read
     if (!this.isClient && this.sql) {
       try {
@@ -218,7 +206,6 @@ export class ChatManagerDB {
 
         let result;
         if (userId) {
-          console.log(`[ChatManagerDB] Fetching chats for user ${userId} from DB.`);
           result = await this.sql`
             SELECT * FROM chat_history
             WHERE user_id = ${userId}
@@ -226,7 +213,6 @@ export class ChatManagerDB {
             LIMIT 50
           `
         } else {
-          console.log("[ChatManagerDB] Fetching guest chats from DB.");
           result = await this.sql`
             SELECT * FROM chat_history
             WHERE user_id IS NULL
@@ -234,7 +220,6 @@ export class ChatManagerDB {
             LIMIT 50
           `
         }
-        console.log(`[ChatManagerDB] Found ${result.length} chats in DB.`);
         return result.map((chat: any) => ({
           id: chat.id,
           title: chat.title,
@@ -243,18 +228,16 @@ export class ChatManagerDB {
           updatedAt: new Date(chat.updated_at).toISOString(),
         }))
       } catch (error) {
-        console.warn("[ChatManagerDB] Database query failed in getAllChats:", error)
+        console.warn("Database query failed in getAllChats:", error)
       }
     }
 
     // Client-side: call API (server will use session to return user's chats)
     if (this.isClient) {
-      console.log("[ChatManagerDB] Calling API to get all chats.");
       try {
         const res = await fetch("/api/chat-history", { credentials: "include" })
         if (res.ok) {
           const data = await res.json()
-          console.log(`[ChatManagerDB] API getAllChats successful, received ${data.length} chats.`);
           return (data || []).map((chat: any) => ({
             id: chat.id,
             title: chat.title,
@@ -264,28 +247,24 @@ export class ChatManagerDB {
           }))
         }
       } catch (err) {
-        console.warn("[ChatManagerDB] API getAllChats failed, falling back to localStorage:", err)
+        console.warn("API getAllChats failed, falling back to localStorage:", err)
       }
 
-      console.log("[ChatManagerDB] Falling back to localStorage for getAllChats.");
       return this.getLocalChats()
     }
 
     // Fallback
-    console.log("[ChatManagerDB] getAllChats falling back.");
     return this.getLocalChats()
   }
 
   // Update chat messages/title
   async updateChat(id: string, messages: any[], title?: string, userId: string | null = null): Promise<void> {
-    console.log(`[ChatManagerDB] updateChat called for ID: ${id}. UserID: ${userId}. isClient: ${this.isClient}`);
     const nowIso = new Date().toISOString()
 
     // Server-side DB update
     if (!this.isClient && this.sql) {
       try {
         await ensureDatabaseInitialized()
-        console.log(`[ChatManagerDB] Updating chat ${id} for user ${userId} in DB.`);
 
         let query;
         if (userId) {
@@ -317,17 +296,15 @@ export class ChatManagerDB {
             `
           }
         }
-        const result = await query;
-        console.log(`[ChatManagerDB] DB UPDATE for chat ${id} affected ${result.length} rows.`);
+        await query;
         return
       } catch (error) {
-        console.warn("[ChatManagerDB] Database update failed in updateChat:", error)
+        console.warn("Database update failed in updateChat:", error)
       }
     }
 
     // Client-side: call API to update
     if (this.isClient) {
-      console.log(`[ChatManagerDB] Calling API to update chat ${id}.`);
       try {
         await fetch(`/api/chat-history/${encodeURIComponent(id)}`, {
           method: "PUT",
@@ -335,13 +312,11 @@ export class ChatManagerDB {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title, messages }),
         })
-        console.log(`[ChatManagerDB] API updateChat for ${id} finished.`);
         return
       } catch (err) {
-        console.warn(`[ChatManagerDB] API updateChat for ${id} failed, falling back to localStorage:`, err)
+        console.warn(`API updateChat for ${id} failed, falling back to localStorage:`, err)
       }
 
-      console.log(`[ChatManagerDB] Falling back to localStorage for updateChat ${id}.`);
       const chats = this.getLocalChats()
       const idx = chats.findIndex((c) => c.id === id)
       if (idx >= 0) {
@@ -354,7 +329,6 @@ export class ChatManagerDB {
     }
 
     // Fallback
-    console.log(`[ChatManagerDB] updateChat falling back for ID ${id}.`);
     const chats3 = this.getLocalChats()
     const idx = chats3.findIndex((c) => c.id === id)
     if (idx >= 0) {

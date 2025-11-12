@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import EnhancedChat from "@/components/enhanced-chat"
@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calculator, TrendingUp, Building2, BarChart3, FileText, Users, DollarSign, Search, PanelLeft } from "lucide-react"
-import type { ChatHistoryItem, User } from "@/lib/portfolio-types"
+import type { ChatHistoryItem, User, ChatMessage as Message } from "@/lib/portfolio-types"
 import { toast } from "@/hooks/use-toast"
 
 interface LiveMarketData {
@@ -59,54 +59,37 @@ export default function HomePage() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
-  const [currentChat, setCurrentChat] = useState<ChatHistoryItem | null>(null)
+
+  const currentChat = useMemo(() => {
+    return chatHistory.find((chat) => chat.id === currentChatId) || null
+  }, [chatHistory, currentChatId])
 
   // Check authentication on component mount
   useEffect(() => {
-    console.log("[HomePage] Mounting component, checking auth...");
     checkAuth()
   }, [])
 
-  useEffect(() => {
-    console.log("[HomePage] chatHistory state updated:", chatHistory);
-  }, [chatHistory]);
-
-  useEffect(() => {
-    console.log("[HomePage] currentChatId state updated:", currentChatId);
-  }, [currentChatId]);
-
-  useEffect(() => {
-    console.log("[HomePage] currentChat state updated:", currentChat);
-  }, [currentChat]);
-
   const checkAuth = async () => {
     try {
-      console.log("[HomePage] checkAuth: Fetching /api/auth/verify...");
       const response = await fetch("/api/auth/verify", {
         method: "GET",
         credentials: "include", // Include cookies
       })
 
-      console.log("[HomePage] checkAuth: Response status:", response.status)
-
       if (response.ok) {
         const data = await response.json()
-        console.log("[HomePage] checkAuth: Response data:", data)
 
         if (data.valid && data.user) {
-          console.log("[HomePage] checkAuth: User is authenticated:", data.user.id)
           setUser(data.user)
           await initializeApp()
         } else {
-          console.log("[HomePage] checkAuth: User is not authenticated")
           setUser(null)
         }
       } else {
-        console.log("[HomePage] checkAuth: Auth check failed with status:", response.status)
         setUser(null)
       }
     } catch (error) {
-      console.error("[HomePage] checkAuth: Error:", error)
+      console.error("Auth check error:", error)
       setUser(null)
     } finally {
       setIsLoading(false)
@@ -115,11 +98,10 @@ export default function HomePage() {
 
   const initializeApp = async () => {
     try {
-      console.log("[HomePage] initializeApp: Initializing...");
       // Load chat history - database will be initialized automatically when needed
       await loadChatHistory()
     } catch (error) {
-      console.error("[HomePage] initializeApp: Error:", error)
+      console.error("App initialization error:", error)
       toast({
         title: "Initialization Error",
         description: "Failed to initialize the application",
@@ -130,21 +112,17 @@ export default function HomePage() {
 
   const loadChatHistory = async () => {
     try {
-      console.log("[HomePage] loadChatHistory: Fetching /api/chat-history...");
       const response = await fetch("/api/chat-history")
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
-          console.log("[HomePage] loadChatHistory: User not authenticated.")
-          setChatHistory([])
+          setChatHistory([]) // Set empty history for unauthenticated users
           return
         }
-        throw new Error(`Failed to load chat history. Status: ${response.status}`)
+        throw new Error("Failed to load chat history")
       }
       const history = await response.json()
-      console.log(`[HomePage] loadChatHistory: Fetched ${history.length} chats.`);
       setChatHistory(history)
     } catch (error) {
-      console.error("[HomePage] loadChatHistory: Error:", error);
       toast({
         title: "Error",
         description: "Failed to load chat history",
@@ -162,7 +140,7 @@ export default function HomePage() {
   }
 
   const handleAuthSuccess = async () => {
-    console.log("[HomePage] handleAuthSuccess: Auth success callback triggered")
+    // Re-check authentication after successful login
     await checkAuth()
     setShowAuthModal(false)
     setActiveView("home")
@@ -182,7 +160,6 @@ export default function HomePage() {
       setUser(null)
       setChatHistory([])
       setCurrentChatId(null)
-      setCurrentChat(null)
       setActiveView("chat")
       toast({
         title: "Signed Out",
@@ -205,9 +182,10 @@ export default function HomePage() {
     }
 
     try {
-      console.log("[HomePage] handleNewChat: Starting new chat.");
+      // Clear current chat state first
       setCurrentChatId(null)
-      setCurrentChat(null)
+
+      // Switch to chat view
       setActiveView("home")
 
       toast({
@@ -223,41 +201,13 @@ export default function HomePage() {
     }
   }
 
-  const handleChatSelect = async (chatId: string) => {
+  const handleChatSelect = (chatId: string) => {
     if (!user) {
       setShowAuthModal(true)
       return
     }
-
-    try {
-      console.log(`[HomePage] handleChatSelect: Selecting chat ${chatId}`);
-      const response = await fetch(`/api/chat-history/${chatId}`)
-      if (!response.ok) {
-        if (response.status === 404) {
-          setChatHistory((prev) => prev.filter((c) => c.id !== chatId))
-          toast({
-            title: "Chat Not Found",
-            description: "This chat may have been deleted",
-            variant: "destructive",
-          })
-        }
-        throw new Error("Failed to load chat")
-      }
-      
-      const chat = await response.json()
-      if (chat) {
-        console.log(`[HomePage] handleChatSelect: Chat ${chatId} loaded.`);
-        setCurrentChatId(chatId)
-        setCurrentChat(chat)
-        setActiveView("home")
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load chat",
-        variant: "destructive",
-      })
-    }
+    setCurrentChatId(chatId)
+    setActiveView("home")
   }
 
   const handleDeleteChat = async (chatId: string) => {
@@ -267,7 +217,6 @@ export default function HomePage() {
     }
 
     try {
-      console.log(`[HomePage] handleDeleteChat: Deleting chat ${chatId}`);
       const response = await fetch(`/api/chat-history/${chatId}`, {
         method: "DELETE",
       })
@@ -276,11 +225,12 @@ export default function HomePage() {
         throw new Error("Failed to delete chat")
       }
 
+      // Remove from history
       setChatHistory((prev) => prev.filter((chat) => chat.id !== chatId))
 
+      // If this was the current chat, clear it
       if (currentChatId === chatId) {
         setCurrentChatId(null)
-        setCurrentChat(null)
       }
 
       toast({
@@ -304,8 +254,7 @@ export default function HomePage() {
 
     try {
       // If no current chat exists, create one via API
-      if (!currentChatId && messages.length > 0) {
-        console.log("[HomePage] handleChatUpdate: Creating new chat...");
+      if (!currentChatId) {
         const response = await fetch("/api/chat-history", {
           method: "POST",
           headers: {
@@ -322,59 +271,36 @@ export default function HomePage() {
         }
 
         const newChat = await response.json()
-        console.log("[HomePage] handleChatUpdate: New chat created:", newChat.id);
-        setCurrentChatId(newChat.id)
-        setCurrentChat(newChat)
-
-        // Add to history
         setChatHistory((prev) => [newChat, ...prev])
-
+        setCurrentChatId(newChat.id)
         return
       }
 
       // Update existing chat via API
-      if (currentChatId) {
-        console.log(`[HomePage] handleChatUpdate: Updating chat ${currentChatId}...`);
-        const response = await fetch(`/api/chat-history/${currentChatId}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            title: title,
-            messages,
-          }),
-        })
+      const response = await fetch(`/api/chat-history/${currentChatId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: title,
+          messages,
+        }),
+      })
 
-        if (!response.ok) {
-          throw new Error("Failed to update chat")
-        }
-
-        const updatedChat = await response.json()
-        console.log(`[HomePage] handleChatUpdate: Chat ${currentChatId} updated.`);
-
-        // Update local state
-        setChatHistory((prev) =>
-          prev.map((chat) =>
-            chat.id === currentChatId ? { ...chat, messages, title: title || chat.title, updatedAt: new Date().toISOString() } : chat,
-          ),
-        )
-
-        if (currentChat) {
-          setCurrentChat((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  messages,
-                  title: title || prev.title,
-                  updatedAt: new Date().toISOString(),
-                }
-              : null,
-          )
-        }
+      if (!response.ok) {
+        throw new Error("Failed to update chat")
       }
+
+      const updatedChat = await response.json()
+
+      // Update local state
+      setChatHistory((prev) =>
+        prev.map((chat) =>
+          chat.id === currentChatId ? updatedChat : chat
+        )
+      )
     } catch (error) {
-      console.error("[HomePage] handleChatUpdate: Error:", error);
       toast({
         title: "Error",
         description: "Failed to save chat",
