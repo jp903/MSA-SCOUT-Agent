@@ -28,23 +28,33 @@ export async function POST(request: NextRequest) {
     // Extract session token from cookies
     const sessionToken = request.cookies.get("session_token")?.value
 
-    let userId = null;
+    let userId = null
     if (sessionToken) {
-      const user = await AuthService.verifySession(sessionToken);
-      userId = user?.id || null;
+      const user = await AuthService.verifySession(sessionToken)
+      userId = user?.id || null
     }
 
     const { title, messages } = await request.json()
-    const chat = await chatManagerDB.createChat(title || "New Chat", userId)
+    const chat = await chatManagerDB.createChat(
+      title || "New Chat",
+      userId,
+      messages
+    )
 
     if (chat) {
-      await chatManagerDB.updateChat(chat.id, messages, title, userId)
       return NextResponse.json(chat)
     } else {
-      return NextResponse.json({ error: "Failed to create chat" }, { status: 400 })
+      // This case should ideally not be hit if createChat throws an error on failure
+      return NextResponse.json(
+        { error: "Failed to create chat" },
+        { status: 400 }
+      )
     }
   } catch (error) {
     console.error("Error creating chat:", error)
-    return NextResponse.json({ error: "Failed to create chat" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Failed to create chat" },
+      { status: 500 }
+    )
   }
 }

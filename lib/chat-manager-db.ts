@@ -54,14 +54,18 @@ export class ChatManagerDB {
   }
 
   // Create a new chat. If running in browser, call API so server persists it (and associates user).
-  async createChat(title = "New Chat", userId: string | null = null): Promise<ChatHistoryItem> {
+  async createChat(
+    title = "New Chat",
+    userId: string | null = null,
+    messages: any[] = []
+  ): Promise<ChatHistoryItem> {
     const id = crypto.randomUUID()
     const nowIso = new Date().toISOString()
 
     const newChat: ChatHistoryItem = {
       id,
       title,
-      messages: [],
+      messages,
       createdAt: nowIso,
       updatedAt: nowIso,
     }
@@ -71,21 +75,25 @@ export class ChatManagerDB {
       try {
         await ensureDatabaseInitialized()
 
+        const messagesJson = JSON.stringify(messages)
+
         if (userId) {
           await this.sql`
             INSERT INTO chat_history (id, user_id, title, messages, created_at, updated_at)
-            VALUES (${id}, ${userId}, ${title}, ${JSON.stringify([])}, ${nowIso}, ${nowIso})
+            VALUES (${id}, ${userId}, ${title}, ${messagesJson}, ${nowIso}, ${nowIso})
           `
         } else {
           await this.sql`
             INSERT INTO chat_history (id, title, messages, created_at, updated_at)
-            VALUES (${id}, ${title}, ${JSON.stringify([])}, ${nowIso}, ${nowIso})
+            VALUES (${id}, ${title}, ${messagesJson}, ${nowIso}, ${nowIso})
           `
         }
 
         return newChat
       } catch (error) {
-        console.warn("Database insert failed, falling back to other persistence:", error)
+        console.error("Database insert failed in createChat:", error)
+        // Re-throw the error to be caught by the API route
+        throw error
       }
     }
 
@@ -96,7 +104,7 @@ export class ChatManagerDB {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title, messages: [] }),
+          body: JSON.stringify({ title, messages }),
         })
 
         if (res.ok) {
@@ -122,10 +130,9 @@ export class ChatManagerDB {
       return newChat
     }
 
-    // Default fallback (server w/o DB or unknown env): use local storage via the getLocalChats method (no-op server-side)
-    const chats = this.getLocalChats()
-    chats.unshift(newChat)
-    this.saveLocalChats(chats)
+    // This part should ideally not be reached on the server if sql connection is available.
+    // If it is, it means the server has no DB connection, and we're returning a non-persistent chat.
+    console.warn("createChat is returning a non-persistent chat object on the server.")
     return newChat
   }
 
