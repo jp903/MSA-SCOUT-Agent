@@ -75,11 +75,14 @@ export interface ChatHistoryItem {
 
 export interface User {
   id: string
-  firstName: string
-  lastName: string
+  first_name: string
+  last_name: string
   email: string
   company?: string
-  avatarUrl?: string
+  avatar_url?: string
+  phone?: string | null
+  created_at: Date
+  updated_at: Date
 }
 
 export interface Portfolio {

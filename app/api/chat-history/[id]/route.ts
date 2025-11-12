@@ -2,10 +2,6 @@ import { type NextRequest, NextResponse } from "next/server"
 import { chatManagerDB } from "@/lib/chat-manager-db"  // Note: changed to instance, not class
 import { AuthService } from "@/lib/auth"
 
-import { type NextRequest, NextResponse } from "next/server"
-import { chatManagerDB } from "@/lib/chat-manager-db"  // Note: changed to instance, not class
-import { AuthService } from "@/lib/auth"
-
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     // Extract session token from cookies
