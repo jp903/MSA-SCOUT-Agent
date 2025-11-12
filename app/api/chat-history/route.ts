@@ -6,11 +6,12 @@ export async function GET(request: NextRequest) {
   try {
     // Extract session token from cookies
     const sessionToken = request.cookies.get("session_token")?.value
+    const response = NextResponse.json({}) // Create a response object to pass to verifySession
     console.log("API /chat-history GET: sessionToken =", sessionToken ? "present" : "absent")
 
     let userId = null;
     if (sessionToken) {
-      const user = await AuthService.verifySession(sessionToken);
+      const user = await AuthService.verifySession(sessionToken, response); // Pass the response object
       if (user) {
         userId = user.id;
         console.log("API /chat-history GET: userId from session =", userId)
@@ -22,7 +23,8 @@ export async function GET(request: NextRequest) {
     }
 
     const chatHistory = await chatManagerDB.getAllChats(userId)
-    return NextResponse.json(chatHistory)
+    response.json(chatHistory) // Set the JSON data on the response
+    return response
   } catch (error) {
     console.error("Error fetching chat history:", error)
     return NextResponse.json({ error: "Failed to fetch chat history" }, { status: 500 })
@@ -33,11 +35,12 @@ export async function POST(request: NextRequest) {
   try {
     // Extract session token from cookies
     const sessionToken = request.cookies.get("session_token")?.value
+    const response = NextResponse.json({}) // Create a response object to pass to verifySession
     console.log("API /chat-history POST: sessionToken =", sessionToken ? "present" : "absent")
 
     let userId = null
     if (sessionToken) {
-      const user = await AuthService.verifySession(sessionToken)
+      const user = await AuthService.verifySession(sessionToken, response) // Pass the response object
       if (user) {
         userId = user.id
         console.log("API /chat-history POST: userId from session =", userId)
