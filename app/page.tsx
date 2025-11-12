@@ -60,6 +60,7 @@ export default function HomePage() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
+  const [chatHistoryLoaded, setChatHistoryLoaded] = useState(false)
 
   const currentChat = useMemo(() => {
     return chatHistory.find((chat) => chat.id === currentChatId) || null
@@ -85,13 +86,16 @@ export default function HomePage() {
           await initializeApp()
         } else {
           setUser(null)
+          setChatHistoryLoaded(true) // Mark as loaded even if no user
         }
       } else {
         setUser(null)
+        setChatHistoryLoaded(true) // Mark as loaded even if auth check fails
       }
     } catch (error) {
       console.error("Auth check error:", error)
       setUser(null)
+      setChatHistoryLoaded(true) // Mark as loaded on error
     } finally {
       setIsLoading(false)
     }
@@ -101,6 +105,7 @@ export default function HomePage() {
     try {
       // Load chat history - database will be initialized automatically when needed
       await loadChatHistory()
+      setChatHistoryLoaded(true)
     } catch (error) {
       console.error("App initialization error:", error)
       toast({
@@ -108,6 +113,7 @@ export default function HomePage() {
         description: "Failed to initialize the application",
         variant: "destructive",
       })
+      setChatHistoryLoaded(true) // Mark as loaded on error
     }
   }
 
@@ -579,6 +585,7 @@ export default function HomePage() {
         onDeleteChat={handleDeleteChat}
         user={user}
         onSignOut={handleSignOut}
+        chatHistoryLoaded={chatHistoryLoaded}
       />
       <SidebarInset>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">

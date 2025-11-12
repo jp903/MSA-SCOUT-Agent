@@ -57,6 +57,7 @@ interface AppSidebarProps {
   onDeleteChat: (chatId: string) => void
   user: UserType | null
   onSignOut: () => void
+  chatHistoryLoaded: boolean
 }
 
 const navigationItems = [
@@ -128,6 +129,7 @@ export function AppSidebar({
   onDeleteChat,
   user,
   onSignOut,
+  chatHistoryLoaded,
 }: AppSidebarProps) {
   const { theme, setTheme } = useTheme();
   const { toggleSidebar } = useSidebar();
@@ -195,6 +197,10 @@ export function AppSidebar({
               <SidebarMenu>
                 {!user ? (
                   <div className="px-2 py-4 text-center text-sm text-gray-500">Sign in to view chat history</div>
+                ) : !chatHistoryLoaded ? (
+                  <div className="px-2 py-4 text-center text-sm text-gray-500 flex items-center justify-center">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading history...
+                  </div>
                 ) : chatHistory.length === 0 ? (
                   <div className="px-2 py-4 text-center text-sm text-gray-500">
                     No chat history yet.
@@ -277,7 +283,7 @@ export function AppSidebar({
               <DropdownMenuContent align="end" className="w-56">
                 <div className="px-2 py-1.5">
                   <p className="text-sm font-medium">
-                    {user.firstName} {user.lastName}
+                        {user.firstName} {user.lastName}
                   </p>
                   <p className="text-xs text-gray-500">{user.email}</p>
                   {user.company && <p className="text-xs text-gray-500">{user.company}</p>}
