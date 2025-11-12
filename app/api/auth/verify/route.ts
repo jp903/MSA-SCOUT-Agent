@@ -9,13 +9,14 @@ export async function GET(request: NextRequest) {
     const sessionToken = request.cookies.get("session_token")?.value
     console.log("Session token from cookie:", sessionToken ? "present" : "missing")
 
+    const response = NextResponse.json({ valid: false, user: null }) // Create a response object to pass to verifySession
     if (!sessionToken) {
       console.log("No session token found in cookies")
-      return NextResponse.json({ valid: false, user: null })
+      return response
     }
 
     // Verify session
-    const user = await AuthService.verifySession(sessionToken)
+    const user = await AuthService.verifySession(sessionToken, response) // Pass the response object
     console.log("Session verification result:", user ? "valid user found" : "invalid session")
 
     if (!user) {

@@ -61,6 +61,7 @@ export default function HomePage() {
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const [chatHistoryLoaded, setChatHistoryLoaded] = useState(false)
+  const [userLoaded, setUserLoaded] = useState(false) // New state variable
 
   const currentChat = useMemo(() => {
     return chatHistory.find((chat) => chat.id === currentChatId) || null
@@ -70,6 +71,13 @@ export default function HomePage() {
   useEffect(() => {
     checkAuth()
   }, [])
+
+  // Call initializeApp once user authentication status is known
+  useEffect(() => {
+    if (userLoaded) {
+      initializeApp()
+    }
+  }, [userLoaded, user]) // Depend on userLoaded and user
 
   const checkAuth = async () => {
     try {
@@ -83,21 +91,18 @@ export default function HomePage() {
 
         if (data.valid && data.user) {
           setUser(data.user)
-          await initializeApp()
         } else {
           setUser(null)
-          setChatHistoryLoaded(true) // Mark as loaded even if no user
         }
       } else {
         setUser(null)
-        setChatHistoryLoaded(true) // Mark as loaded even if auth check fails
       }
     } catch (error) {
       console.error("Auth check error:", error)
       setUser(null)
-      setChatHistoryLoaded(true) // Mark as loaded on error
     } finally {
       setIsLoading(false)
+      setUserLoaded(true) // Set userLoaded to true regardless of auth success/failure
     }
   }
 

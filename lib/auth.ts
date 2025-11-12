@@ -230,7 +230,7 @@ export class AuthService {
     return sessionToken
   }
 
-  static async verifySession(sessionToken: string): Promise<User | null> {
+  static async verifySession(sessionToken: string, response?: NextResponse): Promise<User | null> {
     try {
       // Ensure database is initialized
       await ensureDatabaseInitialized();
@@ -249,6 +249,10 @@ export class AuthService {
 
       if (result.length === 0) {
         console.log("No session found for token")
+        if (response) {
+          response.cookies.delete("session_token")
+          console.log("Cleared invalid session token cookie.")
+        }
         return null
       }
 
@@ -264,6 +268,10 @@ export class AuthService {
         await sql`
           DELETE FROM sessions WHERE token = ${sessionToken}
         `
+        if (response) {
+          response.cookies.delete("session_token")
+          console.log("Cleared expired session token cookie.")
+        }
         return null
       }
 
@@ -271,6 +279,10 @@ export class AuthService {
       return sessionData as User
     } catch (error) {
       console.error("Error verifying session:", error)
+      if (response) {
+        response.cookies.delete("session_token")
+        console.log("Cleared session token cookie due to verification error.")
+      }
       return null
     }
   }
