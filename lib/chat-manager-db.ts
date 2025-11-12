@@ -159,12 +159,11 @@ export class ChatManagerDB {
         if (result.length > 0) {
           const chat = result[0]
           return {
-            id: chat.id,
-            title: chat.title,
-            messages: JSON.parse(chat.messages || "[]"),
-            createdAt: new Date(chat.created_at).toISOString(),
-            updatedAt: new Date(chat.updated_at).toISOString(),
-          }
+                      id: chat.id,
+                      title: chat.title,
+                      messages: chat.messages || [],
+                      createdAt: new Date(chat.created_at).toISOString(),
+                      updatedAt: new Date(chat.updated_at).toISOString(),          }
         }
         return null
       } catch (error) {
@@ -227,7 +226,7 @@ export class ChatManagerDB {
         return result.map((chat: any) => ({
           id: chat.id,
           title: chat.title,
-          messages: JSON.parse(chat.messages || "[]"),
+          messages: chat.messages || [],
           createdAt: new Date(chat.created_at).toISOString(),
           updatedAt: new Date(chat.updated_at).toISOString(),
         }))

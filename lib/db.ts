@@ -171,6 +171,8 @@ export async function initializeDatabase() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
+    // Add user_id to properties table if it doesn't exist (for older schemas)
+    await sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL`
 
     // Create property_images table if it doesn't exist
     await sql`
@@ -186,9 +188,12 @@ export async function initializeDatabase() {
       )
     `
 
-    // Create chat_history table if it doesn't exist
+    // Drop and recreate chat_history table to ensure clean schema and prevent data corruption
+    console.log("🗑️ Dropping existing chat_history table (if any)...")
+    await sql`DROP TABLE IF EXISTS chat_history CASCADE`
+    console.log("✨ Recreating chat_history table...")
     await sql`
-      CREATE TABLE IF NOT EXISTS chat_history (
+      CREATE TABLE chat_history (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID REFERENCES users(id) ON DELETE SET NULL,
         title VARCHAR(255) NOT NULL,
@@ -197,9 +202,6 @@ export async function initializeDatabase() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
-
-    // Add user_id to chat_history table if it doesn't exist
-    await sql`ALTER TABLE chat_history ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL`
 
     // Create indexes for better performance
     await sql`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`
