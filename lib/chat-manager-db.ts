@@ -216,7 +216,7 @@ export class ChatManagerDB {
         if (userId) {
           const result = await this.sql`
             SELECT * FROM chat_history
-            WHERE user_id = ${userId} OR user_id IS NULL
+            WHERE user_id = ${userId}
             ORDER BY updated_at DESC
             LIMIT 50
           `
