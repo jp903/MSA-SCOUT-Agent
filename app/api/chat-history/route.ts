@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
     }
 
     const chatHistory = await chatManagerDB.getAllChats(userId)
-    response.json(chatHistory) // Set the JSON data on the response
-    return response
+    // Create a new response with the actual data instead of trying to modify the existing one
+    return NextResponse.json(chatHistory)
   } catch (error) {
     console.error("Error fetching chat history:", error)
     return NextResponse.json({ error: "Failed to fetch chat history" }, { status: 500 })

@@ -17,6 +17,7 @@ import {
   Sun,
   PanelLeft,
   PanelRight,
+  Loader2,
 } from "lucide-react"
 
 import {
