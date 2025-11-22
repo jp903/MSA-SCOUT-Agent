@@ -21,9 +21,13 @@ import {
   Check,
   FileText,
   Presentation,
+  RotateCcw,
+  Paperclip,
+  Search as SearchIcon,
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import type { ChatHistoryItem, ChatMessage as Message } from "@/lib/chat-types"
+import DocumentUploader from "@/components/document-uploader"
 
 interface EnhancedChatProps {
   onToolSelect: (toolId: string) => void
@@ -83,6 +87,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
+  const [uploadedDocument, setUploadedDocument] = useState<File | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Load current chat messages when currentChat changes
@@ -128,6 +133,8 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
       id: crypto.randomUUID(),
       content: messageToSend,
       role: "user",
+      action: "",
+      actionData: false
     }
 
     const newMessages = [...messages, userMessage]
@@ -138,18 +145,36 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     try {
       console.log("🚀 Sending message to API...")
 
+      // Prepare the message content with document information if exists
+      const messageContent: {
+        messages: Array<{ role: string; content: string }>;
+        action: string | undefined;
+        document?: { name: string; size: number; type: string; lastModified: number };
+      } = {
+        messages: newMessages.map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+        })),
+        action: action,
+      }
+
+      // Add document information if one has been uploaded
+      if (uploadedDocument) {
+        const docInfo = {
+          name: uploadedDocument.name,
+          size: uploadedDocument.size,
+          type: uploadedDocument.type,
+          lastModified: uploadedDocument.lastModified,
+        }
+        messageContent.document = docInfo
+      }
+
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          messages: newMessages.map((msg) => ({
-            role: msg.role,
-            content: msg.content,
-          })),
-          action: action,
-        }),
+        body: JSON.stringify(messageContent),
       })
 
       console.log("📡 Response status:", response.status)
@@ -167,6 +192,8 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
         id: crypto.randomUUID(),
         content: data.message,
         role: "assistant",
+        action: data.action || "",
+        actionData: data.researchQuery || false
       }
 
       const finalMessages = [...newMessages, aiMessage]
@@ -174,7 +201,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
 
       // Generate title from first message if this is a new chat
       const title = messages.length === 0 ? generateChatTitle(messageToSend) : undefined
-      
+
       // Update chat in parent component, removing the client-side 'id'
       onChatUpdate(finalMessages.map(({id, ...rest}) => rest), title)
 
@@ -186,6 +213,8 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
         id: crypto.randomUUID(),
         content: `I apologize, but I encountered an error: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.`,
         role: "assistant",
+        action: "",
+        actionData: false
       }
 
       const finalMessages = [...newMessages, errorMessage]
@@ -206,7 +235,15 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
     return words.length > 30 ? words.substring(0, 30) + "..." : words
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleDocumentUpload = (file: File) => {
+    setUploadedDocument(file);
+    toast({
+      title: "Document Uploaded",
+      description: `${file.name} ready for analysis`,
+    });
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       handleSendMessage()
@@ -258,289 +295,364 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
   }
 
   const formatMessage = (content: string) => {
-    // Convert markdown-style formatting to HTML
-    const formatted = content
-      // Headers
-      .replace(/^# (.*$)/gm, '<h1 class="text-xl font-bold text-blue-600 border-b-2 border-blue-600 pb-2 mb-4">$1</h1>')
-      .replace(/^## (.*$)/gm, '<h2 class="text-lg font-semibold text-blue-700 mt-6 mb-3">$1</h2>')
-      .replace(/^### (.*$)/gm, '<h3 class="text-md font-medium text-blue-800 mt-4 mb-2">$1</h3>')
-      // Bold text
-      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
-      // Code blocks
-      .replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">$1</code>')
-      // Line breaks
-      .replace(/\n/g, "<br>")
+    // Convert markdown to HTML with improved handling
+    let formatted = content;
 
-    // Handle bullet points
-    const lines = content.split("\n")
-    let inList = false
-    let result = ""
+    // Process code blocks first to avoid conflicts with other formats
+    formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre class="bg-gray-100 p-4 rounded-lg my-3 overflow-x-auto"><code class="text-sm">$1</code></pre>');
+    
+    // Headers
+    formatted = formatted.replace(/^### (.*$)/gm, '<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">$1</h3>');
+    formatted = formatted.replace(/^## (.*$)/gm, '<h2 class="text-xl font-bold text-gray-900 mt-8 mb-4 border-b border-gray-200 pb-2">$1</h2>');
+    formatted = formatted.replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold text-gray-900 mt-8 mb-4">$1</h1>');
+    
+    // Bold text
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>');
+    
+    // Italic text
+    formatted = formatted.replace(/\*(.*?)\*/g, '<em class="italic">$1</em>');
+    
+    // Inline code
+    formatted = formatted.replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono">$1</code>');
+    
+    // Bullet points (unordered lists) - temporarily simplified
+    formatted = formatted.replace(/^- (.*$)/gm, '<li class="ml-4 list-disc list-inside">$1</li>');
+    
+    // Numbered lists - temporarily simplified  
+    formatted = formatted.replace(/^\d+\. (.*$)/gm, '<li class="ml-4 list-decimal list-inside">$1</li>');
+    
+    // Split content by line breaks to process paragraphs
+    const lines = formatted.split(/\n\n/);
+    let result = '';
+    let inList = false;
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim()
-
-      if (line.startsWith("- ")) {
+      const line = lines[i].trim();
+      
+      if (line.startsWith('<li class="ml-4 list-disc') || line.startsWith('<li class="ml-4 list-decimal')) {
         if (!inList) {
-          result += '<ul class="list-disc list-inside space-y-1 ml-4 my-2">'
-          inList = true
+          result += '<ul class="mb-3 ml-4">';
+          inList = true;
         }
-        result += `<li class="text-gray-700">${line.substring(2)}</li>`
+        result += line;
+        // Check if next line is also a list item
+        if (i + 1 >= lines.length || (!lines[i + 1].trim().startsWith('<li class="ml-4 list'))) {
+          result += '</ul>';
+          inList = false;
+        }
       } else {
         if (inList) {
-          result += "</ul>"
-          inList = false
+          result += '</ul>';
+          inList = false;
         }
+        
         if (line) {
-          result += `<p class="mb-3 text-gray-700">${line}</p>`
+          // Check if the line is already a special element
+          if (line.startsWith('<h1') || line.startsWith('<h2') || line.startsWith('<h3') || 
+              line.startsWith('<pre') || line.startsWith('<code') || line.startsWith('<strong') || 
+              line.startsWith('<em') || line.startsWith('<ul')) {
+            result += line;
+          } else {
+            // Wrap content in paragraph tags
+            result += `<p class="mb-3">${line}</p>`;
+          }
         }
       }
     }
 
+    // Close any open lists
     if (inList) {
-      result += "</ul>"
+      result += '</ul>';
     }
 
-    return result
+    return result;
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)] max-w-4xl mx-auto bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl shadow-lg overflow-hidden">
+    <div className="flex flex-col h-full bg-gray-50">
       {/* Header */}
-      <div className="flex items-center gap-3 p-5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-xl">
-        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-          <Bot className="h-6 w-6 text-white" />
+      <div className="border-b border-gray-200 bg-white p-4 flex items-center justify-between">
+        <div className="flex items-center">
+          <h2 className="font-semibold text-gray-900">MSASCOUT AI Assistant</h2>
         </div>
-        <div>
-          <h2 className="font-bold text-xl">MSASCOUT AI Assistant</h2>
-          <p className="text-blue-100 text-sm">Real-time market data • Investment analysis • Report generation</p>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleSendMessage()}>
+            <RotateCcw className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
       {/* Messages Area */}
-      <ScrollArea className="flex-1 p-5 bg-gradient-to-b from-gray-50 to-gray-100">
-        {messages.length === 0 ? (
-          <div className="space-y-6 animate-fade-in">
-            {/* Welcome Message */}
-            <div className="text-center py-8">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg transform hover:scale-105 transition-transform duration-300">
-                <Bot className="h-10 w-10 text-white" />
+      <div className="flex-1 flex flex-col bg-white p-4 overflow-hidden">
+        <ScrollArea className="flex-1">
+          <div className="max-w-3xl mx-auto w-full">
+            {messages.length === 0 ? (
+              <div className="space-y-6 animate-fade-in">
+                {/* Welcome Message */}
+                <div className="text-center py-8">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg transform hover:scale-105 transition-transform duration-300">
+                  <Bot className="h-10 w-10 text-white" />
+                </div>
+                <h3 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                  Welcome to MSASCOUT AI
+                </h3>
+                <p className="text-gray-600 max-w-md mx-auto text-lg">
+                  I'm your AI property investment assistant with access to real-time Census, BLS, and FRED data. Ask me
+                  about market conditions, generate reports, or use our specialized tools.
+                </p>
               </div>
-              <h3 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                Welcome to MSASCOUT AI
-              </h3>
-              <p className="text-gray-600 max-w-md mx-auto text-lg">
-                I'm your AI property investment assistant with access to real-time Census, BLS, and FRED data. Ask me
-                about market conditions, generate reports, or use our specialized tools.
-              </p>
-            </div>
 
-            {/* Quick Actions */}
-            <div className="space-y-4">
-              <h4 className="font-bold text-gray-800 text-lg">Quick Actions</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {quickActions.map((action, index) => (
-                  <Card
-                    key={action.id}
-                    className={`cursor-pointer hover:shadow-xl transition-all duration-300 hover:scale-105 transform border-0 shadow-md bg-gradient-to-br from-white to-gray-50 animate-fade-in-up ${
-                      index % 2 === 0 ? "hover:rotate-1" : "hover:-rotate-1"
-                    }`}
-                    style={{ animationDelay: `${index * 0.1}s` }}
-                    onClick={() => handleQuickAction(action.id)}
-                  >
-                    <CardContent className="p-5">
-                      <div className="flex items-center gap-4">
-                        <div className={`${action.color} rounded-xl p-3 shadow-md`}>
-                          <action.icon className="h-6 w-6 text-white" />
+              {/* Quick Actions */}
+              <div className="space-y-4">
+                <h4 className="font-bold text-gray-800 text-lg">Quick Actions</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {quickActions.map((action, index) => (
+                    <Card
+                      key={action.id}
+                      className={`cursor-pointer hover:shadow-xl transition-all duration-300 hover:scale-105 transform border-0 shadow-md bg-gradient-to-br from-white to-gray-50 animate-fade-in-up ${
+                        index % 2 === 0 ? "hover:rotate-1" : "hover:-rotate-1"
+                      }`}
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                      onClick={() => handleQuickAction(action.id)}
+                    >
+                      <CardContent className="p-5">
+                        <div className="flex items-center gap-4">
+                          <div className={`${action.color} rounded-xl p-3 shadow-md`}>
+                            <action.icon className="h-6 w-6 text-white" />
+                          </div>
+                          <div>
+                            <h5 className="font-bold text-base">{action.title}</h5>
+                            <p className="text-sm text-gray-600">{action.description}</p>
+                          </div>
                         </div>
-                        <div>
-                          <h5 className="font-bold text-base">{action.title}</h5>
-                          <p className="text-sm text-gray-600">{action.description}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              {/* Suggested Questions */}
+              <div className="space-y-4">
+                <h4 className="font-bold text-gray-800 text-lg">Ask About Real-Time Market Data</h4>
+                <div className="space-y-3">
+                  {suggestedQuestions.map((question, index) => (
+                    <Button
+                      key={index}
+                      variant="outline"
+                      className="w-full text-left justify-start h-auto p-4 text-wrap bg-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 text-gray-700 rounded-xl"
+                      onClick={() => handleSuggestedQuestion(question)}
+                    >
+                      <span className="flex items-start">
+                        <span className="mr-3 mt-1 text-blue-500">•</span>
+                        {question}
+                      </span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {messages.map((message, index) => (
+                <div
+                  key={message.id}
+                  className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                >
+                  {message.role === "assistant" && (
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                      <Bot className="h-4 w-4 text-white" />
+                    </div>
+                  )}
+
+                  <div
+                    className={`max-w-[85%] ${message.role === "user" ? "order-1" : ""}`}
+                  >
+                    <div
+                      className={`text-gray-800 ${
+                        message.role === "user"
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100 text-gray-800"
+                      } rounded-2xl px-4 py-3`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          {message.role === "assistant" ? (
+                            <div
+                              className="prose prose-sm max-w-none"
+                              dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }}
+                            />
+                          ) : (
+                            <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                          )}
+
+                          {/* Action buttons for special responses */}
+                          {message.action === "download_slides" && message.actionData && (
+                            <div className="mt-3">
+                              <Button
+                                onClick={() => handleDownload(message)}
+                                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
+                                size="sm"
+                              >
+                                <Presentation className="h-4 w-4 mr-2" />
+                                Download Slides
+                              </Button>
+                            </div>
+                          )}
+
+                          {message.action === "download_pdf" && message.actionData && (
+                            <div className="mt-3">
+                              <Button
+                                onClick={() => handleDownload(message)}
+                                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white"
+                                size="sm"
+                              >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Download PDF Report
+                              </Button>
+                            </div>
+                          )}
+
+                          {message.action === "download_docx" && message.actionData && (
+                            <div className="mt-3">
+                              <Button
+                                onClick={() => handleDownload(message)}
+                                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
+                                size="sm"
+                              >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Download DOCX Report
+                              </Button>
+                            </div>
+                          )}
+
+                          {message.action === "ask_report_format" && (
+                            <div className="mt-3 flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleReportFormat("pdf")}
+                                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white"
+                              >
+                                <FileText className="h-4 w-4 mr-1" />
+                                PDF
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => handleReportFormat("docx")}
+                                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
+                              >
+                                <FileText className="h-4 w-4 mr-1" />
+                                DOCX
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-
-            {/* Suggested Questions */}
-            <div className="space-y-4">
-              <h4 className="font-bold text-gray-800 text-lg">Ask About Real-Time Market Data</h4>
-              <div className="space-y-3">
-                {suggestedQuestions.map((question, index) => (
-                  <Button
-                    key={index}
-                    variant="outline"
-                    className="w-full text-left justify-start h-auto p-4 text-wrap bg-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 text-gray-700 rounded-xl"
-                    onClick={() => handleSuggestedQuestion(question)}
-                  >
-                    <span className="flex items-start">
-                      <span className="mr-3 mt-1 text-blue-500">•</span>
-                      {question}
-                    </span>
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {messages.map((message, index) => (
-              <div
-                key={message.id}
-                className={`flex gap-3 animate-fade-in-up ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                style={{ animationDelay: `${index * 0.05}s` }}
-              >
-                {message.role === "assistant" && (
-                  <Avatar className="w-10 h-10 flex-shrink-0 shadow-md">
-                    <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white">
-                      <Bot className="h-5 w-5" />
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-
-                <div
-                  className={`max-w-[80%] rounded-2xl p-4 shadow-md ${
-                    message.role === "user" 
-                      ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-br-none" 
-                      : "bg-gradient-to-r from-white to-gray-50 border border-gray-200 rounded-bl-none"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      {message.role === "assistant" ? (
-                        <div
-                          className="prose prose-sm max-w-none"
-                          dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }}
-                        />
-                      ) : (
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                      )}
-
-                      {/* Action buttons for special responses */}
-                      {message.action === "download_slides" && message.actionData && (
-                        <Button
-                          onClick={() => handleDownload(message)}
-                          className="mt-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-md"
-                          size="sm"
-                        >
-                          <Presentation className="h-4 w-4 mr-2" />
-                          Download Slides
-                        </Button>
-                      )}
-
-                      {message.action === "download_pdf" && message.actionData && (
-                        <Button
-                          onClick={() => handleDownload(message)}
-                          className="mt-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-md"
-                          size="sm"
-                        >
-                          <FileText className="h-4 w-4 mr-2" />
-                          Download PDF Report
-                        </Button>
-                      )}
-
-                      {message.action === "download_docx" && message.actionData && (
-                        <Button
-                          onClick={() => handleDownload(message)}
-                          className="mt-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md"
-                          size="sm"
-                        >
-                          <FileText className="h-4 w-4 mr-2" />
-                          Download DOCX Report
-                        </Button>
-                      )}
-
-                      {message.action === "ask_report_format" && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleReportFormat("pdf")}
-                            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-md"
-                          >
-                            <FileText className="h-4 w-4 mr-1" />
-                            PDF
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleReportFormat("docx")}
-                            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md"
-                          >
-                            <FileText className="h-4 w-4 mr-1" />
-                            DOCX
-                          </Button>
-                        </div>
-                      )}
                     </div>
 
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard(message.content, message.id)}
-                      className="flex-shrink-0 h-8 w-8 p-0 ml-2 bg-gray-100 hover:bg-gray-200 text-gray-600"
-                    >
-                      {copiedMessageId === message.id ? (
-                        <Check className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
+                    <div className="flex items-center gap-2 mt-1 ml-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(message.content, message.id)}
+                        className="h-6 w-6 p-0 text-gray-500 hover:text-gray-700"
+                      >
+                        {copiedMessageId === message.id ? (
+                          <Check className="h-3 w-3" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                      </Button>
+                      <span className="text-xs text-gray-500">
+                        {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
                   </div>
 
-                  <p className={`text-xs mt-2 ${message.role === "user" ? "text-blue-100" : "text-gray-500"}`}>
-                    {new Date().toLocaleTimeString()}
-                  </p>
+                  {message.role === "user" && (
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                      <User className="h-4 w-4 text-gray-700" />
+                    </div>
+                  )}
                 </div>
+              ))}
 
-                {message.role === "user" && (
-                  <Avatar className="w-10 h-10 flex-shrink-0 shadow-md">
-                    <AvatarFallback className="bg-gradient-to-br from-gray-600 to-gray-700 text-white">
-                      <User className="h-5 w-5" />
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-              </div>
-            ))}
-
-            {isLoading && (
-              <div className="flex gap-3 justify-start animate-pulse">
-                <Avatar className="w-10 h-10">
-                  <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white">
-                    <Bot className="h-5 w-5" />
-                  </AvatarFallback>
-                </Avatar>
-                <div className="bg-gradient-to-r from-white to-gray-50 border border-gray-200 rounded-2xl rounded-bl-none p-4 shadow-md">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                    <span className="text-sm text-gray-600">Analyzing market data...</span>
+              {isLoading && (
+                <div className="flex gap-4 justify-start">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                    <Bot className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="bg-gray-100 rounded-2xl px-4 py-3 max-w-[85%]">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                      <span className="text-sm text-gray-600">Thinking...</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <div ref={messagesEndRef} />
-          </div>
-        )}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
       </ScrollArea>
+      </div>
 
       {/* Input Area */}
-      <div className="p-5 bg-gradient-to-r from-gray-100 to-gray-200 border-t border-gray-200">
-        <div className="flex gap-3">
-          <Input
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Ask about market conditions, generate reports, or request analysis..."
-            disabled={isLoading}
-            className="flex-1 h-12 rounded-xl border-0 shadow-md focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 bg-white"
-          />
-          <Button
-            onClick={() => handleSendMessage()}
-            disabled={!inputValue.trim() || isLoading}
-            className="h-12 w-12 flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-200"
-          >
-            {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-          </Button>
+      <div className="border-t border-gray-200 bg-white p-4">
+        <div className="max-w-3xl mx-auto">
+          <div className="relative">
+            <textarea
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyPress}
+              placeholder="Message MSASCOUT AI Assistant..."
+              disabled={isLoading}
+              className="w-full resize-none border border-gray-300 rounded-2xl py-3 pl-24 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
+              rows={1}
+            />
+            <div className="absolute left-3 bottom-3 flex gap-1">
+              <DocumentUploader onFileUpload={handleDocumentUpload} disabled={isLoading} />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleSendMessage("Perform deep research on: " + inputValue, "deep_research")}
+                disabled={isLoading}
+                className="h-8 w-8 p-0"
+                title="Deep Research"
+              >
+                <SearchIcon className="h-4 w-4 text-gray-500" />
+              </Button>
+            </div>
+            <Button
+              onClick={() => handleSendMessage()}
+              disabled={!inputValue.trim() || isLoading}
+              className="absolute right-3 bottom-3 h-8 w-8 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md"
+            >
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
+          </div>
+          {uploadedDocument && (
+            <div className="mt-2 flex items-center justify-between bg-blue-50 p-2 rounded border border-blue-200">
+              <div className="flex items-center gap-2 text-sm">
+                <Paperclip className="h-4 w-4 text-blue-600" />
+                <span className="text-blue-800 truncate max-w-xs">{uploadedDocument.name}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setUploadedDocument(null)}
+                className="h-6 w-6 p-0"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x">
+                  <path d="M18 6 6 18"/>
+                  <path d="m6 6 12 12"/>
+                </svg>
+              </Button>
+            </div>
+          )}
+          <p className="text-xs text-center text-gray-500 mt-2">
+            MSASCOUT AI Assistant can make mistakes. Consider checking important information.
+          </p>
         </div>
       </div>
     </div>

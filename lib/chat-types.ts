@@ -1,5 +1,7 @@
 
 export interface ChatMessage {
+    action: string;
+    actionData: boolean;
     id: string;
     role: "user" | "assistant" | "system";
     content: string;
