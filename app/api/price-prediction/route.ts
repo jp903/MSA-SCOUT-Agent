@@ -8,25 +8,12 @@ export async function POST(request: NextRequest) {
 
     console.log("📊 Price Prediction API received data:", propertyData)
 
-    // Check for required API keys
-    const hasOpenAIApiKey = !!process.env.OPENAI_API_KEY;
-
-    if (!hasOpenAIApiKey) {
-      console.warn("⚠️ OpenAI API key not found, using mock response");
-
-      // Generate a mock response for demonstration purposes
-      const mockResponse = generateMockPricePrediction(propertyData);
-
-      console.log("✅ Mock price prediction generated successfully");
-
-      return NextResponse.json({
-        prediction: mockResponse,
-        timestamp: new Date().toISOString(),
-        propertyAddress: propertyData.address,
-      });
+    if (!process.env.OPENAI_API_KEY) {
+      console.error("❌ OpenAI API key not found")
+      return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 })
     }
 
-    console.log("🤖 Generating price prediction with AI model")
+    console.log("🤖 Generating price prediction")
 
     // Get real market data and comparable properties based on location
     const [marketData, comparableProperties] = await Promise.all([
@@ -180,15 +167,7 @@ Please provide a comprehensive price prediction analysis with specific dollar am
     const errorDetails = error instanceof Error ? error.message : String(error)
 
     if (errorDetails.includes("API key")) {
-      // If API key issue, provide a mock response as fallback
-      console.warn("⚠️ API key error, using mock response");
-      const mockResponse = generateMockPricePrediction(await request.json().catch(() => ({})));
-
-      return NextResponse.json({
-        prediction: mockResponse,
-        timestamp: new Date().toISOString(),
-        propertyAddress: "Mock Response",
-      });
+      errorMessage = "OpenAI API configuration error"
     } else if (errorDetails.includes("rate limit")) {
       errorMessage = "Rate limit exceeded, please try again later"
     } else if (errorDetails.includes("network")) {
@@ -353,110 +332,4 @@ Real-time market data temporarily unavailable for this location.
 Using general ${address.includes(',') ? address.split(',')[1].trim() : 'national'} market indicators for analysis.
 Property valuations will be based on broader market trends and property characteristics.`;
   }
-}
-
-function generateMockPricePrediction(propertyData: any): string {
-  // Calculate mock price based on property characteristics
-  let baseValue = 300000; // Starting point for a typical property
-
-  // Adjust based on square footage ($150 per sq ft as base)
-  baseValue += (parseInt(propertyData.squareFootage) || 0) * 150;
-
-  // Adjust based on bedrooms (+$15,000 per bedroom)
-  baseValue += (parseInt(propertyData.bedrooms) || 0) * 15000;
-
-  // Adjust based on bathrooms (+$10,000 per bathroom)
-  baseValue += (parseFloat(propertyData.bathrooms) || 0) * 10000;
-
-  // Adjust based on lot size (if provided)
-  if (propertyData.lotSize && parseInt(propertyData.lotSize) > 0) {
-    baseValue += (parseInt(propertyData.lotSize) || 0) * 2; // $2 per sq ft of lot
-  }
-
-  // Adjust based on property type
-  const typeAdjustments: Record<string, number> = {
-    'single-family': 1.0,
-    'condo': 0.85,
-    'townhouse': 0.9,
-    'multi-family': 1.3,
-    'apartment': 0.8,
-    'land': 0.3
-  };
-
-  baseValue *= typeAdjustments[propertyData.propertyType] || 1.0;
-
-  // Adjust based on condition
-  const conditionAdjustments: Record<string, number> = {
-    'excellent': 1.15,
-    'good': 1.05,
-    'fair': 0.95,
-    'needs-work': 0.85
-  };
-
-  baseValue *= conditionAdjustments[propertyData.condition] || 1.0;
-
-  // Add some variation based on year built (newer is generally better, but not always)
-  const currentYear = new Date().getFullYear();
-  const age = currentYear - (parseInt(propertyData.yearBuilt) || currentYear);
-  if (age > 0) {
-    // Depreciate older homes somewhat, but value maintained/preserved homes
-    if (age > 50) {
-      baseValue *= 0.95; // Older homes may have lower value
-    } else if (age < 10) {
-      baseValue *= 1.1; // Newer homes command premium
-    }
-  }
-
-  // Add some randomization to make it realistic
-  baseValue = baseValue * (0.95 + Math.random() * 0.1); // ±5% random factor
-
-  const value = Math.round(baseValue);
-  const valueRangeMin = Math.round(value * 0.85);
-  const valueRangeMax = Math.round(value * 1.15);
-
-  // Calculate future projections
-  const appreciationRate = 0.04; // 4% annual appreciation
-  const sixMonthProjection = Math.round(value * (1 + appreciationRate / 2));
-  const oneYearProjection = Math.round(value * (1 + appreciationRate));
-  const threeYearProjection = Math.round(value * Math.pow(1 + appreciationRate, 3));
-  const fiveYearProjection = Math.round(value * Math.pow(1 + appreciationRate, 5));
-
-  return \`## 📊 Property Price Prediction
-
-### Current Market Value Estimate
-**Estimated Value Range:** $\${valueRangeMin.toLocaleString()} - $\${valueRangeMax.toLocaleString()}
-**Most Likely Value:** $\${value.toLocaleString()}
-
-### Price Prediction Timeline
-- **6 Months:** $\${sixMonthProjection.toLocaleString()} (±2%)
-- **1 Year:** $\${oneYearProjection.toLocaleString()} (±4%)
-- **3 Years:** $\${threeYearProjection.toLocaleString()} (±12%)
-- **5 Years:** $\${fiveYearProjection.toLocaleString()} (±20%)
-
-### 🏠 Property Analysis
-- **Size Impact:** $\{propertyData.squareFootage} sq ft contributes significantly to the property's estimated value
-- **Bed/Bath Count:** $\{propertyData.bedrooms || 0} bedrooms and $\{propertyData.bathrooms || 0} bathrooms are appropriate for this market segment
-- **Features Impact:** $\{propertyData.specialFeatures ? \`Special features ($\{propertyData.specialFeatures}) add value\` : 'Standard features for property type'}
-
-### 📈 Market Analysis
-#### Strengths:
-- $\{propertyData.propertyType === 'single-family' ? 'Single-family homes are in high demand' : 'Property type is well-positioned for current market'}
-- $\{propertyData.lotSize ? \`Generous lot size of $\{propertyData.lotSize} sq ft adds desirability\` : 'Standard lot size for property type'}
-- $\{propertyData.condition === 'excellent' || propertyData.condition === 'good' ? 'Good property condition supports value' : 'Property condition is average for value range'}
-
-#### Considerations:
-- $\{propertyData.neighborhood ? \`Neighborhood ($\{propertyData.neighborhood}) market conditions apply\` : 'Local area market conditions will influence actual value'}
-- $\{propertyData.yearBuilt ? \`Property built in $\{propertyData.yearBuilt} may require updates\` : 'Age of property affects long-term value appreciation'}
-
-### 🏡 Comparable Properties
-No direct comparable properties found in the immediate area. Analysis will be based on broader market trends and property characteristics.
-
-### 💡 Investment Recommendation
-**Hold/Buy** - Property appears to be in a reasonable value range with potential for appreciation based on characteristics. Consider local market conditions and your investment timeline.
-
-### 🎯 Confidence Level
-**Medium** - Estimate is based on property characteristics and general market trends. Actual value may vary significantly based on specific location, condition, and market dynamics.
-
-### 📋 Summary
-This $\{propertyData.propertyType} property with $\{propertyData.bedrooms} bedrooms and $\{propertyData.bathrooms} bathrooms in approximately $\{propertyData.squareFootage} sq ft is estimated to be worth $\${value.toLocaleString()}. Market projections suggest steady appreciation of about 4% annually over the next 5 years.\`;
 }
