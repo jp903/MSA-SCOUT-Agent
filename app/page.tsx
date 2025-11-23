@@ -64,6 +64,11 @@ export default function HomePage() {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const [chatHistoryLoaded, setChatHistoryLoaded] = useState(false)
   const [userLoaded, setUserLoaded] = useState(false) // New state variable
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const currentChat = useMemo(() => {
     return chatHistory.find((chat) => chat.id === currentChatId) || null
@@ -598,7 +603,7 @@ export default function HomePage() {
     )
   }
 
-  return (
+  return isClient ? (
     <SidebarProvider>
       <AppSidebar
         activeView={activeView}
@@ -738,8 +743,8 @@ export default function HomePage() {
                   >
                     Start Chatting
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => setActiveView("calculator")}
                     className="h-12 px-6 border-2 border-blue-600 text-blue-600 hover:bg-blue-50 transition-all duration-300"
                   >
@@ -1029,5 +1034,14 @@ export default function HomePage() {
         </div>
       </SidebarInset>
     </SidebarProvider>
+  ) : (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Building2 className="h-8 w-8 text-white animate-spin" />
+        </div>
+        <p className="text-gray-600">Loading application...</p>
+      </div>
+    </div>
   )
 }
