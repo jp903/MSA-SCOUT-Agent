@@ -26,7 +26,8 @@ import {
   Save,
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import type { ChatHistoryItem } from "@/lib/portfolio-types"
+import type { ChatHistoryItem } from "@/lib/chat-types"
+import { chatManagerDB } from "@/lib/chat-manager-db"
 
 // Force dynamic rendering to avoid static generation issues
 export const dynamic = "force-dynamic"
@@ -193,9 +194,9 @@ export default function PropertyAnalysisPage() {
     }
   }
 
-  const handleViewChange = (view: "home" | "chat" | "calculator" | "insights") => {
+  const handleViewChange = (view: string) => {
     // Navigate to main page with the selected view
-    const viewMap = {
+    const viewMap: Record<string, string> = {
       home: "/?view=home",
       chat: "/?view=chat",
       calculator: "/?view=calculator",
@@ -428,8 +429,9 @@ export default function PropertyAnalysisPage() {
           chatHistory={chatHistory}
           currentChatId={currentChatId}
           onChatSelect={handleChatSelect}
-          onDeleteChat={handleDeleteChat}
-        />
+          onDeleteChat={handleDeleteChat} user={null} onSignOut={function (): void {
+            throw new Error("Function not implemented.")
+          } } chatHistoryLoaded={false}        />
         <SidebarInset>
         <header className="h-4" />
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
