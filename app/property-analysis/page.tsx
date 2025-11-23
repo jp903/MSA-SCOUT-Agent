@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { SidebarInset } from "@/components/ui/sidebar"
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -90,6 +90,11 @@ export default function PropertyAnalysisPage() {
   })
 
   const [analysisResults, setAnalysisResults] = useState<AnalysisResults | null>(null)
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Initialize database and load chat history on component mount
   useEffect(() => {
@@ -413,18 +418,19 @@ export default function PropertyAnalysisPage() {
     }
   }
 
-  return (
-    <div className="flex w-full">
-      <AppSidebar
-        activeView="home"
-        onViewChange={handleViewChange}
-        onNewChat={handleNewChat}
-        chatHistory={chatHistory}
-        currentChatId={currentChatId}
-        onChatSelect={handleChatSelect}
-        onDeleteChat={handleDeleteChat}
-      />
-      <SidebarInset>
+  return isClient ? (
+    <SidebarProvider>
+      <div className="flex w-full">
+        <AppSidebar
+          activeView="home"
+          onViewChange={handleViewChange}
+          onNewChat={handleNewChat}
+          chatHistory={chatHistory}
+          currentChatId={currentChatId}
+          onChatSelect={handleChatSelect}
+          onDeleteChat={handleDeleteChat}
+        />
+        <SidebarInset>
         <header className="h-4" />
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
           <div className="flex items-center justify-between">
@@ -865,6 +871,16 @@ export default function PropertyAnalysisPage() {
           </Tabs>
         </div>
       </SidebarInset>
+    </div>
+    </SidebarProvider>
+  ) : (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Building2 className="h-8 w-8 text-white animate-spin" />
+        </div>
+        <p className="text-gray-600">Loading application...</p>
+      </div>
     </div>
   )
 }
