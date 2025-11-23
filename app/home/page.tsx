@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { SidebarProvider } from "@/components/ui/sidebar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -52,6 +53,11 @@ export default function HomePage() {
   const [liveMarketData, setLiveMarketData] = useState<LiveMarketData[]>([])
   const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const generateLiveMarketData = async (): Promise<LiveMarketData[]> => {
     // Real market data based on Census Bureau and Bureau of Labor Statistics
@@ -415,8 +421,8 @@ export default function HomePage() {
     return num.toString()
   }
 
-  return (
-    <>
+  return isClient ? (
+    <SidebarProvider>
       <SidebarInset>
         <header className="flex h-12 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
@@ -735,6 +741,15 @@ export default function HomePage() {
           </div>
         </div>
       </SidebarInset>
-    </>
+    </SidebarProvider>
+  ) : (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Building2 className="h-8 w-8 text-white animate-spin" />
+        </div>
+        <p className="text-gray-600">Loading application...</p>
+      </div>
+    </div>
   )
 }
