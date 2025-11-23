@@ -18,6 +18,7 @@ import {
   PanelLeft,
   PanelRight,
   Loader2,
+  PieChart
 } from "lucide-react"
 
 import {
@@ -88,6 +89,13 @@ const navigationItems = [
     url: "calculator",
     icon: Calculator,
     description: "Investment Calculator",
+    requiresAuth: false,
+  },
+  {
+    title: "Property ROI",
+    url: "property-roi-calculator",
+    icon: PieChart,
+    description: "ROI Analysis Tool",
     requiresAuth: false,
   },
   {
@@ -259,7 +267,7 @@ export function AppSidebar({
             <Moon className="h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 mr-2" />
           </Button>
         </div>
-        
+
         {/* User Profile - Show different content based on auth status */}
         <div className="p-2">
           {user ? (

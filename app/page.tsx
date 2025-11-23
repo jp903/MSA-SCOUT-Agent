@@ -12,6 +12,7 @@ import ProfileSettings from "@/components/profile-settings"
 import Preferences from "@/components/preferences"
 import AuthModal from "@/components/auth-modal"
 import PricePredictor from "@/components/price-predictor"
+import PropertyROICalculator from "@/components/property-roi-calculator"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -55,6 +56,7 @@ export default function HomePage() {
     | "price-predictor"
     | "profile-settings"
     | "preferences"
+    | "property-roi-calculator"
   >("chat")
   const [liveMarketData, setLiveMarketData] = useState<LiveMarketData[]>([])
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
@@ -716,6 +718,7 @@ export default function HomePage() {
           {activeView === "property-analysis" && <div className="animate-fade-in"><PropertyAnalysis /></div>}
           {activeView === "portfolio-tracker" && <div className="animate-fade-in"><PortfolioTracker /></div>}
           {activeView === "price-predictor" && <div className="animate-fade-in"><PricePredictor /></div>}
+          {activeView === "property-roi-calculator" && <div className="animate-fade-in"><PropertyROICalculator user={user} onAuthRequired={() => setShowAuthModal(true)} /></div>}
 
           {/* Home Page - Dashboard & Tools */}
           {activeView === "chat" && (

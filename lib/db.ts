@@ -1,4 +1,5 @@
 import { neon } from "@neondatabase/serverless"
+import { drizzle } from "drizzle-orm/neon-serverless"
 import type { NeonQueryFunction } from "@neondatabase/serverless"
 
 function createDummySql(): NeonQueryFunction<any[]> {
@@ -12,6 +13,17 @@ function createDummySql(): NeonQueryFunction<any[]> {
 const databaseUrl = process.env.DATABASE_URL
 
 export const sql: NeonQueryFunction<any[]> = databaseUrl ? neon(databaseUrl) : createDummySql()
+
+// Initialize Drizzle ORM
+export const db = databaseUrl ? drizzle(sql) : null;
+
+// Function to get the DB instance, throwing an error if not available
+export function getDb() {
+  if (!db) {
+    throw new Error('Database connection not available. Please check your DATABASE_URL environment variable.');
+  }
+  return db;
+}
 
 // Flag to track initialization status
 let isInitialized = false;
@@ -203,6 +215,24 @@ export async function initializeDatabase() {
       )
     `
 
+    // Create property_roi_documents table if it doesn't exist (for ROI document analysis)
+    await sql`
+      CREATE TABLE IF NOT EXISTS property_roi_documents (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        file_name VARCHAR(255) NOT NULL,
+        original_name VARCHAR(255) NOT NULL,
+        file_key VARCHAR(500) NOT NULL,
+        file_size INTEGER NOT NULL,
+        mime_type VARCHAR(100) NOT NULL,
+        upload_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        status VARCHAR(50) DEFAULT 'processed',
+        analysis_results JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `
+
     // Create indexes for better performance
     await sql`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`
     await sql`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)`
@@ -211,6 +241,9 @@ export async function initializeDatabase() {
     await sql`CREATE INDEX IF NOT EXISTS idx_property_images_property_id ON property_images(property_id)`
     await sql`CREATE INDEX IF NOT EXISTS idx_chat_history_user_id ON chat_history(user_id)`
     await sql`CREATE INDEX IF NOT EXISTS idx_chat_history_updated_at ON chat_history(updated_at DESC)`
+    await sql`CREATE INDEX IF NOT EXISTS idx_property_roi_documents_user_id ON property_roi_documents(user_id)`
+    await sql`CREATE INDEX IF NOT EXISTS idx_property_roi_documents_upload_date ON property_roi_documents(upload_date)`
+    await sql`CREATE INDEX IF NOT EXISTS idx_property_roi_documents_status ON property_roi_documents(status)`
 
     console.log("✅ Database tables initialized successfully")
     return true
