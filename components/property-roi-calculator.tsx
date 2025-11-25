@@ -38,16 +38,14 @@ interface PropertyROIResult {
   roiCategory: 'excellent' | 'good' | 'moderate' | 'fair' | 'poor';
   recommendation: 'sell' | 'hold' | 'improve';
   analysis: {
+    otherCosts: any;
     cashFlow: number;
     capRate: number;
     cashOnCash: number;
     appreciationPotential: number;
     insuranceCost: number;
     interestRate: number;
-    labourCost: number;
-    otherCosts: number;
     maintenance: number;
-    vacancyRate: number;
     propertyTaxes: number;
     propertyManagerFee: number;
   };
@@ -398,10 +396,6 @@ export default function PropertyROICalculator({ user, onAuthRequired }: Property
                             <div className="font-medium">{result.analysis.interestRate}%</div>
                           </div>
                           <div className="p-2 bg-gray-50 rounded">
-                            <div className="text-gray-600">Labour</div>
-                            <div className="font-medium">${result.analysis.labourCost.toLocaleString()}</div>
-                          </div>
-                          <div className="p-2 bg-gray-50 rounded">
                             <div className="text-gray-600">Maintenance</div>
                             <div className="font-medium">${result.analysis.maintenance.toLocaleString()}</div>
                           </div>
@@ -412,6 +406,10 @@ export default function PropertyROICalculator({ user, onAuthRequired }: Property
                           <div className="p-2 bg-gray-50 rounded">
                             <div className="text-gray-600">Manager Fee</div>
                             <div className="font-medium">${result.analysis.propertyManagerFee.toLocaleString()}</div>
+                          </div>
+                          <div className="p-2 bg-gray-50 rounded">
+                            <div className="text-gray-600">Other Costs</div>
+                            <div className="font-medium">${result.analysis.otherCosts?.toLocaleString() || '0'}</div>
                           </div>
                         </div>
                       </div>
