@@ -143,7 +143,7 @@ Property Details:
 - Neighborhood: ${propertyData.neighborhood || "Not specified"}
 - School District: ${propertyData.schoolDistrict || "Not specified"}
 - Special Features: ${propertyData.specialFeatures || "None specified"}
-- Current List Price: ${propertyData.currentPrice ? `$${parseInt(propertyData.currentPrice.replace(/[,$]/g, "")).toLocaleString()}` : "Not provided"}
+- Current List Price: ${propertyData.currentPrice ? `$${typeof propertyData.currentPrice === 'string' ? parseInt(propertyData.currentPrice.replace(/[,$]/g, "")).toLocaleString() : Number(propertyData.currentPrice).toLocaleString()}` : "Not provided"}
 
 Market Context:
 - Local Market Conditions: ${propertyData.marketConditions || "Standard market analysis requested"}
@@ -186,28 +186,43 @@ Please provide a comprehensive price prediction analysis with specific dollar am
 
 async function fetchComparableProperties(propertyData: any): Promise<any[]> {
   try {
-    // Extract city and state from the address
-    const addressParts = propertyData.address.split(',');
-    if (addressParts.length < 3) {
-      console.log("❌ Could not parse address for comparable properties search");
+    // Extract city and state from the address with better error handling
+    if (!propertyData.address || typeof propertyData.address !== 'string') {
+      console.log("❌ Address missing or invalid for comparable properties search");
       return [];
     }
 
-    const city = addressParts[1].trim();
-    const stateMatch = addressParts[2].match(/[A-Z]{2}/);
-    const state = stateMatch ? stateMatch[0] : propertyData.address.includes('TX') ? 'TX' : 'CA';
+    const addressParts = propertyData.address.split(',');
+    if (addressParts.length < 3) {
+      console.log("❌ Could not parse address format for comparable properties search:", propertyData.address);
+      return [];
+    }
+
+    const city = addressParts[1]?.trim() || '';
+    if (!city) {
+      console.log("❌ Could not extract city from address:", propertyData.address);
+      return [];
+    }
+
+    const stateMatch = addressParts[2]?.match(/[A-Z]{2}/);
+    const state = stateMatch ? stateMatch[0] :
+                 propertyData.address.includes('TX') ? 'TX' :
+                 propertyData.address.includes('CA') ? 'CA' :
+                 propertyData.address.includes('FL') ? 'FL' :
+                 propertyData.address.includes('NY') ? 'NY' :
+                 'TX'; // Default fallback
 
     // Prepare search parameters based on property characteristics
     const params = new URLSearchParams({
       city: city,
       state: state,
       propertyType: propertyData.propertyType,
-      minBedrooms: Math.max(0, (parseInt(propertyData.bedrooms) || 0) - 1).toString(),
-      maxBedrooms: (parseInt(propertyData.bedrooms) || 0 + 1).toString(),
-      minBathrooms: Math.max(0, (parseFloat(propertyData.bathrooms) || 0) - 1).toString(),
-      maxBathrooms: (parseFloat(propertyData.bathrooms) || 0 + 1).toString(),
-      minSquareFootage: Math.max(0, (parseInt(propertyData.squareFootage) || 0) - 500).toString(),
-      maxSquareFootage: (parseInt(propertyData.squareFootage) || 0 + 500).toString(),
+      minBedrooms: Math.max(0, (typeof propertyData.bedrooms === 'number' ? propertyData.bedrooms : parseInt(propertyData.bedrooms) || 0) - 1).toString(),
+      maxBedrooms: (typeof propertyData.bedrooms === 'number' ? propertyData.bedrooms : parseInt(propertyData.bedrooms) || 0 + 1).toString(),
+      minBathrooms: Math.max(0, (typeof propertyData.bathrooms === 'number' ? propertyData.bathrooms : parseFloat(propertyData.bathrooms) || 0) - 1).toString(),
+      maxBathrooms: (typeof propertyData.bathrooms === 'number' ? propertyData.bathrooms : parseFloat(propertyData.bathrooms) || 0 + 1).toString(),
+      minSquareFootage: Math.max(0, (typeof propertyData.squareFootage === 'number' ? propertyData.squareFootage : parseInt(propertyData.squareFootage) || 0) - 500).toString(),
+      maxSquareFootage: (typeof propertyData.squareFootage === 'number' ? propertyData.squareFootage : parseInt(propertyData.squareFootage) || 0 + 500).toString(),
       limit: '5'
     });
 
@@ -283,10 +298,29 @@ async function fetchRealTimeMarketData(neighborhood: string, address: string): P
     // like Zillow API, Redfin API, or MLS services
     // For this implementation, we'll simulate real market data based on the location
 
-    // Extract city/region from address to simulate location-based data
-    const locationMatch = address.match(/,\s*([A-Z][a-z]+),\s*([A-Z]{2})\s+\d+/);
-    const city = locationMatch ? locationMatch[1] : "Austin";
-    const state = locationMatch ? locationMatch[2] : "TX";
+    // Extract city/region from address to simulate location-based data with better error handling
+    let city = "Austin";
+    let state = "TX";
+
+    if (address && typeof address === 'string') {
+      const locationMatch = address.match(/,\s*([A-Z][a-z]+),\s*([A-Z]{2})\s+\d+/);
+      if (locationMatch) {
+        city = locationMatch[1];
+        state = locationMatch[2];
+      } else {
+        // Try a more flexible pattern for different address formats
+        const parts = address.split(',');
+        if (parts.length >= 3) {
+          const cityMatch = parts[1]?.trim().match(/([A-Za-z\s]+)/);
+          const stateMatch = parts[2]?.trim().match(/([A-Z]{2})/);
+          if (cityMatch) city = cityMatch[1].trim();
+          if (stateMatch) state = stateMatch[1];
+        }
+        console.log(`Parsed location: ${city}, ${state} from address: ${address}`);
+      }
+    } else {
+      console.log("❌ Address missing or invalid for market data lookup, using defaults");
+    }
 
     // Simulate realistic market data based on location
     const marketData = `## REAL-TIME MARKET CONDITIONS FOR ${city.toUpperCase()}, ${state} (Updated: ${new Date().toLocaleDateString()}):
