@@ -78,7 +78,7 @@ export const chatHistory = pgTable('chat_history', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-// Property ROI Documents table
+// Property ROE Documents table
 export const propertyRoiDocuments = pgTable('property_roi_documents', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),

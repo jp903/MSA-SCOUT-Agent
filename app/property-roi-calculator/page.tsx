@@ -41,7 +41,7 @@ export default function PropertyROICalculatorPage() {
   const handleAuthRequired = () => {
     toast({
       title: "Authentication Required",
-      description: "Please sign in to access the Property ROI Calculator",
+      description: "Please sign in to access the Property ROE Calculator",
     });
     // Redirect to main page where user can sign in
     router.push("/");
@@ -55,7 +55,7 @@ export default function PropertyROICalculatorPage() {
             <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
           </div>
           <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Loading Property ROI Calculator
+            Loading Property ROE Calculator
           </h2>
           <p className="text-gray-600 mt-2">Checking authentication status...</p>
         </div>

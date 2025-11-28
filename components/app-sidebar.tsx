@@ -92,10 +92,10 @@ const navigationItems = [
     requiresAuth: false,
   },
   {
-    title: "Property ROI",
+    title: "Property ROE",
     url: "property-roi-calculator",
     icon: PieChart,
-    description: "ROI Analysis Tool",
+    description: "ROE Analysis Tool",
     requiresAuth: false,
   },
   {

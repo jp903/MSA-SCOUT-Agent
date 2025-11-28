@@ -149,8 +149,8 @@ export async function POST(request: NextRequest) {
       roiResults: roiResults
     });
   } catch (error) {
-    console.error('Property ROI analysis error:', error);
-    return NextResponse.json({ error: 'Failed to process property ROI analysis' }, { status: 500 });
+    console.error('Property ROE analysis error:', error);
+    return NextResponse.json({ error: 'Failed to process property ROE analysis' }, { status: 500 });
   }
 }
 
@@ -225,6 +225,8 @@ async function processRoiAnalysis(buffer: Buffer, fileType: string) {
       const possibleTaxFields = ['propertyTaxes', 'Property Taxes', 'property_taxes', 'PropertyTaxes', 'Taxes', 'taxes', 'Property Tax', 'property_tax'];
       const possibleManagerFields = ['propertyManagerFee', 'Property Manager Fee', 'property_manager_fee', 'PropertyManagerFee', 'Property Manager', 'property_manager'];
       const possibleOtherCostFields = ['otherCosts', 'Other Costs', 'other_costs', 'OtherCosts', 'Other Cost', 'other_cost', 'Additional Costs', 'additional_costs'];
+      const possibleLoanBalanceFields = ['currentLoanBalance', 'Current Loan Balance', 'current_loan_balance', 'loanBalance', 'Loan Balance', 'loan_balance', 'CurrentLoanBalance', 'Mortgage Balance', 'mortgageBalance', 'Mortgage Balance'];
+      const possibleAnnualDebtServiceFields = ['annualDebtService', 'Annual Debt Service', 'annual_debt_service', 'debtService', 'Debt Service', 'debt_service', 'AnnualDebtService', 'Annual Mortgage Payment', 'annualMortgagePayment'];
 
       const propertyName = findValueInObject(property, possibleNameFields) || `Property ${index + 1}`;
       const address = findValueInObject(property, possibleAddressFields) || 'Address not specified';
@@ -240,29 +242,45 @@ async function processRoiAnalysis(buffer: Buffer, fileType: string) {
       const propertyTaxes = parseFloat(findValueInObject(property, possibleTaxFields) || 0) || 0;
       const propertyManagerFee = parseFloat(findValueInObject(property, possibleManagerFields) || 0) || 0;
       const otherCosts = parseFloat(findValueInObject(property, possibleOtherCostFields) || 0) || 0;
+      const currentLoanBalance = parseFloat(findValueInObject(property, possibleLoanBalanceFields) || 0) || 0;
+      const annualDebtService = parseFloat(findValueInObject(property, possibleAnnualDebtServiceFields) || 0) || 0;
 
-      // Calculate ROI and other metrics
+      // Calculate Equity (Current Market Value - Current Loan Balance)
+      const equity = currentMarketValue - currentLoanBalance;
+
+      // Calculate NOI (Net Operating Income) - Total Income - Operating Expenses (excluding mortgage interest)
+      // We need to remove mortgage interest from expenses if it was included
       const annualNOI = annualRentalIncome - annualExpenses; // Net Operating Income
-      const cashFlow = annualRentalIncome - annualExpenses; // Simplified for this example
+
+      // Calculate unlevered ROE (NOI / Equity)
+      const unleveredROE = equity > 0 ? (annualNOI / equity) * 100 : 0;
+
+      // Calculate levered ROE (NOI - Annual Debt Service) / Equity - reflects actual cash flow ROE
+      const leveredROE = equity > 0 ? ((annualNOI - annualDebtService) / equity) * 100 : 0;
+
+      // Use levered ROE as the primary metric for analysis
+      const roePercentage = leveredROE;
+
+      // Calculate other metrics
+      const cashFlow = annualNOI - annualDebtService; // Net operating income minus debt service
       const capRate = purchasePrice > 0 ? (annualNOI / purchasePrice) * 100 : 0;
       const cashOnCash = purchasePrice > 0 ? (cashFlow / purchasePrice) * 100 : 0;
-      const roiPercentage = purchasePrice > 0 ? ((currentMarketValue - purchasePrice) / purchasePrice) * 100 : 0;
 
-      // Determine ROI category based on percentage
-      let roiCategory: 'excellent' | 'good' | 'moderate' | 'fair' | 'poor' = 'moderate';
-      if (roiPercentage >= 15) roiCategory = 'excellent';
-      else if (roiPercentage >= 10) roiCategory = 'good';
-      else if (roiPercentage >= 5) roiCategory = 'moderate';
-      else if (roiPercentage >= 0) roiCategory = 'fair';
-      else roiCategory = 'poor';
+      // Determine ROE category based on percentage
+      let roeCategory: 'excellent' | 'good' | 'moderate' | 'fair' | 'poor' = 'moderate';
+      if (roePercentage >= 15) roeCategory = 'excellent';
+      else if (roePercentage >= 10) roeCategory = 'good';
+      else if (roePercentage >= 5) roeCategory = 'moderate';
+      else if (roePercentage >= 3) roeCategory = 'fair';
+      else roeCategory = 'poor';
 
-      // Determine recommendation
+      // Determine recommendation based on ROE and equity considerations
       let recommendation: 'sell' | 'hold' | 'improve' = 'hold';
-      if (roiPercentage < 0 || annualNOI < 0) recommendation = 'sell';
-      else if (roiPercentage < 5) recommendation = 'improve';
-      else if (roiPercentage > 12) recommendation = 'hold';
+      if (roePercentage < 3 || annualNOI < 0) recommendation = 'sell';
+      else if (roePercentage < 5) recommendation = 'improve';
+      else if (roePercentage > 12) recommendation = 'hold';
 
-      // Generate concerns based on the data
+      // Generate ROE-specific concerns (combining original and new concerns)
       const concerns = [];
       if (insuranceCost > annualRentalIncome * 0.1) {
         concerns.push("Insurance costs are higher than 10% of annual rental income");
@@ -276,8 +294,17 @@ async function processRoiAnalysis(buffer: Buffer, fileType: string) {
       if (propertyTaxes > annualRentalIncome * 0.12) {
         concerns.push("Property taxes are significantly impacting returns");
       }
+      if (leveredROE < 3) {
+        concerns.push("Levered ROE is below 3%, this property may not be generating sufficient returns");
+      }
+      if (equity <= 0) {
+        concerns.push("Equity is zero or negative, indicating potential negative equity situation");
+      }
+      if (annualDebtService > annualNOI) {
+        concerns.push("Annual debt service exceeds net operating income, property is cash-flow negative");
+      }
 
-      // Generate suggestions based on the data
+      // Generate ROE-specific suggestions (combining original and new suggestions)
       const suggestions = [];
       if (interestRate > 5) {
         suggestions.push("Consider refinancing to take advantage of lower interest rates");
@@ -288,6 +315,19 @@ async function processRoiAnalysis(buffer: Buffer, fileType: string) {
       if (annualRentalIncome < purchasePrice * 0.08) {
         suggestions.push("Consider rent increases to align with market rates");
       }
+      if (leveredROE < 3) {
+        suggestions.push("Consider selling and redeploying equity into higher-yielding investments");
+      }
+      if (equity > 0 && leveredROE < 5 && annualNOI > 0) {
+        suggestions.push("ROE is declining; consider refinancing to improve cash flow and returns");
+      }
+      if (leveredROE < unleveredROE * 0.5) {
+        suggestions.push("Debt service is heavily impacting returns; consider refinancing with better terms");
+      }
+      // Add suggestion for properties with low ROE based on the user's guidelines
+      if (leveredROE < 3) {
+        suggestions.push("ROE is very low after 3-7 years of ownership; consider selling and redeploying equity into higher-yielding investments");
+      }
 
       return {
         propertyId: `PROP-${String(index + 1).padStart(3, '0')}`,
@@ -295,12 +335,17 @@ async function processRoiAnalysis(buffer: Buffer, fileType: string) {
         address,
         purchasePrice,
         currentMarketValue,
+        currentLoanBalance,
+        annualDebtService,
         annualRentalIncome,
         annualExpenses,
-        roiPercentage: parseFloat(roiPercentage.toFixed(2)),
-        roiCategory,
+        roePercentage: parseFloat(roePercentage.toFixed(2)),
+        roeCategory,
         recommendation,
         analysis: {
+          unleveredROE: parseFloat(unleveredROE.toFixed(2)),
+          leveredROE: parseFloat(leveredROE.toFixed(2)),
+          equity: parseFloat(equity.toFixed(2)),
           cashFlow: parseFloat(cashFlow.toFixed(2)),
           capRate: parseFloat(capRate.toFixed(2)),
           cashOnCash: parseFloat(cashOnCash.toFixed(2)),
@@ -344,32 +389,37 @@ async function processRoiAnalysis(buffer: Buffer, fileType: string) {
           address: '123 Main St, Austin, TX 78701',
           purchasePrice: 350000,
           currentMarketValue: 425000,
+          currentLoanBalance: 175000, // Example loan balance
+          annualDebtService: 21000, // Example annual debt service ($1750/month principal + interest)
           annualRentalIncome: 28800, // $2,400/month
-          annualExpenses: 12000,
-          roiPercentage: 9.66,
-          roiCategory: 'good',
-          recommendation: 'hold',
+          annualExpenses: 10800, // Removed mortgage interest from expenses as per formulas
+          roePercentage: 6.86, // (28800 - 10800 - 21000) / (425000 - 175000) = -3000 / 250000 = -1.2% (for example purposes)
+          roeCategory: 'poor',
+          recommendation: 'sell',
           analysis: {
-            cashFlow: 14400,
-            capRate: 6.86,
-            cashOnCash: 8.23,
+            unleveredROE: 7.2, // (28800 - 10800) / (425000 - 175000) = 18000 / 250000 = 7.2%
+            leveredROE: -1.2, // (28800 - 10800 - 21000) / (425000 - 175000) = -3000 / 250000 = -1.2%
+            equity: 250000, // Current market value - loan balance
+            cashFlow: -3000, // NOI - Annual Debt Service
+            capRate: 6.86, // NOI / Purchase Price
+            cashOnCash: -0.86, // Cash Flow / Cash Invested
             appreciationPotential: 3.2,
             insuranceCost: 1800,
             interestRate: 4.75,
             maintenance: 3500,
             propertyTaxes: 4200,
             propertyManagerFee: 1440,
-            otherCosts: 1800
+            otherCosts: 860
           },
           concerns: [
-            "Insurance costs are higher than average",
-            "Property taxes increased 8% last year",
-            "Vacancy rate slightly above market average"
+            "Annual debt service exceeds net operating income, property is cash-flow negative",
+            "Levered ROE is negative, indicating poor returns after debt service",
+            "Property taxes are significantly impacting returns"
           ],
           suggestions: [
-            "Consider refinancing to take advantage of lower interest rates",
-            "Implement rent increase to match market rates",
-            "Negotiate better terms with property management company"
+            "Consider selling and redeploying equity into higher-yielding investments",
+            "Refinance to improve cash flow and returns",
+            "Evaluate property management fees to ensure they're competitive"
           ]
         }
       ];
@@ -400,12 +450,17 @@ async function performAiAnalysis(buffer: Buffer, fileType: string): Promise<any[
         address: 'OpenAI API key not configured',
         purchasePrice: 0,
         currentMarketValue: 0,
+        currentLoanBalance: 0,
+        annualDebtService: 0,
         annualRentalIncome: 0,
         annualExpenses: 0,
-        roiPercentage: 0,
-        roiCategory: 'fair',
+        roePercentage: 0,
+        roeCategory: 'fair',
         recommendation: 'improve',
         analysis: {
+          unleveredROE: 0,
+          leveredROE: 0,
+          equity: 0,
           cashFlow: 0,
           capRate: 0,
           cashOnCash: 0,
@@ -445,7 +500,7 @@ async function performAiAnalysis(buffer: Buffer, fileType: string): Promise<any[
       fileText = fileText.substring(0, 10000) + '... (truncated)';
     }
 
-    // Call OpenAI API for property ROI analysis using the ai-sdk
+    // Call OpenAI API for property ROE analysis using the ai-sdk
     const { openai } = await import('@ai-sdk/openai');
     const { generateObject } = await import('ai');
     const { z } = await import('zod');
@@ -460,12 +515,17 @@ async function performAiAnalysis(buffer: Buffer, fileType: string): Promise<any[
             address: z.string(),
             purchasePrice: z.number(),
             currentMarketValue: z.number(),
+            currentLoanBalance: z.number().optional().default(0),
+            annualDebtService: z.number().optional().default(0),
             annualRentalIncome: z.number(),
             annualExpenses: z.number(),
-            roiPercentage: z.number(),
-            roiCategory: z.enum(['excellent', 'good', 'moderate', 'fair', 'poor']),
+            roePercentage: z.number(),
+            roeCategory: z.enum(['excellent', 'good', 'moderate', 'fair', 'poor']),
             recommendation: z.enum(['sell', 'hold', 'improve']),
             analysis: z.object({
+              unleveredROE: z.number().optional().default(0),
+              leveredROE: z.number().optional().default(0),
+              equity: z.number().optional().default(0),
               cashFlow: z.number(),
               capRate: z.number(),
               cashOnCash: z.number(),
@@ -481,7 +541,13 @@ async function performAiAnalysis(buffer: Buffer, fileType: string): Promise<any[
             suggestions: z.array(z.string())
           }))
         }),
-        prompt: `Analyze the following property data and provide ROI analysis:\n\n${fileText}`,
+        prompt: `Analyze the following property data and provide ROE analysis based on the provided formulas. The analysis should calculate Return on Equity (ROE) using:
+        1. NOI Calculation: Total Income - Total Operating Expenses (excluding mortgage interest) = NOI
+        2. Equity Calculation: Current Market Value - Current Loan Balance = Equity
+        3. Debt Service Treatment: Remove mortgage interest from expenses and add the full annual debt service (principal + interest) separately
+        4. ROE Formula: (NOI - Annual Debt Service) ÷ Equity (true cash-flow ROE)
+        5. Avoid double-counting interest: it should not appear in both expenses and debt service
+        \n\n${fileText}`,
       });
 
       // Extract the properties array from the response
@@ -531,11 +597,11 @@ async function performAiAnalysis(buffer: Buffer, fileType: string): Promise<any[
         messages: [
           {
             role: "system",
-            content: "You are an expert real estate analyst. Analyze the provided property data and return a structured JSON response with property ROI metrics. Format as a JSON array of property objects with fields: propertyId, propertyName, address, purchasePrice, currentMarketValue, annualRentalIncome, annualExpenses, roiPercentage, roiCategory (excellent, good, moderate, fair, poor), recommendation (sell, hold, improve), analysis (cashFlow, capRate, cashOnCash, appreciationPotential, insuranceCost, interestRate, maintenance, propertyTaxes, propertyManagerFee, otherCosts), concerns (array of strings), suggestions (array of strings). Only return the JSON, no additional text."
+            content: "You are an expert real estate analyst. Analyze the provided property data and return a structured JSON response with property ROE metrics. Format as a JSON array of property objects with fields: propertyId, propertyName, address, purchasePrice, currentMarketValue, currentLoanBalance, annualDebtService, annualRentalIncome, annualExpenses, roePercentage, roeCategory (excellent, good, moderate, fair, poor), recommendation (sell, hold, improve), analysis (unleveredROE, leveredROE, equity, cashFlow, capRate, cashOnCash, appreciationPotential, insuranceCost, interestRate, maintenance, propertyTaxes, propertyManagerFee, otherCosts), concerns (array of strings), suggestions (array of strings). Use the following formulas: 1. NOI Calculation: Total Income - Total Operating Expenses (excluding mortgage interest) = NOI; 2. Equity Calculation: Current Market Value - Current Loan Balance = Equity; 3. Debt Service Treatment: Remove mortgage interest from expenses and add the full annual debt service (principal + interest) separately; 4. ROE Formula: (NOI - Annual Debt Service) ÷ Equity (true cash-flow ROE); 5. Avoid double-counting interest: it should not appear in both expenses and debt service. Only return the JSON, no additional text."
           },
           {
             role: "user",
-            content: `Analyze the following property data and provide ROI analysis:\n\n${fileText}`
+            content: `Analyze the following property data and provide ROE analysis:\n\n${fileText}`
           }
         ],
         temperature: 0.2,
@@ -557,12 +623,17 @@ async function performAiAnalysis(buffer: Buffer, fileType: string): Promise<any[
         address: result.address || 'Address not specified',
         purchasePrice: result.purchasePrice || 0,
         currentMarketValue: result.currentMarketValue || 0,
+        currentLoanBalance: result.currentLoanBalance || 0,
+        annualDebtService: result.annualDebtService || 0,
         annualRentalIncome: result.annualRentalIncome || 0,
         annualExpenses: result.annualExpenses || 0,
-        roiPercentage: result.roiPercentage || 0,
-        roiCategory: result.roiCategory || 'moderate',
+        roePercentage: result.roePercentage || 0,
+        roeCategory: result.roeCategory || 'moderate',
         recommendation: result.recommendation || 'hold',
         analysis: result.analysis || {
+          unleveredROE: 0,
+          leveredROE: 0,
+          equity: 0,
           cashFlow: 0,
           capRate: 0,
           cashOnCash: 0,
@@ -582,19 +653,24 @@ async function performAiAnalysis(buffer: Buffer, fileType: string): Promise<any[
       }));
     }
 
-    // Add some validation to ensure basic structure
+    // Add some validation to ensure basic structure - fallback for structured output failure
     return aiResults.map((result, index) => ({
       propertyId: result.propertyId || `PROP-${String(index + 1).padStart(3, '0')}`,
       propertyName: result.propertyName || `Property ${index + 1}`,
       address: result.address || 'Address not specified',
       purchasePrice: result.purchasePrice || 0,
       currentMarketValue: result.currentMarketValue || 0,
+      currentLoanBalance: result.currentLoanBalance || 0,
+      annualDebtService: result.annualDebtService || 0,
       annualRentalIncome: result.annualRentalIncome || 0,
       annualExpenses: result.annualExpenses || 0,
-      roiPercentage: result.roiPercentage || 0,
-      roiCategory: result.roiCategory || 'moderate',
+      roePercentage: result.roePercentage || 0,
+      roeCategory: result.roeCategory || 'moderate',
       recommendation: result.recommendation || 'hold',
       analysis: result.analysis || {
+        unleveredROE: 0,
+        leveredROE: 0,
+        equity: 0,
         cashFlow: 0,
         capRate: 0,
         cashOnCash: 0,
@@ -603,7 +679,8 @@ async function performAiAnalysis(buffer: Buffer, fileType: string): Promise<any[
         interestRate: 0,
         maintenance: 0,
         propertyTaxes: 0,
-        propertyManagerFee: 0
+        propertyManagerFee: 0,
+        otherCosts: 0
       },
       concerns: result.concerns || [],
       suggestions: result.suggestions || [
@@ -621,12 +698,17 @@ async function performAiAnalysis(buffer: Buffer, fileType: string): Promise<any[
         address: 'Could not analyze file with AI',
         purchasePrice: 0,
         currentMarketValue: 0,
+        currentLoanBalance: 0,
+        annualDebtService: 0,
         annualRentalIncome: 0,
         annualExpenses: 0,
-        roiPercentage: 0,
-        roiCategory: 'fair',
+        roePercentage: 0,
+        roeCategory: 'fair',
         recommendation: 'improve',
         analysis: {
+          unleveredROE: 0,
+          leveredROE: 0,
+          equity: 0,
           cashFlow: 0,
           capRate: 0,
           cashOnCash: 0,
