@@ -209,41 +209,89 @@ async function processRoiAnalysis(buffer: Buffer, fileType: string) {
       }
     }
 
-    // Process the extracted property data to calculate ROI
-    const results = propertiesData.map((property, index) => {
-      // Extract property data from the parsed row with flexible field detection
-      const possibleNameFields = ['propertyName', 'Property Name', 'Name', 'property_name', 'name', 'Property', 'Title', 'title'];
-      const possibleAddressFields = ['address', 'Address', 'property_address', 'Property Address', 'Location', 'location'];
-      const possiblePriceFields = ['purchasePrice', 'Purchase Price', 'purchase_price', 'PurchasePrice', 'Price', 'price', 'Cost', 'cost', 'Purchase', 'purchase'];
-      const possibleValueFields = ['currentMarketValue', 'Current Market Value', 'current_market_value', 'Market Value', 'MarketValue', 'Value', 'value'];
-      const possibleIncomeFields = ['annualRentalIncome', 'Annual Rental Income', 'annual_rental_income', 'AnnualRentalIncome', 'Rental Income', 'rental_income', 'Income', 'income', 'Annual Income', 'annual_income'];
-      const possibleExpensesFields = ['annualExpenses', 'Annual Expenses', 'annual_expenses', 'AnnualExpenses', 'Expenses', 'expenses', 'Total Expenses', 'total_expenses'];
+    // Process the extracted property data to calculate ROE with dynamic analysis
+    const results = propertiesData.map(async (property, index) => {
+      // Use AI to dynamically analyze all available fields in the property object
+      // First, let's create a string representation of all available data for AI analysis
+      const allPropertyData = Object.entries(property).map(([key, value]) => `${key}: ${value}`).join('\n');
 
-      const possibleInsuranceFields = ['insuranceCost', 'Insurance Cost', 'insurance_cost', 'InsuranceCost', 'Insurance', 'insurance'];
-      const possibleInterestFields = ['interestRate', 'Interest Rate', 'interest_rate', 'InterestRate', 'Interest', 'interest'];
-      const possibleMaintenanceFields = ['maintenance', 'Maintenance', 'Maintenance Cost', 'maintenance_cost', 'MaintenanceCost'];
-      const possibleTaxFields = ['propertyTaxes', 'Property Taxes', 'property_taxes', 'PropertyTaxes', 'Taxes', 'taxes', 'Property Tax', 'property_tax'];
-      const possibleManagerFields = ['propertyManagerFee', 'Property Manager Fee', 'property_manager_fee', 'PropertyManagerFee', 'Property Manager', 'property_manager'];
-      const possibleOtherCostFields = ['otherCosts', 'Other Costs', 'other_costs', 'OtherCosts', 'Other Cost', 'other_cost', 'Additional Costs', 'additional_costs'];
-      const possibleLoanBalanceFields = ['currentLoanBalance', 'Current Loan Balance', 'current_loan_balance', 'loanBalance', 'Loan Balance', 'loan_balance', 'CurrentLoanBalance', 'Mortgage Balance', 'mortgageBalance', 'Mortgage Balance'];
-      const possibleAnnualDebtServiceFields = ['annualDebtService', 'Annual Debt Service', 'annual_debt_service', 'debtService', 'Debt Service', 'debt_service', 'AnnualDebtService', 'Annual Mortgage Payment', 'annualMortgagePayment'];
+      // For backward compatibility, try to extract known fields first
+      const possibleNameFields = ['propertyName', 'Property Name', 'Name', 'property_name', 'name', 'Property', 'Title', 'title', 'property name', 'property_name', 'Property Name', 'Property_Name', 'Property-Name', 'Property-Name', 'property_id', 'propertyId', 'property'];
+      const possibleAddressFields = ['address', 'Address', 'property_address', 'Property Address', 'Location', 'location', 'property_address', 'Property_Address', 'Property-Address', 'property-location', 'Property Location', 'property location', 'Property_Location', 'property-address'];
+      const possiblePriceFields = ['purchasePrice', 'Purchase Price', 'purchase_price', 'PurchasePrice', 'Price', 'price', 'Cost', 'cost', 'Purchase', 'purchase', 'purchaseprice', 'purchase_price', 'Purchase_Price', 'Purchase-Price', 'purchase-price', 'buyprice', 'BuyPrice', 'Buy Price', 'buy price', 'initial_price', 'InitialPrice', 'Initial Price', 'initial price', 'property_cost', 'Property Cost', 'property cost'];
+      const possibleValueFields = ['currentMarketValue', 'Current Market Value', 'current_market_value', 'Market Value', 'MarketValue', 'Value', 'value', 'current_value', 'CurrentValue', 'Current Value', 'current value', 'appraised_value', 'Appraised Value', 'appraised value', 'AppraisedValue', 'market_value', 'Market Value', 'market value', 'Market_Value', 'current_property_value', 'CurrentPropertyValue', 'Current Property Value', 'current property value', 'fair_market_value', 'FairMarketValue', 'Fair Market Value', 'fair market value', 'estimated_value', 'Estimated Value', 'estimated value'];
+      const possibleIncomeFields = ['annualRentalIncome', 'Annual Rental Income', 'annual_rental_income', 'AnnualRentalIncome', 'Rental Income', 'rental_income', 'Income', 'income', 'Annual Income', 'annual_income', 'annualincome', 'AnnualIncome', 'rent', 'Rent', 'monthly_rent', 'MonthlyRent', 'Monthly Rent', 'monthly rent', 'annual_rent', 'AnnualRent', 'Annual Rent', 'annual rent', 'total_rental_income', 'TotalRentalIncome', 'Total Rental Income', 'total rental income', 'gross_income', 'GrossIncome', 'Gross Income', 'gross income', 'total_income', 'TotalIncome', 'Total Income', 'total income', 'yearly_income', 'YearlyIncome', 'Yearly Income', 'yearly income', 'monthly_income', 'MonthlyIncome', 'Monthly Income', 'monthly income'];
+      const possibleExpensesFields = ['annualExpenses', 'Annual Expenses', 'annual_expenses', 'AnnualExpenses', 'Expenses', 'expenses', 'Total Expenses', 'total_expenses', 'totalexpenses', 'TotalExpenses', 'Total Expenses', 'total expenses', 'annual_expense', 'AnnualExpense', 'Annual Expense', 'annual expense', 'operating_expenses', 'OperatingExpenses', 'Operating Expenses', 'operating expenses', 'total_operating_expenses', 'TotalOperatingExpenses', 'Total Operating Expenses', 'total operating expenses', 'yearly_expenses', 'YearlyExpenses', 'Yearly Expenses', 'yearly expenses', 'property_expenses', 'PropertyExpenses', 'Property Expenses', 'property expenses', 'monthly_expenses', 'MonthlyExpenses', 'Monthly Expenses', 'monthly expenses'];
+
+      const possibleInsuranceFields = ['insuranceCost', 'Insurance Cost', 'insurance_cost', 'InsuranceCost', 'Insurance', 'insurance', 'insurance_cost_monthly', 'InsuranceCostMonthly', 'insurance cost monthly', 'Insurance Cost Monthly', 'property_insurance', 'PropertyInsurance', 'Property Insurance', 'property insurance', 'homeowners_insurance', 'HomeownersInsurance', 'Homeowners Insurance', 'homeowners insurance', 'hazard_insurance', 'HazardInsurance', 'Hazard Insurance', 'hazard insurance'];
+      const possibleInterestFields = ['interestRate', 'Interest Rate', 'interest_rate', 'InterestRate', 'Interest', 'interest', 'interest_rate_percent', 'InterestRatePercent', 'interest rate %', 'Interest Rate %', 'mortgage_rate', 'MortgageRate', 'Mortgage Rate', 'mortgage rate', 'loan_rate', 'LoanRate', 'Loan Rate', 'loan rate', 'apr', 'APR', 'annual_interest', 'AnnualInterest', 'Annual Interest', 'annual interest', 'annual_percentage_rate', 'AnnualPercentageRate', 'Annual Percentage Rate', 'annual percentage rate'];
+      const possibleMaintenanceFields = ['maintenance', 'Maintenance', 'maintenance_cost', 'MaintenanceCost', 'Maintenance Cost', 'maintenance cost', 'maintenance_expense', 'MaintenanceExpense', 'Maintenance Expense', 'maintenance expense', 'maint_cost', 'MaintCost', 'maint cost', 'Maint Cost', 'yearly_maintenance', 'YearlyMaintenance', 'Yearly Maintenance', 'yearly maintenance', 'annual_maintenance', 'AnnualMaintenance', 'Annual Maintenance', 'annual maintenance', 'repair_maintenance', 'RepairMaintenance', 'Repair Maintenance', 'repair maintenance'];
+      const possibleTaxFields = ['propertyTaxes', 'Property Taxes', 'property_taxes', 'PropertyTaxes', 'Taxes', 'taxes', 'Property Tax', 'property tax', 'property_tax', 'PropertyTax', 'propertytaxes', 'PropertyTaxes', 'Property-Tax', 'property-tax', 'real_estate_taxes', 'RealEstateTaxes', 'Real Estate Taxes', 'real estate taxes', 'property_tax_yearly', 'PropertyTaxYearly', 'Property Tax Yearly', 'property tax yearly'];
+      const possibleManagerFields = ['propertyManagerFee', 'Property Manager Fee', 'property_manager_fee', 'PropertyManagerFee', 'Property Manager', 'property_manager', 'PropertyManager', 'property manager', 'management_fee', 'ManagementFee', 'Management Fee', 'management fee', 'property_management_fee', 'PropertyManagementFee', 'Property Management Fee', 'property management fee', 'pm_fee', 'PMFee', 'PM Fee', 'pm fee'];
+      const possibleOtherCostFields = ['otherCosts', 'Other Costs', 'other_costs', 'OtherCosts', 'Other Cost', 'other_cost', 'Additional Costs', 'additional_costs', 'miscellaneous', 'Miscellaneous', 'misc', 'Misc', 'other', 'Other', 'other_expenses', 'OtherExpenses', 'Other Expenses', 'other expenses', 'additional_expenses', 'AdditionalExpenses', 'Additional Expenses', 'additional expenses', 'utilities', 'Utilities', 'utility_cost', 'UtilityCost', 'Utility Cost', 'utility cost', 'hoa_fees', 'HOAFees', 'HOA Fees', 'hoa fees', 'hoa_fee', 'HOAFee', 'HOA Fee', 'hoa fee'];
+      const possibleLoanBalanceFields = ['currentLoanBalance', 'Current Loan Balance', 'current_loan_balance', 'loanBalance', 'Loan Balance', 'loan_balance', 'CurrentLoanBalance', 'Mortgage Balance', 'mortgageBalance', 'Mortgage Balance', 'loan_balance_current', 'LoanBalanceCurrent', 'loan balance current', 'Loan Balance Current', 'outstanding_loan', 'OutstandingLoan', 'Outstanding Loan', 'outstanding loan', 'remaining_loan', 'RemainingLoan', 'Remaining Loan', 'remaining loan', 'loan_amount_remaining', 'LoanAmountRemaining', 'Loan Amount Remaining', 'loan amount remaining', 'mortgage_balance_current', 'MortgageBalanceCurrent', 'mortgage balance current', 'Mortgage Balance Current', 'principal_balance', 'PrincipalBalance', 'Principal Balance', 'principal balance', 'current_principal', 'CurrentPrincipal', 'Current Principal', 'current principal'];
+      const possibleAnnualDebtServiceFields = ['annualDebtService', 'Annual Debt Service', 'annual_debt_service', 'debtService', 'Debt Service', 'debt_service', 'AnnualDebtService', 'Annual Mortgage Payment', 'annualMortgagePayment', 'annual_mortgage_payment', 'AnnualMortgagePayment', 'mortgage_payment_annual', 'MortgagePaymentAnnual', 'mortgage payment annual', 'Mortgage Payment Annual', 'yearly_mortgage', 'YearlyMortgage', 'Yearly Mortgage', 'yearly mortgage', 'annual_mortgage', 'AnnualMortgage', 'Annual Mortgage', 'annual mortgage', 'mortgage_payment_yearly', 'MortgagePaymentYearly', 'mortgage payment yearly', 'Mortgage Payment Yearly', 'total_mortgage_annual', 'TotalMortgageAnnual', 'Total Mortgage Annual', 'total mortgage annual', 'total_debt_payment', 'TotalDebtPayment', 'Total Debt Payment', 'total debt payment', 'annual_principal_interest', 'AnnualPrincipalInterest', 'Annual Principal Interest', 'annual principal interest', 'debt_service_annual', 'DebtServiceAnnual', 'Debt Service Annual', 'debt service annual'];
 
       const propertyName = findValueInObject(property, possibleNameFields) || `Property ${index + 1}`;
       const address = findValueInObject(property, possibleAddressFields) || 'Address not specified';
-      const purchasePrice = parseFloat(findValueInObject(property, possiblePriceFields) || 0) || 0;
-      const currentMarketValue = parseFloat(findValueInObject(property, possibleValueFields) || 0) || 0;
-      const annualRentalIncome = parseFloat(findValueInObject(property, possibleIncomeFields) || 0) || 0;
-      const annualExpenses = parseFloat(findValueInObject(property, possibleExpensesFields) || 0) || 0;
+
+      // Start with basic field detection for the most critical values
+      let purchasePrice = parseFloat(findValueInObject(property, possiblePriceFields) || 0) || 0;
+      let currentMarketValue = parseFloat(findValueInObject(property, possibleValueFields) || 0) || 0;
+      let annualRentalIncome = parseFloat(findValueInObject(property, possibleIncomeFields) || 0) || 0;
+      let annualExpenses = parseFloat(findValueInObject(property, possibleExpensesFields) || 0) || 0;
 
       // Additional property data for detailed analysis
-      const insuranceCost = parseFloat(findValueInObject(property, possibleInsuranceFields) || 0) || 0;
-      const interestRate = parseFloat(findValueInObject(property, possibleInterestFields) || 0) || 0;
-      const maintenance = parseFloat(findValueInObject(property, possibleMaintenanceFields) || 0) || 0;
-      const propertyTaxes = parseFloat(findValueInObject(property, possibleTaxFields) || 0) || 0;
-      const propertyManagerFee = parseFloat(findValueInObject(property, possibleManagerFields) || 0) || 0;
-      const otherCosts = parseFloat(findValueInObject(property, possibleOtherCostFields) || 0) || 0;
-      const currentLoanBalance = parseFloat(findValueInObject(property, possibleLoanBalanceFields) || 0) || 0;
-      const annualDebtService = parseFloat(findValueInObject(property, possibleAnnualDebtServiceFields) || 0) || 0;
+      let insuranceCost = parseFloat(findValueInObject(property, possibleInsuranceFields) || 0) || 0;
+      let interestRate = parseFloat(findValueInObject(property, possibleInterestFields) || 0) || 0;
+      let maintenance = parseFloat(findValueInObject(property, possibleMaintenanceFields) || 0) || 0;
+      let propertyTaxes = parseFloat(findValueInObject(property, possibleTaxFields) || 0) || 0;
+      let propertyManagerFee = parseFloat(findValueInObject(property, possibleManagerFields) || 0) || 0;
+      let otherCosts = parseFloat(findValueInObject(property, possibleOtherCostFields) || 0) || 0;
+      let currentLoanBalance = parseFloat(findValueInObject(property, possibleLoanBalanceFields) || 0) || 0;
+      let annualDebtService = parseFloat(findValueInObject(property, possibleAnnualDebtServiceFields) || 0) || 0;
+
+      // Convert monthly values to annual if annual values are not found (common in property data)
+      // Check for monthly income fields
+      if (annualRentalIncome === 0) {
+        const monthlyIncomeFields = ['monthlyRentalIncome', 'Monthly Rental Income', 'monthly_rental_income', 'MonthlyRentalIncome', 'monthly_rent', 'MonthlyRent', 'rent', 'Rent', 'monthly_income', 'MonthlyIncome', 'monthly income', 'Monthly Income'];
+        const monthlyIncome = parseFloat(findValueInObject(property, monthlyIncomeFields) || 0) || 0;
+        if (monthlyIncome > 0) {
+          annualRentalIncome = monthlyIncome * 12;
+        }
+      }
+
+      // Check for monthly expenses fields
+      if (annualExpenses === 0) {
+        const monthlyExpensesFields = ['monthlyExpenses', 'Monthly Expenses', 'monthly_expenses', 'MonthlyExpenses', 'monthly_expense', 'MonthlyExpense', 'monthly expense', 'Monthly Expense', 'expenses_monthly', 'ExpensesMonthly', 'Expenses Monthly', 'expenses monthly'];
+        const monthlyExpenses = parseFloat(findValueInObject(property, monthlyExpensesFields) || 0) || 0;
+        if (monthlyExpenses > 0) {
+          annualExpenses = monthlyExpenses * 12;
+        }
+      }
+
+      // If still no values after conventional field detection, use AI to analyze the data
+      if (purchasePrice === 0 || currentMarketValue === 0 || annualRentalIncome === 0 || annualExpenses === 0) {
+        try {
+          // Use AI to interpret the property data and extract key metrics
+          const aiAnalysis = await analyzePropertyWithAI(allPropertyData);
+          if (aiAnalysis.purchasePrice !== undefined && purchasePrice === 0) purchasePrice = aiAnalysis.purchasePrice;
+          if (aiAnalysis.currentMarketValue !== undefined && currentMarketValue === 0) currentMarketValue = aiAnalysis.currentMarketValue;
+          if (aiAnalysis.annualRentalIncome !== undefined && annualRentalIncome === 0) annualRentalIncome = aiAnalysis.annualRentalIncome;
+          if (aiAnalysis.annualExpenses !== undefined && annualExpenses === 0) annualExpenses = aiAnalysis.annualExpenses;
+          if (aiAnalysis.interestRate !== undefined) interestRate = aiAnalysis.interestRate;
+          if (aiAnalysis.currentLoanBalance !== undefined) currentLoanBalance = aiAnalysis.currentLoanBalance;
+          if (aiAnalysis.annualDebtService !== undefined) annualDebtService = aiAnalysis.annualDebtService;
+          if (aiAnalysis.insuranceCost !== undefined) insuranceCost = aiAnalysis.insuranceCost;
+          if (aiAnalysis.propertyTaxes !== undefined) propertyTaxes = aiAnalysis.propertyTaxes;
+          if (aiAnalysis.maintenance !== undefined) maintenance = aiAnalysis.maintenance;
+          if (aiAnalysis.propertyManagerFee !== undefined) propertyManagerFee = aiAnalysis.propertyManagerFee;
+          if (aiAnalysis.otherCosts !== undefined) otherCosts = aiAnalysis.otherCosts;
+        } catch (error) {
+          console.warn('AI analysis failed for property, using detected values', error);
+          // Continue with detected values
+        }
+      }
 
       // Calculate Equity (Current Market Value - Current Loan Balance)
       const equity = currentMarketValue - currentLoanBalance;
@@ -252,10 +300,11 @@ async function processRoiAnalysis(buffer: Buffer, fileType: string) {
       // We need to remove mortgage interest from expenses if it was included
       const annualNOI = annualRentalIncome - annualExpenses; // Net Operating Income
 
-      // Calculate unlevered ROE (NOI / Equity)
+      // Calculate unlevered ROE (NOI / Equity) - only if equity is positive
       const unleveredROE = equity > 0 ? (annualNOI / equity) * 100 : 0;
 
       // Calculate levered ROE (NOI - Annual Debt Service) / Equity - reflects actual cash flow ROE
+      // Only calculate if equity is positive to avoid division by zero
       const leveredROE = equity > 0 ? ((annualNOI - annualDebtService) / equity) * 100 : 0;
 
       // Use levered ROE as the primary metric for analysis
@@ -280,54 +329,32 @@ async function processRoiAnalysis(buffer: Buffer, fileType: string) {
       else if (roePercentage < 5) recommendation = 'improve';
       else if (roePercentage > 12) recommendation = 'hold';
 
-      // Generate ROE-specific concerns (combining original and new concerns)
-      const concerns = [];
-      if (insuranceCost > annualRentalIncome * 0.1) {
-        concerns.push("Insurance costs are higher than 10% of annual rental income");
-      }
-      if (maintenance > annualRentalIncome * 0.15) {
-        concerns.push("Maintenance costs are higher than 15% of annual rental income");
-      }
-      if (interestRate > 6) {
-        concerns.push("Interest rate is on the higher side, consider refinancing");
-      }
-      if (propertyTaxes > annualRentalIncome * 0.12) {
-        concerns.push("Property taxes are significantly impacting returns");
-      }
-      if (leveredROE < 3) {
-        concerns.push("Levered ROE is below 3%, this property may not be generating sufficient returns");
-      }
-      if (equity <= 0) {
-        concerns.push("Equity is zero or negative, indicating potential negative equity situation");
-      }
-      if (annualDebtService > annualNOI) {
-        concerns.push("Annual debt service exceeds net operating income, property is cash-flow negative");
-      }
+      // Generate dynamic concerns and suggestions using AI
+      const aiInsights = await generateAIInsights({
+        propertyName,
+        purchasePrice,
+        currentMarketValue,
+        currentLoanBalance,
+        annualDebtService,
+        annualRentalIncome,
+        annualExpenses,
+        roePercentage,
+        unleveredROE,
+        equity,
+        cashFlow,
+        capRate,
+        cashOnCash,
+        insuranceCost,
+        interestRate,
+        maintenance,
+        propertyTaxes,
+        propertyManagerFee,
+        otherCosts,
+        annualNOI
+      });
 
-      // Generate ROE-specific suggestions (combining original and new suggestions)
-      const suggestions = [];
-      if (interestRate > 5) {
-        suggestions.push("Consider refinancing to take advantage of lower interest rates");
-      }
-      if (propertyManagerFee > annualRentalIncome * 0.1) {
-        suggestions.push("Evaluate property management fees to ensure they're competitive");
-      }
-      if (annualRentalIncome < purchasePrice * 0.08) {
-        suggestions.push("Consider rent increases to align with market rates");
-      }
-      if (leveredROE < 3) {
-        suggestions.push("Consider selling and redeploying equity into higher-yielding investments");
-      }
-      if (equity > 0 && leveredROE < 5 && annualNOI > 0) {
-        suggestions.push("ROE is declining; consider refinancing to improve cash flow and returns");
-      }
-      if (leveredROE < unleveredROE * 0.5) {
-        suggestions.push("Debt service is heavily impacting returns; consider refinancing with better terms");
-      }
-      // Add suggestion for properties with low ROE based on the user's guidelines
-      if (leveredROE < 3) {
-        suggestions.push("ROE is very low after 3-7 years of ownership; consider selling and redeploying equity into higher-yielding investments");
-      }
+      const concerns = aiInsights.concerns;
+      const suggestions = aiInsights.suggestions;
 
       return {
         propertyId: `PROP-${String(index + 1).padStart(3, '0')}`,
@@ -363,11 +390,11 @@ async function processRoiAnalysis(buffer: Buffer, fileType: string) {
     });
 
     // If all properties have zero values, try to use AI to extract property data from the file content
-    if (results.every(result =>
-      result.purchasePrice === 0 &&
-      result.currentMarketValue === 0 &&
-      result.annualRentalIncome === 0 &&
-      result.annualExpenses === 0
+    if (results.every(async result =>
+      (await result).purchasePrice === 0 &&
+      (await result).currentMarketValue === 0 &&
+      (await result).annualRentalIncome === 0 &&
+      (await result).annualExpenses === 0
     )) {
       console.log("No meaningful property data found in the file, will try AI analysis...");
       return await performAiAnalysis(buffer, fileType);
@@ -562,8 +589,8 @@ async function performAiAnalysis(buffer: Buffer, fileType: string): Promise<any[
         currentMarketValue: result.currentMarketValue || 0,
         annualRentalIncome: result.annualRentalIncome || 0,
         annualExpenses: result.annualExpenses || 0,
-        roiPercentage: result.roiPercentage || 0,
-        roiCategory: result.roiCategory || 'moderate',
+        roiPercentage: result.roePercentage || 0,
+        roiCategory: result.roeCategory || 'moderate',
         recommendation: result.recommendation || 'hold',
         analysis: result.analysis || {
           cashFlow: 0,
@@ -597,7 +624,7 @@ async function performAiAnalysis(buffer: Buffer, fileType: string): Promise<any[
         messages: [
           {
             role: "system",
-            content: "You are an expert real estate analyst. Analyze the provided property data and return a structured JSON response with property ROE metrics. Format as a JSON array of property objects with fields: propertyId, propertyName, address, purchasePrice, currentMarketValue, currentLoanBalance, annualDebtService, annualRentalIncome, annualExpenses, roePercentage, roeCategory (excellent, good, moderate, fair, poor), recommendation (sell, hold, improve), analysis (unleveredROE, leveredROE, equity, cashFlow, capRate, cashOnCash, appreciationPotential, insuranceCost, interestRate, maintenance, propertyTaxes, propertyManagerFee, otherCosts), concerns (array of strings), suggestions (array of strings). Use the following formulas: 1. NOI Calculation: Total Income - Total Operating Expenses (excluding mortgage interest) = NOI; 2. Equity Calculation: Current Market Value - Current Loan Balance = Equity; 3. Debt Service Treatment: Remove mortgage interest from expenses and add the full annual debt service (principal + interest) separately; 4. ROE Formula: (NOI - Annual Debt Service) ÷ Equity (true cash-flow ROE); 5. Avoid double-counting interest: it should not appear in both expenses and debt service. Only return the JSON, no additional text."
+            content: "You are an expert real estate analyst. Analyze the provided property data and return a structured JSON response with property ROE metrics. Format as a JSON array of property objects with fields: propertyId, propertyName, address, purchasePrice, currentMarketValue, currentLoanBalance, annualDebtService, annualRentalIncome, annualExpenses, roePercentage, roeCategory (excellent, good, moderate, fair, poor), recommendation (sell, hold, improve), analysis (unleveredROE, leveredROE, equity, cashFlow, capRate, cashOnCash, appreciationPotential, insuranceCost, interestRate, maintenance, propertyTaxes, propertyManagerFee, otherCosts), concerns (array of strings), suggestions (array of strings). Use the following formulas: 1. NOI Calculation: Total Income - Total Operating Expenses (excluding mortgage interest) = NOI; 2. Equity Calculation: Current Market Value - Current Loan Balance = Equity; 3. Debt Service Treatment: Remove mortgage interest from expenses and add the full annual debt service (principal + interest) separately; 4. ROE Formula: (NOI - Annual Debt Service) ÷ Equity (true cash-flow ROE); 5. Avoid double-counting interest: it should not appear in both expenses and debt service. Note: Convert monthly values to annual (multiply by 12) when annual values are not explicitly provided. Only return the JSON, no additional text."
           },
           {
             role: "user",
@@ -724,5 +751,166 @@ async function performAiAnalysis(buffer: Buffer, fileType: string): Promise<any[
         suggestions: ["Check the file format and try again", "Ensure your OpenAI API key is properly configured"]
       }
     ];
+  }
+}
+
+interface PropertyData {
+  propertyName: string;
+  purchasePrice: number;
+  currentMarketValue: number;
+  currentLoanBalance: number;
+  annualDebtService: number;
+  annualRentalIncome: number;
+  annualExpenses: number;
+  roePercentage: number;
+  unleveredROE: number;
+  equity: number;
+  cashFlow: number;
+  capRate: number;
+  cashOnCash: number;
+  insuranceCost: number;
+  interestRate: number;
+  maintenance: number;
+  propertyTaxes: number;
+  propertyManagerFee: number;
+  otherCosts: number;
+  annualNOI: number;
+}
+
+interface PropertyAnalysis {
+  purchasePrice?: number;
+  currentMarketValue?: number;
+  annualRentalIncome?: number;
+  annualExpenses?: number;
+  interestRate?: number;
+  currentLoanBalance?: number;
+  annualDebtService?: number;
+  insuranceCost?: number;
+  propertyTaxes?: number;
+  maintenance?: number;
+  propertyManagerFee?: number;
+  otherCosts?: number;
+}
+
+interface AIInsights {
+  concerns: string[];
+  suggestions: string[];
+}
+
+// Dynamic AI-based property data extraction function
+async function analyzePropertyWithAI(propertyData: string): Promise<PropertyAnalysis> {
+  try {
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!openaiApiKey) {
+      return {};
+    }
+
+    const { OpenAI } = await import('openai');
+    const openaiClient = new OpenAI({
+      apiKey: openaiApiKey,
+    });
+
+    const response = await openaiClient.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert real estate data analyst. Extract specific financial metrics from the provided property data. Look for values related to purchase price, current market value, rental income, expenses, loan information, and other financial metrics. Convert monthly values to annual where appropriate (multiply by 12). Return ONLY a valid JSON object with the following fields (use null if the value is not found): {purchasePrice, currentMarketValue, annualRentalIncome, annualExpenses, interestRate, currentLoanBalance, annualDebtService, insuranceCost, propertyTaxes, maintenance, propertyManagerFee, otherCosts}. Do not include any other text or explanations."
+        },
+        {
+          role: "user",
+          content: `Extract financial metrics from this property data: ${propertyData}`
+        }
+      ],
+      temperature: 0.1,
+      response_format: { type: "json_object" }
+    });
+
+    const content = response.choices[0].message?.content;
+    if (!content) {
+      return {};
+    }
+
+    const parsedResponse = JSON.parse(content);
+    return parsedResponse as PropertyAnalysis;
+  } catch (error) {
+    console.error('AI property analysis failed:', error);
+    return {};
+  }
+}
+
+// Generate dynamic insights using AI based on the calculated data
+async function generateAIInsights(propertyData: PropertyData): Promise<AIInsights> {
+  try {
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!openaiApiKey) {
+      // Fallback insights if no API key
+      return {
+        concerns: ["OpenAI API key not configured, unable to generate dynamic insights"],
+        suggestions: ["Add your OpenAI API key to the environment variables to enable AI-powered insights"]
+      };
+    }
+
+    const { OpenAI } = await import('openai');
+    const openaiClient = new OpenAI({
+      apiKey: openaiApiKey,
+    });
+
+    const propertyMetrics = `
+      Property Name: ${propertyData.propertyName}
+      Purchase Price: $${propertyData.purchasePrice.toLocaleString()}
+      Current Market Value: $${propertyData.currentMarketValue.toLocaleString()}
+      Current Loan Balance: $${propertyData.currentLoanBalance.toLocaleString()}
+      Annual Debt Service: $${propertyData.annualDebtService.toLocaleString()}
+      Annual Rental Income: $${propertyData.annualRentalIncome.toLocaleString()}
+      Annual Expenses: $${propertyData.annualExpenses.toLocaleString()}
+      NOI (Net Operating Income): $${propertyData.annualNOI.toLocaleString()}
+      Equity: $${propertyData.equity.toLocaleString()}
+      ROE: ${propertyData.roePercentage.toFixed(2)}%
+      Unlevered ROE: ${propertyData.unleveredROE.toFixed(2)}%
+      Cash Flow: $${propertyData.cashFlow.toLocaleString()}
+      Cap Rate: ${propertyData.capRate.toFixed(2)}%
+      Cash-on-Cash: ${propertyData.cashOnCash.toFixed(2)}%
+      Insurance Cost: $${propertyData.insuranceCost.toLocaleString()}
+      Interest Rate: ${propertyData.interestRate}%
+      Maintenance: $${propertyData.maintenance.toLocaleString()}
+      Property Taxes: $${propertyData.propertyTaxes.toLocaleString()}
+      Property Manager Fee: $${propertyData.propertyManagerFee.toLocaleString()}
+      Other Costs: $${propertyData.otherCosts.toLocaleString()}
+    `;
+
+    const response = await openaiClient.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert real estate investment analyst. Analyze the provided property metrics and generate specific, actionable concerns and suggestions. Consider the following for generating concerns: high expenses relative to income, low ROE, negative cash flow, high debt service relative to NOI, potential tax implications, maintenance costs, insurance costs, property management efficiency. For suggestions: potential refinancing opportunities, rent optimization, expense reduction, property improvement opportunities, market timing for sale, portfolio rebalancing. Return ONLY a valid JSON object with two arrays: 'concerns' and 'suggestions'. Each should contain 3-5 items that are specific to the provided data. Do not include any other text or explanations."
+        },
+        {
+          role: "user",
+          content: `Analyze this property and provide concerns and suggestions: ${propertyMetrics}`
+        }
+      ],
+      temperature: 0.3,
+      response_format: { type: "json_object" }
+    });
+
+    const content = response.choices[0].message?.content;
+    if (!content) {
+      return {
+        concerns: [],
+        suggestions: []
+      };
+    }
+
+    const parsedResponse = JSON.parse(content);
+    return parsedResponse as AIInsights;
+  } catch (error) {
+    console.error('AI insights generation failed:', error);
+    // Return basic fallback insights
+    return {
+      concerns: ["AI analysis failed to generate insights"],
+      suggestions: ["Verify your property data is complete and accurate"]
+    };
   }
 }
