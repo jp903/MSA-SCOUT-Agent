@@ -327,8 +327,8 @@ export default function PropertyROICalculator({ user, onAuthRequired }: Property
                           <p className="text-xs text-gray-500">ID: {result.propertyId}</p>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <Badge className={getROIBadgeVariant(result.roeCategory)}>
-                            {result.roeCategory.charAt(0).toUpperCase() + result.roeCategory.slice(1)} ROE
+                          <Badge className={getROIBadgeVariant(result.roeCategory || result.roiCategory || 'moderate')}>
+                            {(result.roeCategory || result.roiCategory || 'moderate').charAt(0).toUpperCase() + (result.roeCategory || result.roiCategory || 'moderate').slice(1)} ROE
                           </Badge>
                           <Badge className={getRecommendationVariant(result.recommendation)}>
                             {result.recommendation.charAt(0).toUpperCase() + result.recommendation.slice(1)}
@@ -359,7 +359,7 @@ export default function PropertyROICalculator({ user, onAuthRequired }: Property
                         <div className="space-y-2">
                           <div className="flex justify-between">
                             <span className="text-sm text-gray-600">ROE:</span>
-                            <span className="text-sm font-medium text-blue-600">{result.roePercentage.toFixed(2)}%</span>
+                            <span className="text-sm font-medium text-blue-600">{(result.roePercentage || result.roiPercentage || 0).toFixed(2)}%</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-sm text-gray-600">Cash Flow:</span>
@@ -380,10 +380,10 @@ export default function PropertyROICalculator({ user, onAuthRequired }: Property
                       <div className="mb-4">
                         <div className="flex justify-between text-sm mb-1">
                           <span>ROE Progress</span>
-                          <span>{result.roePercentage.toFixed(2)}%</span>
+                          <span>{(result.roePercentage || result.roiPercentage || 0).toFixed(2)}%</span>
                         </div>
                         <Progress
-                          value={Math.min(result.roePercentage * 3, 100)}
+                          value={Math.min((result.roePercentage || result.roiPercentage || 0) * 3, 100)}
                           className="h-2"
                         />
                       </div>
@@ -421,11 +421,11 @@ export default function PropertyROICalculator({ user, onAuthRequired }: Property
 
                       {/* ROE Alerts and Insights */}
                       <div className="mb-4">
-                        {result.roePercentage < 3 && (
+                        {(result.roePercentage || result.roiPercentage || 0) < 3 && (
                           <div className="p-3 bg-red-50 border border-red-200 rounded-lg mb-2">
                             <div className="flex items-center gap-2">
                               <AlertTriangle className="h-4 w-4 text-red-600" />
-                              <span className="text-sm font-medium text-red-800">ROE Alert: {result.roePercentage.toFixed(2)}% is below recommended 3% threshold</span>
+                              <span className="text-sm font-medium text-red-800">ROE Alert: {(result.roePercentage || result.roiPercentage || 0).toFixed(2)}% is below recommended 3% threshold</span>
                             </div>
                             <p className="text-xs text-red-600 mt-1">Consider reviewing strategy for this property</p>
                           </div>
@@ -484,10 +484,10 @@ export default function PropertyROICalculator({ user, onAuthRequired }: Property
                         <div className="text-xs text-gray-600 space-y-1">
                           <p>• ROE typically decreases over time as equity grows and cash flow remains static</p>
                           <p>• Properties with ROE below 3% may be best candidates for selling and reinvestment</p>
-                          {result.roePercentage < 3 && (
+                          {(result.roePercentage || result.roiPercentage || 0) < 3 && (
                             <p className="text-red-600 font-medium">• This property's ROE is below 3%, consider selling and redeploying equity</p>
                           )}
-                          {result.roePercentage >= 3 && result.roePercentage < 5 && (
+                          {(result.roePercentage || result.roiPercentage || 0) >= 3 && (result.roePercentage || result.roiPercentage || 0) < 5 && (
                             <p className="text-yellow-600 font-medium">• This property's ROE is moderate, consider refinancing to improve cash flow</p>
                           )}
                         </div>
@@ -511,7 +511,7 @@ export default function PropertyROICalculator({ user, onAuthRequired }: Property
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
                   <div className="text-2xl font-bold text-blue-800">
-                    {results.reduce((sum, r) => sum + r.roePercentage, 0).toFixed(2)}%
+                    {results.reduce((sum, r) => sum + (r.roePercentage || r.roiPercentage || 0), 0).toFixed(2)}%
                   </div>
                   <div className="text-sm text-blue-600">Average ROE</div>
                 </div>
