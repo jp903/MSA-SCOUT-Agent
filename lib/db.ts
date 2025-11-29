@@ -2,20 +2,26 @@ import { neon } from "@neondatabase/serverless"
 import { drizzle } from "drizzle-orm/neon-serverless"
 import type { NeonQueryFunction } from "@neondatabase/serverless"
 
-function createDummySql(): NeonQueryFunction<any[]> {
-  return (strings: TemplateStringsArray, ..._values: unknown[]) => {
+function createDummySql(): NeonQueryFunction<boolean, any> {
+  const dummyFunction = (strings: TemplateStringsArray, ..._values: unknown[]) => {
     console.warn("⚠️ No database URL, returning empty array")
     return Promise.resolve([]) as any
   }
+  
+  return Object.assign(dummyFunction, {
+    query: dummyFunction,
+    unsafe: dummyFunction,
+    transaction: () => Promise.resolve(dummyFunction as any)
+  }) as unknown as NeonQueryFunction<boolean, any>
 }
 
 // Use the database URL from environment variable
 const databaseUrl = process.env.DATABASE_URL
 
-export const sql: NeonQueryFunction<any[]> = databaseUrl ? neon(databaseUrl) : createDummySql()
+export const sql = databaseUrl ? neon(databaseUrl) : createDummySql()
 
 // Initialize Drizzle ORM
-export const db = databaseUrl ? drizzle(sql) : null;
+export const db = databaseUrl ? drizzle(sql as any) : null;
 
 // Function to get the DB instance, throwing an error if not available
 export function getDb() {
@@ -62,7 +68,8 @@ export async function testConnection() {
 
   try {
     const result = await sql`SELECT NOW() AS current_time`
-    console.log("✅ Database connected successfully:", result[0].current_time)
+    const rows = Array.isArray(result) ? result : (result as any)?.rows || []
+    console.log("✅ Database connected successfully:", rows[0]?.current_time)
     return true
   } catch (error) {
     console.error("❌ Database connection failed:", error)

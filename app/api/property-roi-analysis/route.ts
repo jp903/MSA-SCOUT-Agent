@@ -118,6 +118,37 @@ export async function POST(request: NextRequest) {
           }));
         }
 
+        // Sanitize the analysis results to ensure data integrity for database storage
+        const sanitizedAnalysisResults = roiResults.map(result => {
+          // Sanitize the result to ensure all numeric values are proper numbers and not undefined
+          return {
+            ...result,
+            purchasePrice: typeof result.purchasePrice === 'number' ? result.purchasePrice : 0,
+            currentMarketValue: typeof result.currentMarketValue === 'number' ? result.currentMarketValue : 0,
+            currentLoanBalance: typeof result.currentLoanBalance === 'number' ? result.currentLoanBalance : 0,
+            annualDebtService: typeof result.annualDebtService === 'number' ? result.annualDebtService : 0,
+            annualRentalIncome: typeof result.annualRentalIncome === 'number' ? result.annualRentalIncome : 0,
+            annualExpenses: typeof result.annualExpenses === 'number' ? result.annualExpenses : 0,
+            roePercentage: typeof result.roePercentage === 'number' ? result.roePercentage : 0,
+            analysis: {
+              ...result.analysis,
+              unleveredROE: typeof result.analysis.unleveredROE === 'number' ? result.analysis.unleveredROE : 0,
+              leveredROE: typeof result.analysis.leveredROE === 'number' ? result.analysis.leveredROE : 0,
+              equity: typeof result.analysis.equity === 'number' ? result.analysis.equity : 0,
+              cashFlow: typeof result.analysis.cashFlow === 'number' ? result.analysis.cashFlow : 0,
+              capRate: typeof result.analysis.capRate === 'number' ? result.analysis.capRate : 0,
+              cashOnCash: typeof result.analysis.cashOnCash === 'number' ? result.analysis.cashOnCash : 0,
+              appreciationPotential: typeof result.analysis.appreciationPotential === 'number' ? result.analysis.appreciationPotential : 0,
+              insuranceCost: typeof result.analysis.insuranceCost === 'number' ? result.analysis.insuranceCost : 0,
+              interestRate: typeof result.analysis.interestRate === 'number' ? result.analysis.interestRate : 0,
+              maintenance: typeof result.analysis.maintenance === 'number' ? result.analysis.maintenance : 0,
+              propertyTaxes: typeof result.analysis.propertyTaxes === 'number' ? result.analysis.propertyTaxes : 0,
+              propertyManagerFee: typeof result.analysis.propertyManagerFee === 'number' ? result.analysis.propertyManagerFee : 0,
+              otherCosts: typeof result.analysis.otherCosts === 'number' ? result.analysis.otherCosts : 0
+            }
+          };
+        });
+
         const documentRecord = {
           userId: userId,
           fileName: file.name,
@@ -127,7 +158,7 @@ export async function POST(request: NextRequest) {
           mimeType: file.type,
           uploadDate: new Date(),
           status: 'processed' as const,
-          analysisResults: analysisResultsToStore  // Store the ROI analysis results
+          analysisResults: sanitizedAnalysisResults  // Store the sanitized ROI analysis results
         };
 
         // Insert and get the inserted record's ID
@@ -210,7 +241,7 @@ async function processRoiAnalysis(buffer: Buffer, fileType: string) {
     }
 
     // Process the extracted property data to calculate ROE with dynamic analysis
-    const results = propertiesData.map(async (property, index) => {
+    const promiseResults = propertiesData.map(async (property, index) => {
       // Use AI to dynamically analyze all available fields in the property object
       // First, let's create a string representation of all available data for AI analysis
       const allPropertyData = Object.entries(property).map(([key, value]) => `${key}: ${value}`).join('\n');
@@ -300,12 +331,12 @@ async function processRoiAnalysis(buffer: Buffer, fileType: string) {
       // We need to remove mortgage interest from expenses if it was included
       const annualNOI = annualRentalIncome - annualExpenses; // Net Operating Income
 
-      // Calculate unlevered ROE (NOI / Equity) - only if equity is positive
-      const unleveredROE = equity > 0 ? (annualNOI / equity) * 100 : 0;
+      // Calculate unlevered ROE (NOI / Equity) - only if equity is positive and non-zero to avoid division by zero
+      const unleveredROE = equity !== 0 ? (annualNOI / equity) * 100 : 0;
 
       // Calculate levered ROE (NOI - Annual Debt Service) / Equity - reflects actual cash flow ROE
-      // Only calculate if equity is positive to avoid division by zero
-      const leveredROE = equity > 0 ? ((annualNOI - annualDebtService) / equity) * 100 : 0;
+      // Only calculate if equity is non-zero to avoid division by zero
+      const leveredROE = equity !== 0 ? ((annualNOI - annualDebtService) / equity) * 100 : 0;
 
       // Use levered ROE as the primary metric for analysis
       const roePercentage = leveredROE;
@@ -389,12 +420,15 @@ async function processRoiAnalysis(buffer: Buffer, fileType: string) {
       };
     });
 
+    // Wait for all promises to resolve
+    const results = await Promise.all(promiseResults);
+
     // If all properties have zero values, try to use AI to extract property data from the file content
-    if (results.every(async result =>
-      (await result).purchasePrice === 0 &&
-      (await result).currentMarketValue === 0 &&
-      (await result).annualRentalIncome === 0 &&
-      (await result).annualExpenses === 0
+    if (results.every(result =>
+      result.purchasePrice === 0 &&
+      result.currentMarketValue === 0 &&
+      result.annualRentalIncome === 0 &&
+      result.annualExpenses === 0
     )) {
       console.log("No meaningful property data found in the file, will try AI analysis...");
       return await performAiAnalysis(buffer, fileType);
@@ -587,12 +621,17 @@ async function performAiAnalysis(buffer: Buffer, fileType: string): Promise<any[
         address: result.address || 'Address not specified',
         purchasePrice: result.purchasePrice || 0,
         currentMarketValue: result.currentMarketValue || 0,
+        currentLoanBalance: result.currentLoanBalance || 0,
+        annualDebtService: result.annualDebtService || 0,
         annualRentalIncome: result.annualRentalIncome || 0,
         annualExpenses: result.annualExpenses || 0,
-        roiPercentage: result.roePercentage || 0,
-        roiCategory: result.roeCategory || 'moderate',
+        roePercentage: result.roePercentage || 0,
+        roeCategory: result.roeCategory || 'moderate',
         recommendation: result.recommendation || 'hold',
         analysis: result.analysis || {
+          unleveredROE: 0,
+          leveredROE: 0,
+          equity: 0,
           cashFlow: 0,
           capRate: 0,
           cashOnCash: 0,

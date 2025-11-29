@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid"
 
 import { ensureDatabaseInitialized } from "./db"
 import { User } from "./user-types"
+import { NextResponse } from "next/server"
 
 const sql = neon(process.env.DATABASE_URL!)
 
