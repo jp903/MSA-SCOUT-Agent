@@ -7,6 +7,7 @@ export interface User {
   company?: string | null
   google_id?: string | null
   avatar_url?: string | null
+  role?: string
   created_at: Date
   updated_at: Date
 }

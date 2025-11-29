@@ -98,7 +98,8 @@ export async function initializeDatabase() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         last_login TIMESTAMP,
         google_id VARCHAR(255),
-        avatar_url TEXT
+        avatar_url TEXT,
+        role VARCHAR(20) DEFAULT 'user'
       )
     `
 
@@ -110,7 +111,8 @@ export async function initializeDatabase() {
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP`
-      
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'`
+
       // Check for all required columns that might be missing using separate queries for compatibility
       // Add missing columns to users table if they don't exist
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(100)`

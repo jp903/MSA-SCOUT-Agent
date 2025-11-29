@@ -55,7 +55,7 @@ export class AuthService {
 
       // Check if user already exists
       const existingUser = await sql`
-        SELECT id, email FROM users WHERE email = ${email}
+        SELECT id, email, role FROM users WHERE email = ${email}
       `
 
       if (existingUser.length > 0) {
@@ -73,16 +73,17 @@ export class AuthService {
       // Insert new user
       const result = await sql`
         INSERT INTO users (
-          id, 
-          email, 
-          password_hash, 
-          first_name, 
-          last_name, 
-          phone, 
-          company, 
-          google_id, 
+          id,
+          email,
+          password_hash,
+          first_name,
+          last_name,
+          phone,
+          company,
+          google_id,
           avatar_url,
-          created_at, 
+          role,
+          created_at,
           updated_at
         )
         VALUES (
@@ -95,6 +96,7 @@ export class AuthService {
           ${company},
           ${google_id},
           ${avatar_url},
+          'user',
           NOW(),
           NOW()
         )
@@ -119,7 +121,7 @@ export class AuthService {
       await ensureDatabaseInitialized();
 
       const result = await sql`
-        SELECT * FROM users WHERE email = ${email}
+        SELECT id, email, password_hash, first_name, last_name, phone, company, google_id, avatar_url, role, created_at, updated_at FROM users WHERE email = ${email}
       `
 
       return result.length > 0 ? (result[0] as User) : null
@@ -135,7 +137,7 @@ export class AuthService {
       await ensureDatabaseInitialized();
 
       const result = await sql`
-        SELECT * FROM users WHERE google_id = ${googleId}
+        SELECT id, email, password_hash, first_name, last_name, phone, company, google_id, avatar_url, role, created_at, updated_at FROM users WHERE google_id = ${googleId}
       `
 
       return result.length > 0 ? (result[0] as User) : null
@@ -150,12 +152,12 @@ export class AuthService {
     await ensureDatabaseInitialized();
 
     const result = await sql`
-      UPDATE users 
-      SET google_id = ${data.google_id}, 
+      UPDATE users
+      SET google_id = ${data.google_id},
           avatar_url = ${data.avatar_url || null},
           updated_at = NOW()
       WHERE id = ${userId}
-      RETURNING *
+      RETURNING id, email, password_hash, first_name, last_name, phone, company, google_id, avatar_url, role, created_at, updated_at
     `
 
     return result[0] as User
@@ -169,8 +171,8 @@ export class AuthService {
 
     // Get user with password hash
     const userResult = await sql`
-      SELECT id, email, password_hash, first_name, last_name, phone, company, google_id, avatar_url, created_at, updated_at
-      FROM users 
+      SELECT id, email, password_hash, first_name, last_name, phone, company, google_id, avatar_url, role, created_at, updated_at
+      FROM users
       WHERE email = ${email}
     `
 
@@ -238,7 +240,7 @@ export class AuthService {
       console.log("Verifying session token:", sessionToken.substring(0, 10) + "...")
 
       const result = await sql`
-        SELECT u.id, u.email, u.first_name, u.last_name, u.phone, u.company, u.google_id, u.avatar_url, u.created_at, u.updated_at,
+        SELECT u.id, u.email, u.first_name, u.last_name, u.phone, u.company, u.google_id, u.avatar_url, u.role, u.created_at, u.updated_at,
                s.expires_at
         FROM users u
         JOIN sessions s ON u.id = s.user_id
@@ -287,6 +289,94 @@ export class AuthService {
     }
   }
 
+  static async verifySessionWithRole(sessionToken: string, requiredRole: string, response?: NextResponse): Promise<User | null> {
+    const user = await this.verifySession(sessionToken, response);
+
+    if (!user) {
+      return null;
+    }
+
+    // Check if user has the required role level
+    const roleLevels: Record<string, number> = {
+      'user': 1,
+      'admin': 2,
+      'superuser': 3
+    };
+
+    const userLevel = roleLevels[user.role || 'user'] || 1;
+    const requiredLevel = roleLevels[requiredRole] || 1;
+
+    if (userLevel < requiredLevel) {
+      console.log(`User ${user.email} does not have required role ${requiredRole}`);
+      return null;
+    }
+
+    return user;
+  }
+
+  static async verifySessionWithPermissions(sessionToken: string, requiredPermission: string, response?: NextResponse): Promise<User | null> {
+    const user = await this.verifySession(sessionToken, response);
+
+    if (!user) {
+      return null;
+    }
+
+    // Define permissions for each role
+    const rolePermissions: Record<string, string[]> = {
+      'user': [
+        'read:own-properties',
+        'create:own-properties',
+        'update:own-properties',
+        'delete:own-properties',
+        'upload:roi-documents',
+        'read:own-roi-documents',
+        'chat:access',
+        'dashboard:access'
+      ],
+      'admin': [
+        'read:own-properties',
+        'create:own-properties',
+        'update:own-properties',
+        'delete:own-properties',
+        'read:all-properties',
+        'update:all-properties',
+        'upload:roi-documents',
+        'read:own-roi-documents',
+        'read:all-roi-documents',
+        'manage:users',
+        'chat:access',
+        'dashboard:access'
+      ],
+      'superuser': [
+        'read:own-properties',
+        'create:own-properties',
+        'update:own-properties',
+        'delete:own-properties',
+        'read:all-properties',
+        'create:all-properties',
+        'update:all-properties',
+        'delete:all-properties',
+        'upload:roi-documents',
+        'read:own-roi-documents',
+        'read:all-roi-documents',
+        'manage:users',
+        'manage:roles',
+        'system:admin',
+        'chat:access',
+        'dashboard:access'
+      ]
+    };
+
+    const permissions = rolePermissions[user.role || 'user'] || [];
+
+    if (!permissions.includes(requiredPermission)) {
+      console.log(`User ${user.email} does not have required permission ${requiredPermission}`);
+      return null;
+    }
+
+    return user;
+  }
+
   static async signOut(sessionToken: string): Promise<void> {
     // Ensure database is initialized
     await ensureDatabaseInitialized();
@@ -328,12 +418,12 @@ export class AuthService {
         // Update existing user with Google ID if not already set
         if (!existingUser.google_id) {
           const result = await sql`
-            UPDATE users 
-            SET google_id = ${googleData.google_id}, 
+            UPDATE users
+            SET google_id = ${googleData.google_id},
                 avatar_url = ${googleData.avatar_url || null},
                 updated_at = NOW()
             WHERE email = ${googleData.email}
-            RETURNING *
+            RETURNING id, email, password_hash, first_name, last_name, phone, company, google_id, avatar_url, role, created_at, updated_at
           `
           return result[0] as User
         }
@@ -351,6 +441,51 @@ export class AuthService {
     } catch (error: any) {
       console.error("Error creating Google user:", error)
       throw new Error(error.message || "Failed to create Google user")
+    }
+  }
+
+  static async assignRole(userId: string, role: string): Promise<User> {
+    try {
+      // Validate role against allowed values
+      const allowedRoles = ['user', 'admin', 'superuser'];
+      if (!allowedRoles.includes(role)) {
+        throw new Error(`Invalid role. Allowed roles are: ${allowedRoles.join(', ')}`);
+      }
+
+      // Ensure database is initialized
+      await ensureDatabaseInitialized();
+
+      const result = await sql`
+        UPDATE users
+        SET role = ${role}, updated_at = NOW()
+        WHERE id = ${userId}
+        RETURNING id, email, password_hash, first_name, last_name, phone, company, google_id, avatar_url, role, created_at, updated_at
+      `;
+
+      if (result.length === 0) {
+        throw new Error("User not found");
+      }
+
+      return result[0] as User;
+    } catch (error) {
+      console.error("Error assigning role:", error);
+      throw new Error(error instanceof Error ? error.message : "Failed to assign role");
+    }
+  }
+
+  static async getUserRole(userId: string): Promise<string | null> {
+    try {
+      // Ensure database is initialized
+      await ensureDatabaseInitialized();
+
+      const result = await sql`
+        SELECT role FROM users WHERE id = ${userId}
+      `;
+
+      return result.length > 0 ? result[0].role : null;
+    } catch (error) {
+      console.error("Error getting user role:", error);
+      return null;
     }
   }
 

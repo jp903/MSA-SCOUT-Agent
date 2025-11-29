@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Search, Filter, MapPin, Home, Bath, Bed, Calendar, Phone, Mail, Building } from "lucide-react"
 import type { PropertyListing, PropertySearchFilters } from "@/lib/property-search-agent"
+import { ALLOWED_MSAS, MSA_STATE_MAP } from "@/lib/deal-finder-constants"
 
 const US_STATES = [
   "Alabama",
@@ -105,6 +106,12 @@ export default function PropertyListings() {
       return
     }
 
+    // Validate that the selected MSA is in our allowed list
+    if (!ALLOWED_MSAS.includes(filters.msa)) {
+      setError(`Selected MSA "${filters.msa}" is not supported. Please select one of the allowed MSAs.`);
+      return;
+    }
+
     setLoading(true)
     setError(null)
     setProperties([])
@@ -192,31 +199,37 @@ export default function PropertyListings() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* State Selection */}
+              {/* MSA Selection - Limited to specific allowed MSAs */}
               <div className="space-y-2">
-                <Label htmlFor="state">State</Label>
-                <Select value={filters.state} onValueChange={(value) => updateFilter("state", value)}>
+                <Label htmlFor="msa">Metropolitan Statistical Area (MSA)</Label>
+                <Select value={filters.msa} onValueChange={(value) => {
+                  updateFilter("msa", value);
+                  // Automatically update the state when MSA is selected
+                  if (MSA_STATE_MAP[value]) {
+                    updateFilter("state", MSA_STATE_MAP[value]);
+                  }
+                }}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select state" />
+                    <SelectValue placeholder="Select MSA" />
                   </SelectTrigger>
                   <SelectContent>
-                    {US_STATES.map((state) => (
-                      <SelectItem key={state} value={state}>
-                        {state}
+                    {ALLOWED_MSAS.map((msa) => (
+                      <SelectItem key={msa} value={msa}>
+                        {msa} - {MSA_STATE_MAP[msa]}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* MSA Input */}
+              {/* State field - automatically populated based on selected MSA but user can override */}
               <div className="space-y-2">
-                <Label htmlFor="msa">Metropolitan Statistical Area (MSA)</Label>
+                <Label htmlFor="state">State (Auto-populated)</Label>
                 <Input
-                  id="msa"
-                  placeholder="e.g., Austin-Round Rock"
-                  value={filters.msa}
-                  onChange={(e) => updateFilter("msa", e.target.value)}
+                  id="state"
+                  value={filters.state}
+                  onChange={(e) => updateFilter("state", e.target.value)}
+                  placeholder="State automatically set from MSA"
                 />
               </div>
 

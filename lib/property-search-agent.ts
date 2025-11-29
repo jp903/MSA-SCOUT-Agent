@@ -151,6 +151,8 @@ const STATE_ABBREVIATIONS: { [key: string]: string } = {
   Wyoming: "WY",
 }
 
+import { ALLOWED_MSAS } from "@/lib/deal-finder-constants";
+
 export class PropertySearchAgent {
   private readonly RAPIDAPI_KEY = process.env.RAPIDAPI_KEY
   private readonly RENTCAST_API_KEY = process.env.RENTCAST_API_KEY
@@ -183,6 +185,12 @@ export class PropertySearchAgent {
     // Validate required fields
     if (!filters.state || !filters.msa) {
       throw new Error("Both state and MSA are required for property search")
+    }
+
+    // Validate that the MSA is in our allowed list
+    if (!ALLOWED_MSAS.includes(filters.msa)) {
+      console.log(`❌ MSA not allowed: ${filters.msa}`)
+      throw new Error(`MSA "${filters.msa}" is not in the allowed list of MSAs`)
     }
 
     // Check API keys first - FAIL if not configured

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { PropertySearchAgent, type PropertySearchFilters } from "@/lib/property-search-agent"
+import { ALLOWED_MSAS } from "@/lib/deal-finder-constants"
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +17,20 @@ export async function POST(request: NextRequest) {
           error: "Missing required fields",
           details: "Both state and msa are required",
           success: false,
+        },
+        { status: 400 },
+      )
+    }
+
+    // Validate that the MSA is in our allowed list
+    if (!ALLOWED_MSAS.includes(body.msa)) {
+      console.log(`❌ MSA not allowed: ${body.msa}`)
+      return NextResponse.json(
+        {
+          error: "MSA not allowed",
+          details: `MSA "${body.msa}" is not in the allowed list of MSAs`,
+          success: false,
+          allowedMSAs: ALLOWED_MSAS,
         },
         { status: 400 },
       )
@@ -214,6 +229,8 @@ export async function GET() {
       rapidApiLength: process.env.RAPIDAPI_KEY?.length || 0,
       rentcastLength: process.env.RENTCAST_API_KEY?.length || 0,
     },
+    allowedMSAs: ALLOWED_MSAS,
+    totalAllowedMSAs: ALLOWED_MSAS.length,
     dataSources: [
       {
         name: "RentCast API",
