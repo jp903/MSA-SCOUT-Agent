@@ -1,4 +1,5 @@
 ALTER TABLE "property_roe_analysis"
+ADD COLUMN "UserId" uuid,
 ADD COLUMN "annual_rental_income" numeric(12, 2),
 ADD COLUMN "annual_expenses" numeric(12, 2),
 ADD COLUMN "current_market_value" numeric(12, 2),

@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
     const [result] = await db
       .insert(propertyRoeAnalysis)
       .values({
-        userId: user.id,
+        userId: user.id, // Use the TypeScript field name from the schema
         purchasePrice: parseValue(purchasePrice),
         debt: parseValue(debt),
         downPayment: parseValue(downPayment),
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
         loanTerms: parseValue(loanTerms, 0),
         amortization: parseValue(amortization, 0),
         interestRate: parseValue(interestRate),
-        acquisitionDate: acquisitionDate || null,
+        acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : null,
         yearsHeld: parseValue(yearsHeld, 0),
         currentPayment: parseValue(currentPayment),
         annualRentalIncome: annualIncome,
