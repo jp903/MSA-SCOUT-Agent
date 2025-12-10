@@ -97,10 +97,19 @@ export const propertyRoeAnalysis = pgTable('property_roe_analysis', {
   yearsHeld: integer('years_held'),
   currentPayment: decimal('current_payment', { precision: 10, scale: 2 }),
   roePercentage: decimal('roe_percentage', { precision: 10, scale: 2 }),
-  analysisResults: jsonb('analysis_results'),
+  analysisResults: text('analysis_results'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .defaultNow()
     .$onUpdate(() => sql`NOW()`)
     .notNull(),
+  annualRentalIncome: decimal('annual_rental_income', { precision: 12, scale: 2 }),
+  annualExpenses: decimal('annual_expenses', { precision: 12, scale: 2 }),
+  currentMarketValue: decimal('current_market_value', { precision: 12, scale: 2 }),
+  currentLoanBalance: decimal('current_loan_balance', { precision: 12, scale: 2 }),
+  annualDebtService: decimal('annual_debt_service', { precision: 12, scale: 2 }),
+  noi: decimal('noi', { precision: 12, scale: 2 }),
+  equity: decimal('equity', { precision: 12, scale: 2 }),
+  unleveredRoe: decimal('unlevered_roe', { precision: 10, scale: 2 }),
+  leveredRoe: decimal('levered_roe', { precision: 10, scale: 2 }),
 });
