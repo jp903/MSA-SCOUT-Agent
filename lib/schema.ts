@@ -78,17 +78,25 @@ export const chatHistory = pgTable('chat_history', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-// Property ROE Documents table
-export const propertyRoiDocuments = pgTable('property_roi_documents', {
+// Property ROE Analysis table
+export const propertyRoeAnalysis = pgTable('property_roe_analysis', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  fileName: varchar('file_name', { length: 255 }).notNull(),
-  originalName: varchar('original_name', { length: 255 }).notNull(),
-  fileKey: varchar('file_key', { length: 500 }).notNull(),
-  fileSize: integer('file_size').notNull(),
-  mimeType: varchar('mime_type', { length: 100 }).notNull(),
-  uploadDate: timestamp('upload_date', { withTimezone: true }).defaultNow().notNull(),
-  status: documentStatus('status').default('processed'),
+  purchasePrice: decimal('purchase_price', { precision: 12, scale: 2 }),
+  debt: decimal('debt', { precision: 12, scale: 2 }),
+  downPayment: decimal('down_payment', { precision: 12, scale: 2 }),
+  outOfPocketReno: decimal('out_of_pocket_reno', { precision: 12, scale: 2 }),
+  totalInitialInvestment: decimal('total_initial_investment', { precision: 12, scale: 2 }),
+  currentFmv: decimal('current_fmv', { precision: 12, scale: 2 }),
+  currentDebt: decimal('current_debt', { precision: 12, scale: 2 }),
+  potentialEquity: decimal('potential_equity', { precision: 12, scale: 2 }),
+  loanTerms: integer('loan_terms'),
+  amortization: integer('amortization'),
+  interestRate: decimal('interest_rate', { precision: 5, scale: 3 }),
+  acquisitionDate: date('acquisition_date'),
+  yearsHeld: integer('years_held'),
+  currentPayment: decimal('current_payment', { precision: 10, scale: 2 }),
+  roePercentage: decimal('roe_percentage', { precision: 10, scale: 2 }),
   analysisResults: jsonb('analysis_results'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true })

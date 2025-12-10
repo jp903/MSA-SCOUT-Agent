@@ -11,8 +11,6 @@ export const ROLE_PERMISSIONS: RolePermissions = {
     'create:own-properties',
     'update:own-properties',
     'delete:own-properties',
-    'upload:roi-documents',
-    'read:own-roi-documents',
     'chat:access',
     'dashboard:access'
   ],
@@ -23,9 +21,6 @@ export const ROLE_PERMISSIONS: RolePermissions = {
     'delete:own-properties',
     'read:all-properties',
     'update:all-properties',
-    'upload:roi-documents',
-    'read:own-roi-documents',
-    'read:all-roi-documents',
     'manage:users',
     'chat:access',
     'dashboard:access'
@@ -39,9 +34,6 @@ export const ROLE_PERMISSIONS: RolePermissions = {
     'create:all-properties',
     'update:all-properties',
     'delete:all-properties',
-    'upload:roi-documents',
-    'read:own-roi-documents',
-    'read:all-roi-documents',
     'manage:users',
     'manage:roles',
     'system:admin',

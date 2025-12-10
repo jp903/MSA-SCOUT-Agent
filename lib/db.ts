@@ -224,21 +224,30 @@ export async function initializeDatabase() {
       )
     `
 
-    // Create property_roi_documents table if it doesn't exist (for ROI document analysis)
+    // Create property_roe_analysis table if it doesn't exist
     await sql`
-      CREATE TABLE IF NOT EXISTS property_roi_documents (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        file_name VARCHAR(255) NOT NULL,
-        original_name VARCHAR(255) NOT NULL,
-        file_key VARCHAR(500) NOT NULL,
-        file_size INTEGER NOT NULL,
-        mime_type VARCHAR(100) NOT NULL,
-        upload_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        status VARCHAR(50) DEFAULT 'processed',
+      CREATE TABLE IF NOT EXISTS property_roe_analysis (
+        id SERIAL PRIMARY KEY,
+        user_id UUID NOT NULL,
+        purchase_price NUMERIC,
+        debt NUMERIC,
+        down_payment NUMERIC,
+        out_of_pocket_reno NUMERIC,
+        total_initial_investment NUMERIC,
+        current_fmv NUMERIC,
+        current_debt NUMERIC,
+        potential_equity NUMERIC,
+        loan_terms INTEGER,
+        amortization INTEGER,
+        interest_rate NUMERIC,
+        acquisition_date DATE,
+        years_held INTEGER,
+        current_payment NUMERIC,
+        roe_percentage NUMERIC,
         analysis_results JSONB,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT fk_roe_analysis_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `
 
@@ -250,9 +259,7 @@ export async function initializeDatabase() {
     await sql`CREATE INDEX IF NOT EXISTS idx_property_images_property_id ON property_images(property_id)`
     await sql`CREATE INDEX IF NOT EXISTS idx_chat_history_user_id ON chat_history(user_id)`
     await sql`CREATE INDEX IF NOT EXISTS idx_chat_history_updated_at ON chat_history(updated_at DESC)`
-    await sql`CREATE INDEX IF NOT EXISTS idx_property_roi_documents_user_id ON property_roi_documents(user_id)`
-    await sql`CREATE INDEX IF NOT EXISTS idx_property_roi_documents_upload_date ON property_roi_documents(upload_date)`
-    await sql`CREATE INDEX IF NOT EXISTS idx_property_roi_documents_status ON property_roi_documents(status)`
+    await sql`CREATE INDEX IF NOT EXISTS idx_property_roe_analysis_user_id ON property_roe_analysis(user_id)`
 
     console.log("✅ Database tables initialized successfully")
     return true
