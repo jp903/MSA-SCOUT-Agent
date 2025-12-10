@@ -102,7 +102,30 @@ export default function PropertyROICalculator({ user, onAuthRequired }: Property
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => {
+      const updatedData = { ...prev, [name]: value };
+
+      // Calculate potential equity when currentFmv or currentDebt changes
+      if (name === 'currentFmv' || name === 'currentDebt') {
+        const fmv = parseFloat(updatedData.currentFmv) || 0;
+        const debt = parseFloat(updatedData.currentDebt) || 0;
+        updatedData.potentialEquity = (fmv - debt).toString();
+      }
+      // Also update when currentMarketValue changes (as an alternative to currentFmv)
+      else if (name === 'currentMarketValue') {
+        const fmv = parseFloat(updatedData.currentMarketValue) || 0;
+        const debt = parseFloat(updatedData.currentDebt) || 0;
+        updatedData.potentialEquity = (fmv - debt).toString();
+      }
+      // Calculate total initial investment when downPayment or outOfPocketReno changes
+      else if (name === 'downPayment' || name === 'outOfPocketReno') {
+        const downPayment = parseFloat(updatedData.downPayment) || 0;
+        const renovation = parseFloat(updatedData.outOfPocketReno) || 0;
+        updatedData.totalInitialInvestment = (downPayment + renovation).toString();
+      }
+
+      return updatedData;
+    });
   };
 
   const processForm = async () => {
