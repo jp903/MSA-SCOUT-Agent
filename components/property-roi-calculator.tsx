@@ -31,6 +31,19 @@ interface PropertyROIResult {
   propertyName: string;
   address: string;
   purchasePrice: number;
+  debt: number;
+  downPayment: number;
+  outOfPocketReno: number;
+  totalInitialInvestment: number;
+  currentFmv: number;
+  currentDebt: number;
+  potentialEquity: number;
+  loanTerms: number;
+  amortization: number;
+  interestRate: number;
+  acquisitionDate: string;
+  yearsHeld: number;
+  currentPayment: number;
   currentMarketValue: number;
   currentLoanBalance?: number;  // Optional for backward compatibility
   annualDebtService?: number;   // Optional for backward compatibility
@@ -49,7 +62,6 @@ interface PropertyROIResult {
     cashOnCash: number;
     appreciationPotential: number;
     insuranceCost: number;
-    interestRate: number;
     maintenance: number;
     propertyTaxes: number;
     propertyManagerFee: number;
@@ -68,10 +80,23 @@ export default function PropertyROICalculator({ user, onAuthRequired }: Property
   const [results, setResults] = useState<any | null>(null);
   const [analysisComplete, setAnalysisComplete] = useState(false);
   const [formData, setFormData] = useState({
+    purchasePrice: '',
+    debt: '',
+    downPayment: '',
+    outOfPocketReno: '',
+    totalInitialInvestment: '',
+    currentFmv: '',
+    currentDebt: '',
+    potentialEquity: '',
+    loanTerms: '',
+    amortization: '',
+    interestRate: '',
+    acquisitionDate: '',
+    yearsHeld: '',
+    currentPayment: '',
     annualRentalIncome: '',
     annualExpenses: '',
     currentMarketValue: '',
-    currentLoanBalance: '',
     annualDebtService: '',
   });
 
@@ -186,22 +211,228 @@ export default function PropertyROICalculator({ user, onAuthRequired }: Property
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.keys(formData).map((key) => (
-                  <div key={key} className="space-y-2">
-                    <Label htmlFor={key}>{key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</Label>
+              {/* Basic Property Information */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Building className="h-5 w-5" />
+                  Basic Property Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="purchasePrice">Purchase Price</Label>
                     <Input
-                      id={key}
-                      name={key}
-                      value={formData[key as keyof typeof formData]}
+                      id="purchasePrice"
+                      name="purchasePrice"
+                      value={formData.purchasePrice}
                       onChange={handleInputChange}
-                      placeholder={`Enter ${key.replace(/([A-Z])/g, ' $1')}`}
+                      placeholder="Enter purchase price"
                     />
                   </div>
-                ))}
+                  <div className="space-y-2">
+                    <Label htmlFor="currentMarketValue">Current Market Value</Label>
+                    <Input
+                      id="currentMarketValue"
+                      name="currentMarketValue"
+                      value={formData.currentMarketValue}
+                      onChange={handleInputChange}
+                      placeholder="Enter current market value"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="annualRentalIncome">Annual Rental Income</Label>
+                    <Input
+                      id="annualRentalIncome"
+                      name="annualRentalIncome"
+                      value={formData.annualRentalIncome}
+                      onChange={handleInputChange}
+                      placeholder="Enter annual rental income"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="annualExpenses">Annual Expenses</Label>
+                    <Input
+                      id="annualExpenses"
+                      name="annualExpenses"
+                      value={formData.annualExpenses}
+                      onChange={handleInputChange}
+                      placeholder="Enter annual expenses"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="acquisitionDate">Acquisition Date</Label>
+                    <Input
+                      id="acquisitionDate"
+                      name="acquisitionDate"
+                      type="date"
+                      value={formData.acquisitionDate}
+                      onChange={handleInputChange}
+                      placeholder="Enter acquisition date"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="mt-4 flex justify-center">
+              {/* Financing Information */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  Financing Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="debt">Debt</Label>
+                    <Input
+                      id="debt"
+                      name="debt"
+                      value={formData.debt}
+                      onChange={handleInputChange}
+                      placeholder="Enter debt amount"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="downPayment">Down Payment</Label>
+                    <Input
+                      id="downPayment"
+                      name="downPayment"
+                      value={formData.downPayment}
+                      onChange={handleInputChange}
+                      placeholder="Enter down payment"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="currentDebt">Current Debt</Label>
+                    <Input
+                      id="currentDebt"
+                      name="currentDebt"
+                      value={formData.currentDebt}
+                      onChange={handleInputChange}
+                      placeholder="Enter current debt"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="annualDebtService">Annual Debt Service</Label>
+                    <Input
+                      id="annualDebtService"
+                      name="annualDebtService"
+                      value={formData.annualDebtService}
+                      onChange={handleInputChange}
+                      placeholder="Enter annual debt service"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="interestRate">Interest Rate (%)</Label>
+                    <Input
+                      id="interestRate"
+                      name="interestRate"
+                      value={formData.interestRate}
+                      onChange={handleInputChange}
+                      placeholder="Enter interest rate"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="currentPayment">Current Payment</Label>
+                    <Input
+                      id="currentPayment"
+                      name="currentPayment"
+                      value={formData.currentPayment}
+                      onChange={handleInputChange}
+                      placeholder="Enter current payment"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Investment Information */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Investment Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="outOfPocketReno">Out of Pocket Renovation</Label>
+                    <Input
+                      id="outOfPocketReno"
+                      name="outOfPocketReno"
+                      value={formData.outOfPocketReno}
+                      onChange={handleInputChange}
+                      placeholder="Enter renovation costs"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="totalInitialInvestment">Total Initial Investment</Label>
+                    <Input
+                      id="totalInitialInvestment"
+                      name="totalInitialInvestment"
+                      value={formData.totalInitialInvestment}
+                      onChange={handleInputChange}
+                      placeholder="Enter total initial investment"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="currentFmv">Current FMV</Label>
+                    <Input
+                      id="currentFmv"
+                      name="currentFmv"
+                      value={formData.currentFmv}
+                      onChange={handleInputChange}
+                      placeholder="Enter current fair market value"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="potentialEquity">Potential Equity</Label>
+                    <Input
+                      id="potentialEquity"
+                      name="potentialEquity"
+                      value={formData.potentialEquity}
+                      onChange={handleInputChange}
+                      placeholder="Enter potential equity"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="yearsHeld">Number of Years Held</Label>
+                    <Input
+                      id="yearsHeld"
+                      name="yearsHeld"
+                      value={formData.yearsHeld}
+                      onChange={handleInputChange}
+                      placeholder="Enter years held"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Loan Terms */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Loan Terms
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="loanTerms">Loan Terms (months)</Label>
+                    <Input
+                      id="loanTerms"
+                      name="loanTerms"
+                      value={formData.loanTerms}
+                      onChange={handleInputChange}
+                      placeholder="Enter loan terms in months"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="amortization">Amortization (months)</Label>
+                    <Input
+                      id="amortization"
+                      name="amortization"
+                      value={formData.amortization}
+                      onChange={handleInputChange}
+                      placeholder="Enter amortization in months"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-center">
                 <Button
                   onClick={processForm}
                   disabled={isProcessing}
