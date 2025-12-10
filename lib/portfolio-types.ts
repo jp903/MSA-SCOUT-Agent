@@ -18,6 +18,17 @@ export interface Property {
   createdAt: string
   updatedAt: string
   images: PropertyImage[]
+  // Additional fields for ROE calculation
+  debt?: number
+  outOfPocketReno?: number
+  totalInitialInvestment?: number
+  currentFmv?: number
+  currentDebt?: number
+  potentialEquity?: number
+  loanTerms?: number
+  amortization?: number
+  yearsHeld?: number
+  currentPayment?: number
   // Optional enriched fields used by portfolio analysis
   equity?: number
   location?: string

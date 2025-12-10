@@ -5,8 +5,8 @@ export class PortfolioManagerDB {
   static async getPortfolio(): Promise<Property[]> {
     try {
       console.log("PortfolioManagerDB: Querying properties from database...")
-      const properties = await sql`
-        SELECT 
+      const result = await sql`
+        SELECT
           id::text as id,
           name,
           address,
@@ -23,16 +23,27 @@ export class PortfolioManagerDB {
           property_type as "propertyType",
           status,
           notes,
+          debt,
+          out_of_pocket_reno as "outOfPocketReno",
+          total_initial_investment as "totalInitialInvestment",
+          current_fmv as "currentFmv",
+          current_debt as "currentDebt",
+          potential_equity as "potentialEquity",
+          loan_terms as "loanTerms",
+          amortization,
+          years_held as "yearsHeld",
+          current_payment as "currentPayment",
           created_at as "createdAt",
           updated_at as "updatedAt"
-        FROM properties 
+        FROM properties
         ORDER BY created_at DESC
       `
 
+      const properties = Array.isArray(result) ? result : (result as unknown as any[])
       console.log(`PortfolioManagerDB: Found ${properties.length} properties in database`)
 
       const propertiesWithImages = await Promise.all(
-        properties.map(async (property) => {
+        (properties as any[]).map(async (property) => {
           let images: PropertyImage[] = []
           try {
             images = await this.getPropertyImages(property.id)
@@ -75,29 +86,41 @@ export class PortfolioManagerDB {
     try {
       console.log("PortfolioManagerDB: Inserting property into database:", property)
 
-      const result = await sql`
+      const result = (await sql`
         INSERT INTO properties (
           name, address, state, purchase_price, purchase_date, current_value,
           monthly_rent, monthly_expenses, down_payment, loan_amount, interest_rate,
-          loan_term_years, property_type, status, notes
+          loan_term_years, property_type, status, notes, debt, out_of_pocket_reno,
+          total_initial_investment, current_fmv, current_debt, potential_equity,
+          loan_terms, amortization, years_held, current_payment
         ) VALUES (
-          ${property.name}, 
-          ${property.address}, 
-          ${property.state}, 
+          ${property.name},
+          ${property.address},
+          ${property.state},
           ${property.purchasePrice},
-          ${property.purchaseDate || null}, 
-          ${property.currentValue}, 
+          ${property.purchaseDate || null},
+          ${property.currentValue},
           ${property.monthlyRent || 0},
-          ${property.monthlyExpenses || 0}, 
-          ${property.downPayment || 0}, 
+          ${property.monthlyExpenses || 0},
+          ${property.downPayment || 0},
           ${property.loanAmount || 0},
-          ${property.interestRate || 0}, 
-          ${property.loanTermYears || 30}, 
+          ${property.interestRate || 0},
+          ${property.loanTermYears || 30},
           ${property.propertyType},
-          ${property.status || "analyzing"}, 
-          ${property.notes || null}
+          ${property.status || "analyzing"},
+          ${property.notes || null},
+          ${property.debt || null},
+          ${property.outOfPocketReno || null},
+          ${property.totalInitialInvestment || null},
+          ${property.currentFmv || null},
+          ${property.currentDebt || null},
+          ${property.potentialEquity || null},
+          ${property.loanTerms || null},
+          ${property.amortization || null},
+          ${property.yearsHeld || null},
+          ${property.currentPayment || null}
         )
-        RETURNING 
+        RETURNING
           id::text as id,
           name,
           address,
@@ -114,9 +137,19 @@ export class PortfolioManagerDB {
           property_type as "propertyType",
           status,
           notes,
+          debt,
+          out_of_pocket_reno as "outOfPocketReno",
+          total_initial_investment as "totalInitialInvestment",
+          current_fmv as "currentFmv",
+          current_debt as "currentDebt",
+          potential_equity as "potentialEquity",
+          loan_terms as "loanTerms",
+          amortization,
+          years_held as "yearsHeld",
+          current_payment as "currentPayment",
           created_at as "createdAt",
           updated_at as "updatedAt"
-      `
+      `) as any[]
 
       if (result.length > 0) {
         const newProperty = result[0]
@@ -158,7 +191,7 @@ export class PortfolioManagerDB {
         throw new Error(`Invalid UUID format: ${id}`)
       }
 
-      const result = await sql`
+      const result = (await sql`
         UPDATE properties SET
           name = COALESCE(${updates.name}, name),
           address = COALESCE(${updates.address}, address),
@@ -175,9 +208,19 @@ export class PortfolioManagerDB {
           property_type = COALESCE(${updates.propertyType}, property_type),
           status = COALESCE(${updates.status}, status),
           notes = COALESCE(${updates.notes}, notes),
+          debt = COALESCE(${updates.debt}, debt),
+          out_of_pocket_reno = COALESCE(${updates.outOfPocketReno}, out_of_pocket_reno),
+          total_initial_investment = COALESCE(${updates.totalInitialInvestment}, total_initial_investment),
+          current_fmv = COALESCE(${updates.currentFmv}, current_fmv),
+          current_debt = COALESCE(${updates.currentDebt}, current_debt),
+          potential_equity = COALESCE(${updates.potentialEquity}, potential_equity),
+          loan_terms = COALESCE(${updates.loanTerms}, loan_terms),
+          amortization = COALESCE(${updates.amortization}, amortization),
+          years_held = COALESCE(${updates.yearsHeld}, years_held),
+          current_payment = COALESCE(${updates.currentPayment}, current_payment),
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ${id}::uuid
-        RETURNING 
+        RETURNING
           id::text as id,
           name,
           address,
@@ -194,11 +237,21 @@ export class PortfolioManagerDB {
           property_type as "propertyType",
           status,
           notes,
+          debt,
+          out_of_pocket_reno as "outOfPocketReno",
+          total_initial_investment as "totalInitialInvestment",
+          current_fmv as "currentFmv",
+          current_debt as "currentDebt",
+          potential_equity as "potentialEquity",
+          loan_terms as "loanTerms",
+          amortization,
+          years_held as "yearsHeld",
+          current_payment as "currentPayment",
           created_at as "createdAt",
           updated_at as "updatedAt"
-      `
+      `) as any[]
 
-      if (result.length > 0) {
+      if (result && result.length > 0) {
         const updatedProperty = result[0]
         let images: PropertyImage[] = []
         try {
@@ -243,7 +296,7 @@ export class PortfolioManagerDB {
       }
 
       // Delete the property (CASCADE will handle images)
-      const result = await sql`DELETE FROM properties WHERE id = ${id}::uuid`
+      const result = (await sql`DELETE FROM properties WHERE id = ${id}::uuid`) as any
 
       console.log("PortfolioManagerDB: Property deleted, affected rows:", result.count)
       return result.count > 0
@@ -256,19 +309,19 @@ export class PortfolioManagerDB {
   static async getPropertyImages(propertyId: string): Promise<PropertyImage[]> {
     try {
       // Check if property_images table exists first
-      const tableExists = await sql`
+      const tableExists = (await sql`
         SELECT EXISTS (
           SELECT FROM information_schema.tables 
           WHERE table_name = 'property_images'
         )
-      `
+      `) as any[]
 
       if (!tableExists[0].exists) {
         console.log("property_images table does not exist, returning empty array")
         return []
       }
 
-      const images = await sql`
+      const images = (await sql`
         SELECT 
           id::text as id,
           property_id::text as "propertyId",
@@ -281,7 +334,7 @@ export class PortfolioManagerDB {
         FROM property_images 
         WHERE property_id = ${propertyId}::uuid
         ORDER BY is_primary DESC, uploaded_at ASC
-      `
+      `) as any[]
 
       return images.map((img) => ({
         ...img,
@@ -298,7 +351,7 @@ export class PortfolioManagerDB {
     image: Omit<PropertyImage, "id" | "uploadedAt">,
   ): Promise<PropertyImage | null> {
     try {
-      const result = await sql`
+      const result = (await sql`
         INSERT INTO property_images (property_id, url, filename, size, caption, is_primary)
         VALUES (${propertyId}::uuid, ${image.url}, ${image.filename}, ${image.size}, ${image.caption || null}, ${image.isPrimary})
         RETURNING 
@@ -310,7 +363,7 @@ export class PortfolioManagerDB {
           caption,
           is_primary as "isPrimary",
           uploaded_at as "uploadedAt"
-      `
+      `) as any[]
 
       if (result.length > 0) {
         const newImage = result[0]
@@ -328,8 +381,9 @@ export class PortfolioManagerDB {
 
   static async deletePropertyImage(imageId: string): Promise<boolean> {
     try {
-      const result = await sql`DELETE FROM property_images WHERE id = ${imageId}::uuid`
-      return result.count > 0
+      const result = (await sql`DELETE FROM property_images WHERE id = ${imageId}::uuid`) as any
+      const count = Array.isArray(result) ? result.length : result.count
+      return count > 0
     } catch (error) {
       console.error("Error deleting property image:", error)
       return false
@@ -340,13 +394,13 @@ export class PortfolioManagerDB {
     try {
       await sql`UPDATE property_images SET is_primary = false WHERE property_id = ${propertyId}::uuid`
 
-      const result = await sql`
+      const result = (await sql`
         UPDATE property_images 
         SET is_primary = true 
         WHERE id = ${imageId}::uuid AND property_id = ${propertyId}::uuid
-      `
+      `) as any
 
-      return result.count > 0
+      return result.count > 0 || (Array.isArray(result) ? result.length > 0 : false)
     } catch (error) {
       console.error("Error setting primary image:", error)
       return false

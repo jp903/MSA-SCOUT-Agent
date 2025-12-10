@@ -68,20 +68,11 @@ export default function PropertyROICalculator({ user, onAuthRequired }: Property
   const [results, setResults] = useState<any | null>(null);
   const [analysisComplete, setAnalysisComplete] = useState(false);
   const [formData, setFormData] = useState({
-    purchasePrice: '',
-    debt: '',
-    downPayment: '',
-    outOfPocketReno: '',
-    totalInitialInvestment: '',
-    currentFmv: '',
-    currentDebt: '',
-    potentialEquity: '',
-    loanTerms: '',
-    amortization: '',
-    interest: '',
-    acquisitionDate: '',
-    yearsHeld: '',
-    currentPayment: '',
+    annualRentalIncome: '',
+    annualExpenses: '',
+    currentMarketValue: '',
+    currentLoanBalance: '',
+    annualDebtService: '',
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -256,8 +247,12 @@ export default function PropertyROICalculator({ user, onAuthRequired }: Property
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div className="space-y-2">
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">ROE:</span>
-                          <span className="text-sm font-medium text-blue-600">{results.roePercentage?.toFixed(2) || 'N/A'}%</span>
+                          <span className="text-sm text-gray-600">Unlevered ROE:</span>
+                          <span className="text-sm font-medium text-blue-600">{results.unleveredRoe?.toFixed(2) || 'N/A'}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Levered ROE:</span>
+                          <span className="text-sm font-medium text-blue-600">{results.leveredRoe?.toFixed(2) || 'N/A'}%</span>
                         </div>
                       </div>
                     </div>

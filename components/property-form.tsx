@@ -110,6 +110,17 @@ export function PropertyForm({ property, onSubmit, onCancel }: PropertyFormProps
     status: property?.status || "analyzing",
     notes: property?.notes || "",
     useLoan: property ? property.loanAmount > 0 : true,
+    // Additional fields for ROE calculation
+    debt: property?.debt?.toString() || "",
+    outOfPocketReno: property?.outOfPocketReno?.toString() || "",
+    totalInitialInvestment: property?.totalInitialInvestment?.toString() || "",
+    currentFmv: property?.currentFmv?.toString() || "",
+    currentDebt: property?.currentDebt?.toString() || "",
+    potentialEquity: property?.potentialEquity?.toString() || "",
+    loanTerms: property?.loanTerms?.toString() || "",
+    amortization: property?.amortization?.toString() || "",
+    yearsHeld: property?.yearsHeld?.toString() || "",
+    currentPayment: property?.currentPayment?.toString() || "",
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -200,6 +211,17 @@ export function PropertyForm({ property, onSubmit, onCancel }: PropertyFormProps
         propertyType: formData.propertyType,
         status: formData.status,
         notes: formData.notes.trim(),
+        // Additional fields for ROE calculation
+        debt: formData.debt ? Number.parseFloat(formData.debt) || 0 : undefined,
+        outOfPocketReno: formData.outOfPocketReno ? Number.parseFloat(formData.outOfPocketReno) || 0 : undefined,
+        totalInitialInvestment: formData.totalInitialInvestment ? Number.parseFloat(formData.totalInitialInvestment) || 0 : undefined,
+        currentFmv: formData.currentFmv ? Number.parseFloat(formData.currentFmv) || 0 : undefined,
+        currentDebt: formData.currentDebt ? Number.parseFloat(formData.currentDebt) || 0 : undefined,
+        potentialEquity: formData.potentialEquity ? Number.parseFloat(formData.potentialEquity) || 0 : undefined,
+        loanTerms: formData.loanTerms ? Number.parseInt(formData.loanTerms) || 0 : undefined,
+        amortization: formData.amortization ? Number.parseInt(formData.amortization) || 0 : undefined,
+        yearsHeld: formData.yearsHeld ? Number.parseInt(formData.yearsHeld) || 0 : undefined,
+        currentPayment: formData.currentPayment ? Number.parseFloat(formData.currentPayment) || 0 : undefined,
       }
 
       await onSubmit(submitData)

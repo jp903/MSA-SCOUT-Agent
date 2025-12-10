@@ -21,25 +21,36 @@ export async function POST(req: NextRequest) {
     }
 
     const formData = await req.json();
+    const {
+      annualRentalIncome,
+      annualExpenses,
+      currentMarketValue,
+      currentLoanBalance,
+      annualDebtService,
+    } = formData;
+
+    // Calculate NOI, Equity, Unlevered ROE, and Levered ROE
+    const noi = parseFloat(annualRentalIncome) - parseFloat(annualExpenses);
+    const equity = parseFloat(currentMarketValue) - parseFloat(currentLoanBalance);
+    const unleveredRoe = (noi / equity) * 100;
+    const leveredRoe = ((noi - parseFloat(annualDebtService)) / equity) * 100;
 
     const prompt = `
-      Calculate the Return on Equity (ROE) based on the following property data.
-      Provide the final ROE as a percentage and a brief analysis.
+      Analyze the following property's Return on Equity (ROE).
+      Provide a brief analysis based on the calculated ROE values.
 
-      Purchase Price: ${formData.purchasePrice}
-      Debt: ${formData.debt}
-      Down Payment: ${formData.downPayment}
-      Out of Pocket Reno: ${formData.outOfPocketReno}
-      Total Initial Investment: ${formData.totalInitialInvestment}
-      Current FMV: ${formData.currentFmv}
-      Current Debt: ${formData.currentDebt}
-      Potential Equity: ${formData.potentialEquity}
-      Loan Terms: ${formData.loanTerms}
-      Amortization (months): ${formData.amortization}
-      Interest: ${formData.interest}
-      Acquisition Date: ${formData.acquisitionDate}
-      Number of Years Held: ${formData.yearsHeld}
-      Current Payment: ${formData.currentPayment}
+      Property Data:
+      - Annual Rental Income: $${annualRentalIncome}
+      - Annual Operating Expenses: $${annualExpenses}
+      - Current Market Value: $${currentMarketValue}
+      - Current Loan Balance: $${currentLoanBalance}
+      - Annual Debt Service: $${annualDebtService}
+
+      Calculated ROE:
+      - Net Operating Income (NOI): $${noi.toFixed(2)}
+      - Equity: $${equity.toFixed(2)}
+      - Unlevered ROE: ${unleveredRoe.toFixed(2)}%
+      - Levered (True Cash-Flow) ROE: ${leveredRoe.toFixed(2)}%
     `;
 
     const completion = await openai.chat.completions.create({
@@ -49,9 +60,7 @@ export async function POST(req: NextRequest) {
 
     const analysisResults = completion.choices[0].message.content;
 
-    // Extract ROE percentage from the analysis results
-    const roePercentageMatch = analysisResults.match(/ROE: ([\d.]+)%/);
-    const roePercentage = roePercentageMatch ? parseFloat(roePercentageMatch[1]) : null;
+    console.log('formData:', formData);
 
     const db = getDb();
     const [result] = await db
@@ -59,10 +68,15 @@ export async function POST(req: NextRequest) {
       .values({
         userId: user.id,
         ...formData,
-        roePercentage,
+        noi,
+        equity,
+        unleveredRoe,
+        leveredRoe,
         analysisResults,
       })
       .returning();
+
+    console.log('result:', result);
 
     return new NextResponse(JSON.stringify(result), { status: 200 });
   } catch (error) {

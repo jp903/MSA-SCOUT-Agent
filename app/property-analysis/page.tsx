@@ -49,6 +49,17 @@ interface PropertyAnalysisData {
   status: string
   notes: string
   useLoan: boolean
+  // Additional fields for better ROE calculation
+  debt?: number
+  outOfPocketReno?: number
+  totalInitialInvestment?: number
+  currentFmv?: number
+  currentDebt?: number
+  potentialEquity?: number
+  loanTerms?: number
+  amortization?: number
+  yearsHeld?: number
+  currentPayment?: number
 }
 
 interface AnalysisResults {
@@ -88,6 +99,17 @@ export default function PropertyAnalysisPage() {
     status: "analyzing",
     notes: "",
     useLoan: true,
+    // Additional fields for better ROE calculation
+    debt: 160000,
+    outOfPocketReno: 0,
+    totalInitialInvestment: 40000,
+    currentFmv: 200000,
+    currentDebt: 160000,
+    potentialEquity: 40000,
+    loanTerms: 360, // 30 years in months
+    amortization: 360, // 30 years in months
+    yearsHeld: 0,
+    currentPayment: 958.07, // Default mortgage payment based on above values
   })
 
   const [analysisResults, setAnalysisResults] = useState<AnalysisResults | null>(null)
@@ -220,6 +242,9 @@ export default function PropertyAnalysisPage() {
       setPropertyData((prev) => ({
         ...prev,
         loanAmount: newLoanAmount,
+        // Update the dependent fields when purchasePrice or downPayment changes
+        totalInitialInvestment: newDownPayment + (prev.outOfPocketReno || 0),
+        potentialEquity: newPurchasePrice - newLoanAmount, // equity = purchase price - loan amount
       }))
     }
 
@@ -230,7 +255,19 @@ export default function PropertyAnalysisPage() {
         ...prev,
         loanAmount: newLoanAmount,
         downPayment: value ? prev.downPayment : propertyData.purchasePrice,
+        debt: newLoanAmount,
+        currentDebt: newLoanAmount,
       }))
+    }
+
+    // If current value changes, update potential equity
+    if (field === "currentValue" || field === "currentDebt") {
+      const currentValue = field === "currentValue" ? value : propertyData.currentValue;
+      const currentDebt = field === "currentDebt" ? value : propertyData.currentDebt || 0;
+      setPropertyData((prev) => ({
+        ...prev,
+        potentialEquity: Number(currentValue) - Number(currentDebt),
+      }));
     }
   }
 
@@ -252,14 +289,29 @@ export default function PropertyAnalysisPage() {
       const monthlyCashFlow = propertyData.monthlyRent - propertyData.monthlyExpenses - monthlyMortgage
       const annualCashFlow = monthlyCashFlow * 12
 
+      // Calculate Net Operating Income (NOI)
+      const annualRentalIncome = propertyData.monthlyRent * 12
+      const annualExpenses = propertyData.monthlyExpenses * 12
+      const noi = annualRentalIncome - annualExpenses
+
+      // Calculate proper equity and investments for ROE
+      const totalInitialInvestment = propertyData.downPayment + (propertyData.outOfPocketReno || 0)
+      const potentialEquity = (propertyData.currentFmv || propertyData.currentValue) - (propertyData.currentDebt || propertyData.debt || 0)
+
+      // Calculate Unlevered ROE (based on property equity, without leverage)
+      const unleveredRoe = potentialEquity && potentialEquity !== 0 ? (annualCashFlow / potentialEquity) * 100 : 0
+
+      // Calculate Levered ROE (true cash-on-cash return based on actual investment)
+      const leveredRoe = totalInitialInvestment && totalInitialInvestment !== 0 ? (annualCashFlow / totalInitialInvestment) * 100 : 0
+
       // Calculate returns
-      const totalInvestment = propertyData.downPayment
-      const capRate =
-        ((propertyData.monthlyRent * 12 - propertyData.monthlyExpenses * 12) / propertyData.currentValue) * 100
-      const cashOnCashReturn = totalInvestment > 0 ? (annualCashFlow / totalInvestment) * 100 : 0
-      const totalROI =
-        ((propertyData.currentValue - propertyData.purchasePrice + annualCashFlow) / totalInvestment) * 100
-      const breakEvenRatio = (propertyData.monthlyExpenses + monthlyMortgage) / propertyData.monthlyRent
+      const capRate = propertyData.currentValue && propertyData.currentValue !== 0 ?
+        ((propertyData.monthlyRent * 12 - propertyData.monthlyExpenses * 12) / propertyData.currentValue) * 100 : 0
+      const cashOnCashReturn = totalInitialInvestment && totalInitialInvestment !== 0 ? (annualCashFlow / totalInitialInvestment) * 100 : 0
+      const totalROI = totalInitialInvestment && totalInitialInvestment !== 0 ?
+        ((propertyData.currentValue - propertyData.purchasePrice + annualCashFlow) / totalInitialInvestment) * 100 : 0
+      const breakEvenRatio = propertyData.monthlyRent && propertyData.monthlyRent !== 0 ?
+        (propertyData.monthlyExpenses + monthlyMortgage) / propertyData.monthlyRent : 0
 
       // Determine recommendation and risk level
       let recommendation = "Hold"
@@ -359,6 +411,17 @@ export default function PropertyAnalysisPage() {
           status: "analyzing",
           notes: "",
           useLoan: true,
+          // Additional fields for better ROE calculation
+          debt: 160000,
+          outOfPocketReno: 0,
+          totalInitialInvestment: 40000,
+          currentFmv: 200000,
+          currentDebt: 160000,
+          potentialEquity: 40000,
+          loanTerms: 360, // 30 years in months
+          amortization: 360, // 30 years in months
+          yearsHeld: 0,
+          currentPayment: 958.07, // Default mortgage payment based on above values
         })
         setAnalysisResults(null)
       } else {
@@ -654,6 +717,124 @@ export default function PropertyAnalysisPage() {
                 </CardContent>
               </Card>
 
+              {/* Additional ROE Input Fields */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5" />
+                    Additional Investment Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="debt">Debt</Label>
+                    <Input
+                      id="debt"
+                      type="number"
+                      value={propertyData.debt || ""}
+                      onChange={(e) => handleInputChange("debt", Number(e.target.value))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="outOfPocketReno">Out of Pocket Renovation</Label>
+                    <Input
+                      id="outOfPocketReno"
+                      type="number"
+                      value={propertyData.outOfPocketReno || ""}
+                      onChange={(e) => handleInputChange("outOfPocketReno", Number(e.target.value))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="totalInitialInvestment">Total Initial Investment</Label>
+                    <Input
+                      id="totalInitialInvestment"
+                      type="number"
+                      value={propertyData.totalInitialInvestment || ""}
+                      onChange={(e) => handleInputChange("totalInitialInvestment", Number(e.target.value))}
+                      disabled
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Auto-calculated</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="currentFmv">Current FMV</Label>
+                    <Input
+                      id="currentFmv"
+                      type="number"
+                      value={propertyData.currentFmv || propertyData.currentValue}
+                      onChange={(e) => handleInputChange("currentFmv", Number(e.target.value))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="currentDebt">Current Debt</Label>
+                    <Input
+                      id="currentDebt"
+                      type="number"
+                      value={propertyData.currentDebt || ""}
+                      onChange={(e) => handleInputChange("currentDebt", Number(e.target.value))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="potentialEquity">Potential Equity</Label>
+                    <Input
+                      id="potentialEquity"
+                      type="number"
+                      value={propertyData.potentialEquity || ""}
+                      disabled
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Auto-calculated: Current FMV - Current Debt</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Loan Terms Details */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5" />
+                    Loan Terms Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <Label htmlFor="loanTerms">Loan Terms (months)</Label>
+                    <Input
+                      id="loanTerms"
+                      type="number"
+                      value={propertyData.loanTerms || ""}
+                      onChange={(e) => handleInputChange("loanTerms", Number(e.target.value))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="amortization">Amortization (months)</Label>
+                    <Input
+                      id="amortization"
+                      type="number"
+                      value={propertyData.amortization || ""}
+                      onChange={(e) => handleInputChange("amortization", Number(e.target.value))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="yearsHeld">Number of Years Held</Label>
+                    <Input
+                      id="yearsHeld"
+                      type="number"
+                      value={propertyData.yearsHeld || ""}
+                      onChange={(e) => handleInputChange("yearsHeld", Number(e.target.value))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="currentPayment">Current Payment</Label>
+                    <Input
+                      id="currentPayment"
+                      type="number"
+                      step="0.01"
+                      value={propertyData.currentPayment || ""}
+                      onChange={(e) => handleInputChange("currentPayment", Number(e.target.value))}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Notes */}
               <Card>
                 <CardHeader>
@@ -853,6 +1034,14 @@ export default function PropertyAnalysisPage() {
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-300">Cash-on-Cash Return:</span>
                               <span className="font-medium">{formatPercentage(analysisResults.cashOnCashReturn)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-300">Unlevered ROE:</span>
+                              <span className="font-medium">{formatPercentage(propertyData.potentialEquity && propertyData.potentialEquity !== 0 ? (analysisResults.annualCashFlow / propertyData.potentialEquity) * 100 : 0)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-300">Levered ROE:</span>
+                              <span className="font-medium">{formatPercentage(propertyData.totalInitialInvestment && propertyData.totalInitialInvestment !== 0 ? (analysisResults.annualCashFlow / propertyData.totalInitialInvestment) * 100 : 0)}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-300">Break-Even Ratio:</span>
