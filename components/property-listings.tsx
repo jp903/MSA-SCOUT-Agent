@@ -85,6 +85,9 @@ export default function PropertyListings() {
   const [error, setError] = useState<string | null>(null)
   const [selectedProperty, setSelectedProperty] = useState<PropertyListing | null>(null)
   const [showFilters, setShowFilters] = useState(false)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxImage, setLightboxImage] = useState('')
+  const [lightboxAlt, setLightboxAlt] = useState('')
 
   const [filters, setFilters] = useState<PropertySearchFilters>({
     state: "",
@@ -186,6 +189,115 @@ export default function PropertyListings() {
           <Filter className="h-4 w-4 mr-2" />
           {showFilters ? "Hide" : "Show"} Filters
         </Button>
+      </div>
+
+      {/* MSA Model Explanation and Images */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Explanation Section */}
+        <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-0">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-3">
+              <div className="bg-blue-100 p-3 rounded-full">
+                <span className="text-xl">🎯</span>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">AI-Powered Market Analysis</h3>
+                <p className="text-gray-700 mb-4">
+                  Our LSTM-based MSA ranking model analyzes growth, permits, and economic signals to identify the strongest real-estate markets.
+                </p>
+
+                <div className="bg-white p-4 rounded-lg border border-blue-100">
+                  <h4 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                    <span>🤖</span> Intelligent Selection Process
+                  </h4>
+                  <ul className="space-y-2 text-sm text-gray-700">
+                    <li className="flex items-start">
+                      <span className="text-green-500 mr-2">✓</span>
+                      <span>Nationwide permit & MSA data collection</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-green-500 mr-2">✓</span>
+                      <span>Advanced indicator calculation</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-green-500 mr-2">✓</span>
+                      <span>Normalized scoring & national ranking</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Images Section */}
+        <div className="grid grid-cols-3 gap-4">
+          <div
+            className="bg-gradient-to-b from-white to-gray-50 rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col items-center text-center transition-all duration-300 hover:shadow-md cursor-pointer"
+            onClick={() => {
+              setLightboxImage('/Scores.png');
+              setLightboxAlt('MSA Scoring Model');
+              setLightboxOpen(true);
+            }}
+          >
+            <div className="bg-blue-100 p-3 rounded-full mb-2">
+              <span className="font-bold text-blue-700">1</span>
+            </div>
+            <div className="h-32 flex items-center justify-center mb-2">
+              <img
+                src="/Scores.png"
+                alt="Scoring Model"
+                className="max-h-full max-w-full object-contain transition-transform duration-300 hover:scale-105"
+              />
+            </div>
+            <h4 className="font-semibold text-sm">Scoring</h4>
+            <p className="text-xs text-gray-600">Model</p>
+          </div>
+
+          <div
+            className="bg-gradient-to-b from-white to-gray-50 rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col items-center text-center transition-all duration-300 hover:shadow-md cursor-pointer"
+            onClick={() => {
+              setLightboxImage('/Prediction.png');
+              setLightboxAlt('MSA Predictions');
+              setLightboxOpen(true);
+            }}
+          >
+            <div className="bg-green-100 p-3 rounded-full mb-2">
+              <span className="font-bold text-green-700">2</span>
+            </div>
+            <div className="h-32 flex items-center justify-center mb-2">
+              <img
+                src="/Prediction.png"
+                alt="Predictions"
+                className="max-h-full max-w-full object-contain transition-transform duration-300 hover:scale-105"
+              />
+            </div>
+            <h4 className="font-semibold text-sm">LSTM</h4>
+            <p className="text-xs text-gray-600">AI Predictions</p>
+          </div>
+
+          <div
+            className="bg-gradient-to-b from-white to-gray-50 rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col items-center text-center transition-all duration-300 hover:shadow-md cursor-pointer"
+            onClick={() => {
+              setLightboxImage('/Metric profile.png');
+              setLightboxAlt('MSA Metric Profile');
+              setLightboxOpen(true);
+            }}
+          >
+            <div className="bg-purple-100 p-3 rounded-full mb-2">
+              <span className="font-bold text-purple-700">3</span>
+            </div>
+            <div className="h-32 flex items-center justify-center mb-2">
+              <img
+                src="/Metric profile.png"
+                alt="Metric Profile"
+                className="max-h-full max-w-full object-contain transition-transform duration-300 hover:scale-105"
+              />
+            </div>
+            <h4 className="font-semibold text-sm">Metrics</h4>
+            <p className="text-xs text-gray-600">Analytics</p>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -706,6 +818,37 @@ export default function PropertyListings() {
           )}
         </div>
       </div>
+
+      {/* Lightbox for MSA Images */}
+      {lightboxOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={() => setLightboxOpen(false)}
+        >
+          <div
+            className="relative max-w-6xl max-h-[90vh] w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="absolute top-4 right-4 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100 z-10"
+              onClick={() => setLightboxOpen(false)}
+              aria-label="Close"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <div className="h-[85vh] w-full flex items-center justify-center">
+              <img
+                src={lightboxImage}
+                alt={lightboxAlt}
+                className="max-h-full max-w-full object-contain"
+              />
+            </div>
+            <p className="text-white text-center mt-2 text-sm">{lightboxAlt}</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

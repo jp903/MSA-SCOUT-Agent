@@ -1,16 +1,16 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, Key } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Upload, 
-  Download, 
-  BarChart3, 
-  TrendingUp, 
-  Target, 
+import {
+  Upload,
+  Download,
+  BarChart3,
+  TrendingUp,
+  Target,
   AlertTriangle,
   CheckCircle,
   XCircle,
@@ -22,14 +22,32 @@ import {
   User,
   Calendar,
   BarChart,
-  PieChart
+  PieChart,
+  Printer
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
+// Import recharts components
+import {
+  ResponsiveContainer,
+  BarChart as RechartsBarChart,
+  LineChart,
+  PieChart as RechartsPieChart,
+  Bar,
+  Line,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  Sector
+} from 'recharts';
+
 interface PropertyROIResult {
-  propertyId: string;
-  propertyName: string;
-  address: string;
+  id: string;
+  userId: string;
   purchasePrice: number;
   debt: number;
   downPayment: number;
@@ -41,33 +59,51 @@ interface PropertyROIResult {
   loanTerms: number;
   amortization: number;
   interestRate: number;
-  acquisitionDate: string;
+  acquisitionDate: string | null;
   yearsHeld: number;
   currentPayment: number;
   currentMarketValue: number;
-  currentLoanBalance?: number;  // Optional for backward compatibility
-  annualDebtService?: number;   // Optional for backward compatibility
-  annualRentalIncome: number;
-  annualExpenses: number;
-  roePercentage: number;  // Changed from roiPercentage
-  roeCategory: 'excellent' | 'good' | 'moderate' | 'fair' | 'poor';  // Changed from roiCategory
-  recommendation: 'sell' | 'hold' | 'improve';
-  analysis: {
-    unleveredROE?: number;      // New field
-    leveredROE?: number;        // New field
-    equity?: number;            // New field
-    otherCosts: any;
-    cashFlow: number;
-    capRate: number;
-    cashOnCash: number;
-    appreciationPotential: number;
-    insuranceCost: number;
-    maintenance: number;
-    propertyTaxes: number;
-    propertyManagerFee: number;
+  currentLoanBalance?: number;
+  annualDebtService: number;
+  noi: number;
+  equity: number;
+  unleveredRoe: number;
+  leveredRoe: number;
+  analysisResults: string;
+  calculatedMetrics: {
+    unleveredROE: number;
+    leveredROE: number;
+    netOperatingIncome: number;
+    equityValue: number;
+    debtService: number;
+    annualIncome: number;
+    annualExpenses: number;
   };
-  concerns: string[];
-  suggestions: string[];
+  roeCategory: 'excellent' | 'good' | 'moderate' | 'fair' | 'poor';
+  recommendation: 'sell' | 'hold' | 'evaluate';
+  analysisSummary: {
+    category: string;
+    recommendation: string;
+    performance: string;
+    cashFlow: string;
+    capRate: string;
+    cashOnCash: string;
+  };
+  graphData: {
+    roeComparison: {
+      unlevered: number;
+      levered: number;
+    };
+    incomeExpenses: {
+      income: number;
+      expenses: number;
+      debtService: number;
+    };
+    equityGrowth: {
+      initial: number;
+      current: number;
+    };
+  };
 }
 
 interface PropertyROICalculatorProps {
@@ -167,25 +203,7 @@ export default function PropertyROICalculator({ user, onAuthRequired }: Property
     }
   };
 
-  const getROIBadgeVariant = (category: string) => {  // Keeping the name for consistency
-    switch (category) {
-      case 'excellent': return 'bg-green-100 text-green-800 border-green-200';
-      case 'good': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'moderate': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'fair': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'poor': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const getRecommendationVariant = (recommendation: string) => {
-    switch (recommendation) {
-      case 'hold': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'sell': return 'bg-red-100 text-red-800 border-red-200';
-      case 'improve': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
+  // Note: The old functions can be removed since we're using different styling now
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -481,41 +499,229 @@ export default function PropertyROICalculator({ user, onAuthRequired }: Property
 
       {/* Results Section */}
       {analysisComplete && results && (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart className="h-5 w-5" />
-                Analysis Results
-              </CardTitle>
+        <div className="space-y-6 print:space-y-4">
+          <Card className="print:shadow-none print:border print:rounded-lg">
+            <CardHeader className="print:py-3 print:px-4">
+              <div className="flex justify-between items-center">
+                <CardTitle className="flex items-center gap-2 text-xl print:text-lg">
+                  <BarChart className="h-5 w-5" />
+                  <span className="print:text-base">Property ROE Analysis Results</span>
+                </CardTitle>
+                {/* Print button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.print()}
+                  className="print:hidden flex items-center gap-2"
+                >
+                  <Printer className="h-4 w-4" />
+                  <span>Print</span>
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <Card className="border border-gray-200 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
-                      <div>
-                        <h3 className="font-bold text-lg text-gray-900">ROE Analysis</h3>
+            <CardContent className="print:p-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:grid-cols-1 print:gap-4">
+                {/* Summary Cards */}
+                <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4 print:gap-2">
+                  <Card className="bg-blue-50 border-blue-200 print:p-2">
+                    <CardContent className="p-4 print:p-2">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-700 print:text-lg">{results.calculatedMetrics?.unleveredROE?.toFixed(2) || 'N/A'}%</div>
+                        <div className="text-sm text-blue-600 print:text-xs">Unlevered ROE</div>
                       </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Unlevered ROE:</span>
-                          <span className="text-sm font-medium text-blue-600">{results.unleveredRoe?.toFixed(2) || 'N/A'}%</span>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-green-50 border-green-200 print:p-2">
+                    <CardContent className="p-4 print:p-2">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-700 print:text-lg">{results.calculatedMetrics?.leveredROE?.toFixed(2) || 'N/A'}%</div>
+                        <div className="text-sm text-green-600 print:text-xs">Levered ROE</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-purple-50 border-purple-200 print:p-2">
+                    <CardContent className="p-4 print:p-2">
+                      <div className="text-center">
+                        <div className="text-xl font-bold print:text-lg">
+                          {results.roeCategory?.charAt(0).toUpperCase() + results.roeCategory?.slice(1)}
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Levered ROE:</span>
-                          <span className="text-sm font-medium text-blue-600">{results.leveredRoe?.toFixed(2) || 'N/A'}%</span>
+                        <div className="text-sm text-purple-600 print:text-xs">ROE Category</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className={`print:p-2 ${
+                    results.recommendation === 'sell' ? 'bg-red-50 border-red-200' :
+                    results.recommendation === 'hold' ? 'bg-blue-50 border-blue-200' :
+                    'bg-yellow-50 border-yellow-200'
+                  }`}>
+                    <CardContent className="p-4 print:p-2">
+                      <div className="text-center">
+                        <div className="text-xl font-bold print:text-lg">
+                          {results.recommendation?.toUpperCase()}
+                        </div>
+                        <div className="text-sm print:text-xs">Recommendation</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Graphs Section */}
+                <div className="lg:col-span-3 print:hidden">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Target className="h-5 w-5" />
+                    Financial Performance Charts
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* ROE Comparison Chart */}
+                    <Card>
+                      <CardContent className="p-4">
+                        <h4 className="font-medium mb-2 text-center">ROE Comparison</h4>
+                        <ResponsiveContainer width="100%" height={250}>
+                          <RechartsBarChart data={[{
+                            name: 'ROE',
+                            'Unlevered': results.calculatedMetrics?.unleveredROE,
+                            'Levered': results.calculatedMetrics?.leveredROE
+                          }]}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" />
+                            <YAxis unit="%" />
+                            <Tooltip formatter={(value) => [`${value}%`, 'Value']} />
+                            <Legend />
+                            <Bar dataKey="Unlevered" name="Unlevered ROE" fill="#3b82f6" />
+                            <Bar dataKey="Levered" name="Levered ROE" fill="#10b981" />
+                          </RechartsBarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+
+                    {/* Income vs Expenses Chart */}
+                    <Card>
+                      <CardContent className="p-4">
+                        <h4 className="font-medium mb-2 text-center">Income vs Expenses</h4>
+                        <ResponsiveContainer width="100%" height={250}>
+                          <RechartsBarChart data={[{
+                            name: 'Finances',
+                            Income: results.calculatedMetrics?.annualIncome,
+                            Expenses: results.calculatedMetrics?.annualExpenses,
+                            'Debt Service': results.annualDebtService
+                          }]}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" />
+                            <YAxis />
+                            <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Value']} />
+                            <Legend />
+                            <Bar dataKey="Income" name="Annual Income" fill="#10b981" />
+                            <Bar dataKey="Expenses" name="Annual Expenses" fill="#f59e0b" />
+                            <Bar dataKey="Debt Service" name="Annual Debt Service" fill="#ef4444" />
+                          </RechartsBarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+
+                {/* Detailed Analysis and Key Metrics */}
+                <div className="lg:col-span-2 print:w-full print:overflow-auto">
+                  <Card className="h-full">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <div className="bg-blue-100 p-2 rounded-full print:p-1">
+                          <Target className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <span>Detailed Analysis</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-gray-700 max-h-96 overflow-y-auto print:overflow-visible print:max-h-none space-y-4">
+                        {results.analysisResults
+                          .split('## ')
+                          .filter((section: string) => section.trim() !== '')
+                          .map((section: string, index: number) => {
+                            const lines = section.split('\n');
+                            const title = lines[0]?.trim() || '';
+                            const content = lines.slice(1).join('\n').trim();
+
+                            return (
+                              <div key={index} className="border-l-4 border-blue-200 pl-4 py-2">
+                                {title && (
+                                  <h3 className="font-bold text-lg text-gray-900 mb-2">
+                                    {title}
+                                  </h3>
+                                )}
+                                {content && (
+                                  <div className="text-gray-700 whitespace-pre-line ml-2">
+                                    {content}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })
+                        }
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Key Metrics */}
+                <div className="print:w-full">
+                  <Card className="h-full">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <div className="bg-green-100 p-2 rounded-full print:p-1">
+                          <TrendingUp className="h-4 w-4 text-green-600" />
+                        </div>
+                        <span>Key Metrics</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="flex justify-between border-b pb-2">
+                          <span className="text-gray-600">Net Operating Income (NOI):</span>
+                          <span className="font-medium">${Number(results.calculatedMetrics?.netOperatingIncome).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between border-b pb-2">
+                          <span className="text-gray-600">Equity Value:</span>
+                          <span className="font-medium">${Number(results.calculatedMetrics?.equityValue).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between border-b pb-2">
+                          <span className="text-gray-600">Cash Flow:</span>
+                          <span className="font-medium">${Number(results.analysisSummary?.cashFlow).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between border-b pb-2">
+                          <span className="text-gray-600">Cap Rate:</span>
+                          <span className="font-medium">{results.analysisSummary?.capRate}</span>
+                        </div>
+                        <div className="flex justify-between border-b pb-2">
+                          <span className="text-gray-600">Cash-on-Cash:</span>
+                          <span className="font-medium">{results.analysisSummary?.cashOnCash}</span>
+                        </div>
+                        <div className="flex justify-between border-b pb-2">
+                          <span className="text-gray-600">Debt Service:</span>
+                          <span className="font-medium">${Number(results.calculatedMetrics?.debtService).toLocaleString()}</span>
                         </div>
                       </div>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-2">Analysis</h4>
-                      <p className="text-sm text-gray-600">{results.analysisResults}</p>
-                    </div>
-                  </CardContent>
-                </Card>
+
+                      <div className="mt-4 p-3 rounded-lg bg-gray-50">
+                        <h4 className="font-semibold mb-2">Investment Recommendation:</h4>
+                        <p className="text-sm">
+                          <span className={`font-medium ${
+                            results.recommendation === 'sell' ? 'text-red-600' :
+                            results.recommendation === 'hold' ? 'text-blue-600' :
+                            'text-yellow-600'
+                          }`}>
+                            {results.recommendation?.toUpperCase()}:
+                          </span> {results.roeCategory ?
+                            results.roeCategory === 'excellent' ? 'This property shows excellent returns and is a strong hold.' :
+                            results.roeCategory === 'good' ? 'This property shows good returns and is worth holding.' :
+                            results.roeCategory === 'moderate' ? 'This property shows moderate returns; consider your investment goals.' :
+                            results.roeCategory === 'fair' ? 'This property shows fair returns; evaluate for potential improvements.' :
+                            'This property shows poor returns; consider selling.' :
+                          'Recommendation unavailable.'}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
             </CardContent>
           </Card>
