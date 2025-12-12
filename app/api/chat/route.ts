@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       const updatedSystem = `${documentInfo}\n\n${marketData}`;
 
       const { text } = await generateText({
-        model: openai("gpt-4o"), // Using GPT-4o as the latest available model
+        model: openai("gpt-5.1"),
         messages: messages.map((msg: any) => ({
           role: msg.role,
           content: msg.content,
@@ -138,7 +138,7 @@ ${updatedSystem}`,
     const marketData = await fetchRealTimeMarketData()
 
     const { text } = await generateText({
-      model: openai("gpt-5.1"), 
+      model: openai("gpt-5.1"),
       messages: messages.map((msg: any) => ({
         role: msg.role,
         content: msg.content,
@@ -343,7 +343,7 @@ async function generateSlides(messages: any[]) {
     console.log("🎯 Generating slides from conversation...")
 
     const { text } = await generateText({
-      model: openai("gpt-5.1"),
+      model: openai("gpt-4o"),
       messages: messages.map((msg: any) => ({
         role: msg.role,
         content: msg.content,
@@ -611,8 +611,6 @@ Your investment analysis report is ready for download in PDF-ready format.`,
 
 async function generateDOCXReport(messages: any[]) {
   try {
-async function generateDOCXReport(messages: any[]) {
-  try {
     const { text } = await generateText({
       model: openai("gpt-5.1"),
       messages: messages.map((msg: any) => ({
@@ -658,6 +656,8 @@ Your investment analysis report is ready for download in Word-compatible format.
     return NextResponse.json({ error: "Failed to generate DOCX report" }, { status: 500 })
   }
 }
+
+async function performDeepResearch(messages: any[]) {
   try {
     console.log("🔍 Performing deep research...")
     
@@ -682,7 +682,7 @@ Your investment analysis report is ready for download in Word-compatible format.
     // Use the default OpenAI model to create a research-like response
     // In a real implementation, you'd fetch actual search results
     const { text } = await generateText({
-      model: openai("gpt-5.1"), 
+      model: openai("gpt-4o"), 
       messages: messages.map((msg: any) => ({
         role: msg.role,
         content: msg.content,
