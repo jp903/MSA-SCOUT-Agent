@@ -11,12 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { DollarSign, Home, Percent } from "lucide-react"
+import { DollarSign, Home, Percent, Upload, Image as ImageIcon } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
 import type { Property } from "@/lib/portfolio-types"
 
 interface PropertyFormProps {
   property?: Property
-  onSubmit: (data: Omit<Property, "id" | "createdAt" | "updatedAt" | "images">) => Promise<void>
+  onSubmit: (data: Omit<Property, "id" | "createdAt" | "updatedAt" | "images">) => Promise<any>
   onCancel: () => void
 }
 
@@ -125,6 +126,7 @@ export function PropertyForm({ property, onSubmit, onCancel }: PropertyFormProps
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [imagePreviews, setImagePreviews] = useState<{ url: string; file: File }[]>([])
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -225,6 +227,9 @@ export function PropertyForm({ property, onSubmit, onCancel }: PropertyFormProps
       }
 
       await onSubmit(submitData)
+
+      // Reset form state after successful submission
+      setImagePreviews([])
     } catch (error) {
       console.error("Error submitting form:", error)
     } finally {
@@ -270,6 +275,65 @@ export function PropertyForm({ property, onSubmit, onCancel }: PropertyFormProps
 
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }))
+    }
+  }
+
+  // Image handling functions
+  const handleImageUpload = (files: File[]) => {
+    const newPreviews = files.map((file) => ({
+      url: URL.createObjectURL(file),
+      file,
+    }))
+
+    setImagePreviews((prev) => [...prev, ...newPreviews])
+  }
+
+  const removeImage = (index: number) => {
+    setImagePreviews((prev) => {
+      const newPreviews = [...prev]
+      // Revoke the object URL to free memory
+      URL.revokeObjectURL(newPreviews[index].url)
+      newPreviews.splice(index, 1)
+      return newPreviews
+    })
+  }
+
+  const uploadImages = async (propertyId: string) => {
+    if (imagePreviews.length === 0) return
+
+    const uploadPromises = imagePreviews.map(async (preview, index) => {
+      // Create form data for image upload
+      const formData = new FormData()
+      formData.append('image', preview.file)
+      formData.append('propertyId', propertyId)
+      if (index === 0) {
+        formData.append('isPrimary', 'true')
+      }
+
+      // Make API call to upload image
+      const response = await fetch('/api/property-images', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to upload image: ${response.statusText}`)
+      }
+    })
+
+    try {
+      await Promise.all(uploadPromises)
+      toast({
+        title: "Images Uploaded",
+        description: `${imagePreviews.length} images were successfully uploaded`,
+      })
+    } catch (error) {
+      console.error("Error uploading images:", error)
+      toast({
+        title: "Upload Error",
+        description: "Some images failed to upload",
+        variant: "destructive",
+      })
     }
   }
 
@@ -572,6 +636,78 @@ export function PropertyForm({ property, onSubmit, onCancel }: PropertyFormProps
         </CardContent>
       </Card>
 
+      {/* Property Images Upload */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ImageIcon className="h-5 w-5" />
+            Property Images
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+              <p className="text-sm text-gray-600 mb-1">Click to upload property images</p>
+              <p className="text-xs text-gray-500">PNG, JPG up to 5MB each</p>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                id="image-upload"
+                onChange={(e) => {
+                  const files = e.target.files
+                  if (files && files.length > 0) {
+                    handleImageUpload(Array.from(files))
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-3"
+                onClick={() => document.getElementById('image-upload')?.click()}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Select Images
+              </Button>
+            </div>
+
+            {imagePreviews.length > 0 && (
+              <div className="mt-4">
+                <p className="text-sm font-medium mb-2">Selected Images:</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {imagePreviews.map((preview, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={preview.url}
+                        alt={`Preview ${index + 1}`}
+                        className="w-full h-24 object-cover rounded-md"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-1 right-1 h-6 w-6 p-0"
+                        onClick={() => removeImage(index)}
+                      >
+                        ×
+                      </Button>
+                      {index === 0 && (
+                        <div className="absolute bottom-1 left-1 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">
+                          Primary
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Form Actions */}
       <div className="flex justify-end gap-4">
         <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
@@ -583,4 +719,65 @@ export function PropertyForm({ property, onSubmit, onCancel }: PropertyFormProps
       </div>
     </form>
   )
+}
+
+// Additional state and functions for image handling
+const [imagePreviews, setImagePreviews] = useState<{ url: string; file: File }[]>([])
+
+const handleImageUpload = (files: File[]) => {
+  const newPreviews = files.map((file) => ({
+    url: URL.createObjectURL(file),
+    file,
+  }))
+
+  setImagePreviews((prev) => [...prev, ...newPreviews])
+}
+
+const removeImage = (index: number) => {
+  setImagePreviews((prev) => {
+    const newPreviews = [...prev]
+    // Revoke the object URL to free memory
+    URL.revokeObjectURL(newPreviews[index].url)
+    newPreviews.splice(index, 1)
+    return newPreviews
+  })
+}
+
+const uploadImages = async (propertyId: string) => {
+  if (imagePreviews.length === 0) return
+
+  const uploadPromises = imagePreviews.map(async (preview, index) => {
+    // Create form data for image upload
+    const formData = new FormData()
+    formData.append('image', preview.file)
+    formData.append('propertyId', propertyId)
+    if (index === 0) {
+      formData.append('isPrimary', 'true')
+    }
+
+    // Make API call to upload image
+    const response = await fetch('/api/property-images', {
+      method: 'POST',
+      body: formData,
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to upload image: ${response.statusText}`)
+    }
+  })
+
+  try {
+    await Promise.all(uploadPromises)
+    toast({
+      title: "Images Uploaded",
+      description: `${imagePreviews.length} images were successfully uploaded`,
+    })
+  } catch (error) {
+    console.error("Error uploading images:", error)
+    toast({
+      title: "Upload Error",
+      description: "Some images failed to upload",
+      variant: "destructive",
+    })
+  }
 }

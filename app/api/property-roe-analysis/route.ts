@@ -70,15 +70,28 @@ export async function POST(req: NextRequest) {
     const annualIncome = parseValue(annualRentalIncome);
     const annualExp = parseValue(annualExpenses);
     const marketValue = parseValue(currentMarketValue || currentFmv);
-    const loanBalance = parseValue(currentLoanBalance);
+    const loanBalance = parseValue(currentLoanBalance || currentDebt); // Use currentDebt if currentLoanBalance is not provided
     const debtService = parseValue(annualDebtService);
+    const totalDebt = parseValue(debt); // Original debt at purchase
 
     const noi = annualIncome - annualExp;
-    const equity = marketValue - loanBalance;
+
+    // Determine if the property has debt based on current debt values
+    const hasDebt = loanBalance > 0 || debtService > 0 || totalDebt > 0;
+
+    // Calculate equity based on whether property has debt or not
+    // For levered properties: equity = market value - current loan balance
+    // For unlevered properties: equity = market value (full ownership)
+    const equity = hasDebt ? (marketValue - loanBalance) : marketValue;
 
     // Calculate ROE with safety check for division by zero
     const unleveredRoe = equity !== 0 ? (noi / equity) * 100 : 0;
     const leveredRoe = equity !== 0 ? ((noi - debtService) / equity) * 100 : 0;
+
+    // The true ROE depends on whether the property has debt:
+    // - If property has debt: use levered ROE (accounts for debt service)
+    // - If property has no debt: use unlevered ROE (no debt service deduction)
+    const actualRoe = hasDebt ? leveredRoe : unleveredRoe;
 
     const prompt = `
       Analyze the following property's Return on Equity (ROE) and provide a comprehensive assessment.
@@ -187,22 +200,22 @@ export async function POST(req: NextRequest) {
       analysisResults,
     };
 
-    // Determine recommendation based on ROE values
+    // Determine recommendation based on actual ROE values (which accounts for debt status)
     let recommendation = 'hold';
     let roeCategory = 'moderate';
 
-    // Determine ROE category and recommendation
-    const leveredRoeValue = Number(leveredRoe.toFixed(2));
-    if (leveredRoeValue > 15) {
+    // Determine ROE category and recommendation based on the actual ROE (levered or unlevered depending on debt status)
+    const actualRoeValue = Number(actualRoe.toFixed(2));
+    if (actualRoeValue > 15) {
         roeCategory = 'excellent';
         recommendation = 'hold';
-    } else if (leveredRoeValue > 10) {
+    } else if (actualRoeValue > 10) {
         roeCategory = 'good';
         recommendation = 'hold';
-    } else if (leveredRoeValue > 5) {
+    } else if (actualRoeValue > 5) {
         roeCategory = 'moderate';
         recommendation = 'hold';
-    } else if (leveredRoeValue > 0) {
+    } else if (actualRoeValue > 0) {
         roeCategory = 'fair';
         recommendation = 'evaluate';
     } else {
@@ -237,11 +250,13 @@ export async function POST(req: NextRequest) {
       equity: Number(parseValue(equity, 0).toFixed(2)),
       unleveredRoe: Number(parseValue(unleveredRoe, 0).toFixed(4)),
       leveredRoe: Number(parseValue(leveredRoe, 0).toFixed(4)),
+      hasDebt: hasDebt, // Add flag to indicate if property has debt
       analysisResults,
       // Include calculated metrics for frontend display
       calculatedMetrics: {
         unleveredROE: Number(unleveredRoe.toFixed(2)),
         leveredROE: Number(leveredRoe.toFixed(2)),
+        actualROE: Number(actualRoe.toFixed(2)), // Use the correct ROE based on debt status
         netOperatingIncome: Number(noi.toFixed(2)),
         equityValue: Number(equity.toFixed(2)),
         debtService: Number(debtService.toFixed(2)),
@@ -254,7 +269,7 @@ export async function POST(req: NextRequest) {
       analysisSummary: {
         category: roeCategory,
         recommendation,
-        performance: leveredRoeValue > 0 ? 'positive' : 'negative',
+        performance: actualRoeValue > 0 ? 'positive' : 'negative',
         cashFlow: (annualIncome - annualExp - debtService).toFixed(2),
         capRate: ((annualIncome - annualExp) / marketValue * 100).toFixed(2) + '%',
         cashOnCash: ((annualIncome - annualExp - debtService) / (parseValue(downPayment, 0) + parseValue(outOfPocketReno, 0)) * 100).toFixed(2) + '%',
@@ -264,6 +279,7 @@ export async function POST(req: NextRequest) {
         roeComparison: {
           unlevered: Number(unleveredRoe.toFixed(2)),
           levered: Number(leveredRoe.toFixed(2)),
+          actual: Number(actualRoe.toFixed(2)), // Show which ROE is being used
         },
         incomeExpenses: {
           income: Number(annualIncome.toFixed(2)),

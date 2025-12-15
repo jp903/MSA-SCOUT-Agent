@@ -16,11 +16,7 @@ export function SidebarToggle() {
       aria-label="Toggle sidebar"
       className="w-full justify-start"
     >
-      {state?.open ? (
-        <PanelLeft className="h-4 w-4" />
-      ) : (
-        <PanelRight className="h-4 w-4" />
-      )}
+      {state === "collapsed" ? <PanelRight className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
       <span className="sr-only">Toggle sidebar</span>
     </Button>
   )

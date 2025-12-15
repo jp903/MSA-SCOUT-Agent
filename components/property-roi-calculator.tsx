@@ -534,8 +534,10 @@ export default function PropertyROICalculator({ user, onAuthRequired }: Property
                   <Card className="bg-green-50 border-green-200 print:p-2">
                     <CardContent className="p-4 print:p-2">
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-green-700 print:text-lg">{results.calculatedMetrics?.leveredROE?.toFixed(2) || 'N/A'}%</div>
-                        <div className="text-sm text-green-600 print:text-xs">Levered ROE</div>
+                        <div className="text-2xl font-bold text-green-700 print:text-lg">{results.calculatedMetrics?.actualROE?.toFixed(2) || results.calculatedMetrics?.leveredROE?.toFixed(2) || 'N/A'}%</div>
+                        <div className="text-sm text-green-600 print:text-xs">
+                           {results.hasDebt ? 'Actual Levered ROE' : 'Actual Unlevered ROE'}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -580,7 +582,8 @@ export default function PropertyROICalculator({ user, onAuthRequired }: Property
                           <RechartsBarChart data={[{
                             name: 'ROE',
                             'Unlevered': results.calculatedMetrics?.unleveredROE,
-                            'Levered': results.calculatedMetrics?.leveredROE
+                            'Levered': results.calculatedMetrics?.leveredROE,
+                            'Actual': results.calculatedMetrics?.actualROE
                           }]}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="name" />
@@ -589,6 +592,7 @@ export default function PropertyROICalculator({ user, onAuthRequired }: Property
                             <Legend />
                             <Bar dataKey="Unlevered" name="Unlevered ROE" fill="#3b82f6" />
                             <Bar dataKey="Levered" name="Levered ROE" fill="#10b981" />
+                            <Bar dataKey="Actual" name="Actual ROE" fill="#8b5cf6" />
                           </RechartsBarChart>
                         </ResponsiveContainer>
                       </CardContent>

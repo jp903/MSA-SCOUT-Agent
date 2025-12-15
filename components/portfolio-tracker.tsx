@@ -288,6 +288,7 @@ export default function PortfolioTracker() {
         })
         setShowAddProperty(false)
         await loadPortfolio()
+        return result; // Return result for image upload if needed
       } else {
         throw new Error(result.error || "Failed to add property")
       }

@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect, useMemo } from "react"
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import EnhancedChat from "@/components/enhanced-chat"
 import PropertyCalculator from "@/components/property-calculator"
@@ -618,6 +618,30 @@ export default function HomePage() {
         chatHistoryLoaded={chatHistoryLoaded}
       />
       <SidebarInset>
+        <header className="sticky top-0 flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
+          <div className="flex items-center gap-2">
+            <SidebarTrigger className="-ml-1" />
+            <div className="text-lg font-bold">MSASCOUT</div>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            {user ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium hidden sm:block">
+                  {user.first_name} {user.last_name}
+                </span>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAuthModal(true)}
+                className="hidden sm:flex"
+              >
+                Sign In
+              </Button>
+            )}
+          </div>
+        </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
           {/* Auth Modal */}
           <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onSuccess={handleAuthSuccess} />
