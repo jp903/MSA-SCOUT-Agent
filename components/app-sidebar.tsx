@@ -159,15 +159,6 @@ export function AppSidebar({
               <p className="text-xs text-gray-600">AI Property Agent</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebar}
-            className="h-8 w-8"
-          >
-            <PanelLeft className="h-4 w-4" />
-            <span className="sr-only">Toggle Sidebar</span>
-          </Button>
         </div>
       </SidebarHeader>
 
