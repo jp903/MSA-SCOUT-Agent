@@ -13,6 +13,7 @@ import Preferences from "@/components/preferences"
 import AuthModal from "@/components/auth-modal"
 import PricePredictor from "@/components/price-predictor"
 import PropertyROICalculator from "@/components/property-roi-calculator"
+import { MobileHeader } from "@/components/mobile-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -70,14 +71,19 @@ export default function HomePage() {
     setIsClient(true);
   }, []);
 
-  const currentChat = useMemo(() => {
-    return chatHistory.find((chat) => chat.id === currentChatId) || null
-  }, [chatHistory, currentChatId])
-
-  // Check authentication on component mount
+  // Only run client-side effects after component is mounted
   useEffect(() => {
+    if (!isClient) return;
+
+    // Check authentication on component mount
     checkAuth()
-  }, [])
+  }, [isClient])
+
+  // Only run useMemo after client-side hydration
+  const currentChat = useMemo(() => {
+    if (!isClient) return null;
+    return chatHistory.find((chat) => chat.id === currentChatId) || null
+  }, [chatHistory, currentChatId, isClient])
 
   // Call initializeApp once user authentication status is known
   useEffect(() => {
@@ -604,7 +610,7 @@ export default function HomePage() {
   }
 
   return isClient ? (
-    <SidebarProvider>
+    <>
       <AppSidebar
         activeView={activeView}
         onViewChange={(view: string) => setActiveView(view as any)}
@@ -618,30 +624,10 @@ export default function HomePage() {
         chatHistoryLoaded={chatHistoryLoaded}
       />
       <SidebarInset>
-        <header className="sticky top-0 flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
-          <div className="flex items-center gap-2">
-            <SidebarTrigger className="-ml-1" />
-            <div className="text-lg font-bold">MSASCOUT</div>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            {user ? (
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium hidden sm:block">
-                  {user.first_name} {user.last_name}
-                </span>
-              </div>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAuthModal(true)}
-                className="hidden sm:flex"
-              >
-                Sign In
-              </Button>
-            )}
-          </div>
-        </header>
+        <MobileHeader
+          user={user}
+          showAuthModal={() => setShowAuthModal(true)}
+        />
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
           {/* Auth Modal */}
           <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onSuccess={handleAuthSuccess} />
@@ -1057,7 +1043,7 @@ export default function HomePage() {
           {activeView === "insights" && <div className="animate-fade-in"><MarketInsights /></div>}
         </div>
       </SidebarInset>
-    </SidebarProvider>
+    </>
   ) : (
     <div className="flex items-center justify-center min-h-screen">
       <div className="text-center">

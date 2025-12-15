@@ -195,6 +195,18 @@ export async function initializeDatabase() {
     // Add user_id to properties table if it doesn't exist (for older schemas)
     await sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL`
 
+    // Add missing columns for ROE calculation and other extended properties
+    await sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS debt DECIMAL(12,2)`
+    await sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS out_of_pocket_reno DECIMAL(12,2)`
+    await sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS total_initial_investment DECIMAL(12,2)`
+    await sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS current_fmv DECIMAL(12,2)`
+    await sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS current_debt DECIMAL(12,2)`
+    await sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS potential_equity DECIMAL(12,2)`
+    await sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS loan_terms INTEGER`
+    await sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS amortization INTEGER`
+    await sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS years_held INTEGER`
+    await sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS current_payment DECIMAL(10,2)`
+
     // Create property_images table if it doesn't exist
     await sql`
       CREATE TABLE IF NOT EXISTS property_images (

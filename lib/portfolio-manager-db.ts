@@ -1,9 +1,22 @@
 import { sql, ensureDatabaseInitialized } from "./db"
 import type { Property, PortfolioMetrics, PropertyPerformance, PropertyImage } from "./portfolio-types"
 
+// Check if database URL exists
+const hasDatabaseUrl = typeof process.env.DATABASE_URL !== 'undefined' && process.env.DATABASE_URL !== '';
+
+// Ensure database is initialized before performing any operations
+async function ensureInitialized() {
+  if (!hasDatabaseUrl) {
+    console.warn("DATABASE_URL not set - portfolio features will not work properly");
+    throw new Error("Database connection not available. Please check your DATABASE_URL environment variable.");
+  }
+  await ensureDatabaseInitialized();
+}
+
 export class PortfolioManagerDB {
   static async getPortfolio(): Promise<Property[]> {
     try {
+      await ensureInitialized();
       console.log("PortfolioManagerDB: Querying properties from database...")
       const result = await sql`
         SELECT
@@ -84,6 +97,7 @@ export class PortfolioManagerDB {
     property: Omit<Property, "id" | "createdAt" | "updatedAt" | "images">,
   ): Promise<Property | null> {
     try {
+      await ensureInitialized();
       console.log("PortfolioManagerDB: Inserting property into database:", property)
 
       const result = (await sql`
@@ -183,6 +197,7 @@ export class PortfolioManagerDB {
 
   static async updateProperty(id: string, updates: Partial<Property>): Promise<Property | null> {
     try {
+      await ensureInitialized();
       console.log("PortfolioManagerDB: Updating property:", id, updates)
 
       // Validate UUID format
@@ -286,6 +301,7 @@ export class PortfolioManagerDB {
 
   static async deleteProperty(id: string): Promise<boolean> {
     try {
+      await ensureInitialized();
       console.log("PortfolioManagerDB: Deleting property with UUID:", id)
 
       // Validate UUID format
@@ -308,10 +324,11 @@ export class PortfolioManagerDB {
 
   static async getPropertyImages(propertyId: string): Promise<PropertyImage[]> {
     try {
+      await ensureInitialized();
       // Check if property_images table exists first
       const tableExists = (await sql`
         SELECT EXISTS (
-          SELECT FROM information_schema.tables 
+          SELECT FROM information_schema.tables
           WHERE table_name = 'property_images'
         )
       `) as any[]
@@ -322,7 +339,7 @@ export class PortfolioManagerDB {
       }
 
       const images = (await sql`
-        SELECT 
+        SELECT
           id::text as id,
           property_id::text as "propertyId",
           url,
@@ -331,7 +348,7 @@ export class PortfolioManagerDB {
           caption,
           is_primary as "isPrimary",
           uploaded_at as "uploadedAt"
-        FROM property_images 
+        FROM property_images
         WHERE property_id = ${propertyId}::uuid
         ORDER BY is_primary DESC, uploaded_at ASC
       `) as any[]
@@ -351,10 +368,11 @@ export class PortfolioManagerDB {
     image: Omit<PropertyImage, "id" | "uploadedAt">,
   ): Promise<PropertyImage | null> {
     try {
+      await ensureInitialized();
       const result = (await sql`
         INSERT INTO property_images (property_id, url, filename, size, caption, is_primary)
         VALUES (${propertyId}::uuid, ${image.url}, ${image.filename}, ${image.size}, ${image.caption || null}, ${image.isPrimary})
-        RETURNING 
+        RETURNING
           id::text as id,
           property_id::text as "propertyId",
           url,
@@ -381,6 +399,7 @@ export class PortfolioManagerDB {
 
   static async deletePropertyImage(imageId: string): Promise<boolean> {
     try {
+      await ensureInitialized();
       const result = (await sql`DELETE FROM property_images WHERE id = ${imageId}::uuid`) as any
       const count = Array.isArray(result) ? result.length : result.count
       return count > 0
@@ -392,11 +411,12 @@ export class PortfolioManagerDB {
 
   static async setPrimaryImage(propertyId: string, imageId: string): Promise<boolean> {
     try {
+      await ensureInitialized();
       await sql`UPDATE property_images SET is_primary = false WHERE property_id = ${propertyId}::uuid`
 
       const result = (await sql`
-        UPDATE property_images 
-        SET is_primary = true 
+        UPDATE property_images
+        SET is_primary = true
         WHERE id = ${imageId}::uuid AND property_id = ${propertyId}::uuid
       `) as any
 
@@ -441,6 +461,7 @@ export class PortfolioManagerDB {
 
   static async calculatePortfolioMetrics(): Promise<PortfolioMetrics> {
     try {
+      await ensureInitialized();
       const portfolio = await this.getPortfolio()
       console.log(`PortfolioManagerDB: Calculating metrics for ${portfolio.length} properties`)
 
