@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
     const loanBalance = parseValue(currentLoanBalance || currentDebt); // Use currentDebt if currentLoanBalance is not provided
     const debtService = parseValue(annualDebtService);
     const totalDebt = parseValue(debt); // Original debt at purchase
+    const totalInitialInvestmentValue = parseValue(totalInitialInvestment);
 
     const noi = annualIncome - annualExp;
 
@@ -80,13 +81,16 @@ export async function POST(req: NextRequest) {
     const hasDebt = loanBalance > 0 || debtService > 0 || totalDebt > 0;
 
     // Calculate equity based on whether property has debt or not
-    // For levered properties: equity = market value - current loan balance
-    // For unlevered properties: equity = market value (full ownership)
-    const equity = hasDebt ? (marketValue - loanBalance) : marketValue;
+    // For unlevered ROE calculation: equity = market value - current loan balance (current equity in property)
+    const propertyEquity = marketValue - loanBalance;
+
+    // For levered ROE calculation: use total initial investment as the base
+    const initialCashInvestment = totalInitialInvestmentValue;
 
     // Calculate ROE with safety check for division by zero
-    const unleveredRoe = equity !== 0 ? (noi / equity) * 100 : 0;
-    const leveredRoe = equity !== 0 ? ((noi - debtService) / equity) * 100 : 0;
+    const unleveredRoe = propertyEquity !== 0 ? (noi / propertyEquity) * 100 : 0;
+    // Levered ROE should be based on initial cash investment, not current equity
+    const leveredRoe = initialCashInvestment !== 0 ? ((noi - debtService) / initialCashInvestment) * 100 : 0;
 
     // The true ROE depends on whether the property has debt:
     // - If property has debt: use levered ROE (accounts for debt service)
@@ -247,7 +251,7 @@ export async function POST(req: NextRequest) {
       currentLoanBalance: Number(parseValue(currentLoanBalance || currentDebt, 0).toFixed(2)),
       annualDebtService: Number(parseValue(annualDebtService, 0).toFixed(2)),
       noi: Number(parseValue(noi, 0).toFixed(2)),
-      equity: Number(parseValue(equity, 0).toFixed(2)),
+      equity: Number(parseValue(propertyEquity, 0).toFixed(2)),
       unleveredRoe: Number(parseValue(unleveredRoe, 0).toFixed(4)),
       leveredRoe: Number(parseValue(leveredRoe, 0).toFixed(4)),
       hasDebt: hasDebt, // Add flag to indicate if property has debt
@@ -258,7 +262,7 @@ export async function POST(req: NextRequest) {
         leveredROE: Number(leveredRoe.toFixed(2)),
         actualROE: Number(actualRoe.toFixed(2)), // Use the correct ROE based on debt status
         netOperatingIncome: Number(noi.toFixed(2)),
-        equityValue: Number(equity.toFixed(2)),
+        equityValue: Number(propertyEquity.toFixed(2)),
         debtService: Number(debtService.toFixed(2)),
         annualIncome: Number(annualIncome.toFixed(2)),
         annualExpenses: Number(annualExp.toFixed(2)),
@@ -272,7 +276,7 @@ export async function POST(req: NextRequest) {
         performance: actualRoeValue > 0 ? 'positive' : 'negative',
         cashFlow: (annualIncome - annualExp - debtService).toFixed(2),
         capRate: ((annualIncome - annualExp) / marketValue * 100).toFixed(2) + '%',
-        cashOnCash: ((annualIncome - annualExp - debtService) / (parseValue(downPayment, 0) + parseValue(outOfPocketReno, 0)) * 100).toFixed(2) + '%',
+        cashOnCash: ((annualIncome - annualExp - debtService) / totalInitialInvestmentValue * 100).toFixed(2) + '%',
       },
       // Data for potential graph generation
       graphData: {
@@ -287,8 +291,8 @@ export async function POST(req: NextRequest) {
           debtService: Number(debtService.toFixed(2)),
         },
         equityGrowth: {
-          initial: Number(parseValue(downPayment, 0).toFixed(2)),
-          current: Number(equity.toFixed(2)),
+          initial: Number(totalInitialInvestmentValue.toFixed(2)),
+          current: Number(propertyEquity.toFixed(2)),
         }
       }
     };
