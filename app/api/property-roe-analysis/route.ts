@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
 
       Calculated Financial Metrics:
       - Net Operating Income (NOI): $${noi.toFixed(2)}
-      - Equity: $${equity.toFixed(2)}
+      - Equity: $${propertyEquity.toFixed(2)}
       - Unlevered ROE: ${unleveredRoe.toFixed(2)}%
       - Levered (True Cash-Flow) ROE: ${leveredRoe.toFixed(2)}%
 
@@ -158,7 +158,7 @@ export async function POST(req: NextRequest) {
     `;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-5.1",
+      model: "gpt-4o",
       messages: [{ role: "system", content: prompt }],
     });
 
@@ -198,7 +198,7 @@ export async function POST(req: NextRequest) {
       currentLoanBalance: parseValue(currentLoanBalance || currentDebt, 0).toFixed(2), // fallback to currentDebt if currentLoanBalance is not provided
       annualDebtService: parseValue(annualDebtService, 0).toFixed(2),
       noi: parseValue(noi, 0).toFixed(2),
-      equity: parseValue(equity, 0).toFixed(2),
+      equity: parseValue(propertyEquity, 0).toFixed(2),
       unleveredRoe: parseValue(unleveredRoe, 0).toFixed(4),
       leveredRoe: parseValue(leveredRoe, 0).toFixed(4),
       analysisResults,
