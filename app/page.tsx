@@ -85,12 +85,12 @@ export default function HomePage() {
     return chatHistory.find((chat) => chat.id === currentChatId) || null
   }, [chatHistory, currentChatId, isClient])
 
-  // Call initializeApp once user authentication status is known
+  // Handle user state changes (login/logout)
   useEffect(() => {
     if (userLoaded) {
-      if (user) { // Only initialize app if user is present
+      if (user) { // User signed in
         initializeApp()
-      } else { // If user is null after userLoaded, ensure chat history is cleared
+      } else { // User signed out
         setChatHistory([])
         setCurrentChatId(null)
         setChatHistoryLoaded(true)
@@ -98,17 +98,6 @@ export default function HomePage() {
     }
   }, [userLoaded, user]) // Depend on userLoaded and user
 
-  // Load chat history when user changes (login/logout)
-  // This useEffect will now be responsible for (re)loading chat history based on user state
-  useEffect(() => {
-    if (user) {
-      loadChatHistory()
-    } else {
-      setChatHistory([]) // Clear chat history if user logs out
-      setCurrentChatId(null)
-      setChatHistoryLoaded(false) // Set to false so it reloads if user signs in later
-    }
-  }, [user])
 
   const checkAuth = async () => {
     try {

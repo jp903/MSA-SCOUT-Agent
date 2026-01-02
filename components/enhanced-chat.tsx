@@ -437,7 +437,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
                 <div className="space-y-3">
                   {suggestedQuestions.map((question, index) => (
                     <Button
-                      key={index}
+                      key={`suggested-${index}`}
                       variant="outline"
                       className="w-full text-left justify-start h-auto p-4 text-wrap bg-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 text-gray-700 rounded-xl"
                       onClick={() => handleSuggestedQuestion(question)}

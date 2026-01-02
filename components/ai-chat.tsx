@@ -186,7 +186,7 @@ export default function AIChat() {
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
                 </div>
-              </CArdContent>
+              </CardContent>
             </Card>
           </div>
         )}
