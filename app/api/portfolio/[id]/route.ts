@@ -1,8 +1,20 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { PortfolioManagerDB } from "@/lib/portfolio-manager-db"
+import { AuthService } from "@/lib/auth"
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Extract session token from cookies
+    const sessionToken = request.cookies.get("session_token")?.value
+    if (!sessionToken) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const user = await AuthService.verifySession(sessionToken)
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     const { id } = await params
 
     if (!id) {
@@ -15,8 +27,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Invalid property ID format" }, { status: 400 })
     }
 
-    // Get single property
-    const portfolio = await PortfolioManagerDB.getPortfolio()
+    // Get single property for this user
+    const portfolio = await PortfolioManagerDB.getPortfolio(user.id)
     const property = portfolio.find((p) => p.id === id)
 
     if (!property) {
@@ -41,6 +53,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Extract session token from cookies
+    const sessionToken = request.cookies.get("session_token")?.value
+    if (!sessionToken) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const user = await AuthService.verifySession(sessionToken)
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     const { id } = await params
     const updates = await request.json()
 
@@ -48,7 +71,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Property ID is required" }, { status: 400 })
     }
 
-    console.log("Updating property:", id, updates)
+    console.log("Updating property:", id, "for user:", user.id, updates)
 
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -69,7 +92,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       loanTermYears: updates.loanTermYears ? Number.parseInt(updates.loanTermYears) : undefined,
     }
 
-    const updatedProperty = await PortfolioManagerDB.updateProperty(id, cleanedUpdates)
+    const updatedProperty = await PortfolioManagerDB.updateProperty(id, cleanedUpdates, user.id)
 
     if (!updatedProperty) {
       return NextResponse.json({ error: "Property not found or update failed" }, { status: 404 })
@@ -94,13 +117,24 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Extract session token from cookies
+    const sessionToken = request.cookies.get("session_token")?.value
+    if (!sessionToken) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const user = await AuthService.verifySession(sessionToken)
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     const { id } = await params
 
     if (!id) {
       return NextResponse.json({ error: "Property ID is required" }, { status: 400 })
     }
 
-    console.log("DELETE request received for property ID:", id)
+    console.log("DELETE request received for property ID:", id, "for user:", user.id)
 
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -115,15 +149,15 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       )
     }
 
-    console.log("Attempting to delete property with valid UUID:", id)
-    const deleted = await PortfolioManagerDB.deleteProperty(id)
+    console.log("Attempting to delete property with valid UUID:", id, "for user:", user.id)
+    const deleted = await PortfolioManagerDB.deleteProperty(id, user.id)
 
     if (!deleted) {
-      console.error("Property not found or deletion failed for ID:", id)
+      console.error("Property not found or deletion failed for ID:", id, "for user:", user.id)
       return NextResponse.json({ error: "Property not found or deletion failed" }, { status: 404 })
     }
 
-    console.log("Property successfully deleted:", id)
+    console.log("Property successfully deleted:", id, "for user:", user.id)
     return NextResponse.json({
       success: true,
       message: "Property deleted successfully",

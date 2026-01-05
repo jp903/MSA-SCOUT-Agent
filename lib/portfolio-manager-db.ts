@@ -14,43 +14,84 @@ async function ensureInitialized() {
 }
 
 export class PortfolioManagerDB {
-  static async getPortfolio(): Promise<Property[]> {
+  static async getPortfolio(userId?: string): Promise<Property[]> {
     try {
       await ensureInitialized();
       console.log("PortfolioManagerDB: Querying properties from database...")
-      const result = await sql`
-        SELECT
-          id::text as id,
-          name,
-          address,
-          state,
-          purchase_price as "purchasePrice",
-          purchase_date as "purchaseDate",
-          current_value as "currentValue",
-          monthly_rent as "monthlyRent",
-          monthly_expenses as "monthlyExpenses",
-          down_payment as "downPayment",
-          loan_amount as "loanAmount",
-          interest_rate as "interestRate",
-          loan_term_years as "loanTermYears",
-          property_type as "propertyType",
-          status,
-          notes,
-          debt,
-          out_of_pocket_reno as "outOfPocketReno",
-          total_initial_investment as "totalInitialInvestment",
-          current_fmv as "currentFmv",
-          current_debt as "currentDebt",
-          potential_equity as "potentialEquity",
-          loan_terms as "loanTerms",
-          amortization,
-          years_held as "yearsHeld",
-          current_payment as "currentPayment",
-          created_at as "createdAt",
-          updated_at as "updatedAt"
-        FROM properties
-        ORDER BY created_at DESC
-      `
+
+      let result;
+      if (userId) {
+        console.log("PortfolioManagerDB: Querying properties for user:", userId)
+        result = await sql`
+          SELECT
+            id::text as id,
+            name,
+            address,
+            state,
+            purchase_price as "purchasePrice",
+            purchase_date as "purchaseDate",
+            current_value as "currentValue",
+            monthly_rent as "monthlyRent",
+            monthly_expenses as "monthlyExpenses",
+            down_payment as "downPayment",
+            loan_amount as "loanAmount",
+            interest_rate as "interestRate",
+            loan_term_years as "loanTermYears",
+            property_type as "propertyType",
+            status,
+            notes,
+            debt,
+            out_of_pocket_reno as "outOfPocketReno",
+            total_initial_investment as "totalInitialInvestment",
+            current_fmv as "currentFmv",
+            current_debt as "currentDebt",
+            potential_equity as "potentialEquity",
+            loan_terms as "loanTerms",
+            amortization,
+            years_held as "yearsHeld",
+            current_payment as "currentPayment",
+            created_at as "createdAt",
+            updated_at as "updatedAt"
+          FROM properties
+          WHERE user_id = ${userId}::uuid
+          ORDER BY created_at DESC
+        `
+      } else {
+        console.log("PortfolioManagerDB: Querying all properties (no user filter)")
+        result = await sql`
+          SELECT
+            id::text as id,
+            name,
+            address,
+            state,
+            purchase_price as "purchasePrice",
+            purchase_date as "purchaseDate",
+            current_value as "currentValue",
+            monthly_rent as "monthlyRent",
+            monthly_expenses as "monthlyExpenses",
+            down_payment as "downPayment",
+            loan_amount as "loanAmount",
+            interest_rate as "interestRate",
+            loan_term_years as "loanTermYears",
+            property_type as "propertyType",
+            status,
+            notes,
+            debt,
+            out_of_pocket_reno as "outOfPocketReno",
+            total_initial_investment as "totalInitialInvestment",
+            current_fmv as "currentFmv",
+            current_debt as "currentDebt",
+            potential_equity as "potentialEquity",
+            loan_terms as "loanTerms",
+            amortization,
+            years_held as "yearsHeld",
+            current_payment as "currentPayment",
+            created_at as "createdAt",
+            updated_at as "updatedAt"
+          FROM properties
+          ORDER BY created_at DESC
+        `
+      }
 
       const properties = Array.isArray(result) ? result : (result as unknown as any[])
       console.log(`PortfolioManagerDB: Found ${properties.length} properties in database`)
@@ -102,13 +143,13 @@ export class PortfolioManagerDB {
 
       const result = (await sql`
         INSERT INTO properties (
-          name, address, state, purchase_price, purchase_date, current_value,
+          user_id, name, address, state, purchase_price, purchase_date, current_value,
           monthly_rent, monthly_expenses, down_payment, loan_amount, interest_rate,
           loan_term_years, property_type, status, notes, debt, out_of_pocket_reno,
           total_initial_investment, current_fmv, current_debt, potential_equity,
           loan_terms, amortization, years_held, current_payment
         ) VALUES (
-          ${property.name},
+          ${property.userId}, ${property.name},
           ${property.address},
           ${property.state},
           ${property.purchasePrice},
@@ -195,7 +236,7 @@ export class PortfolioManagerDB {
     }
   }
 
-  static async updateProperty(id: string, updates: Partial<Property>): Promise<Property | null> {
+  static async updateProperty(id: string, updates: Partial<Property>, userId?: string): Promise<Property | null> {
     try {
       await ensureInitialized();
       console.log("PortfolioManagerDB: Updating property:", id, updates)
@@ -206,65 +247,129 @@ export class PortfolioManagerDB {
         throw new Error(`Invalid UUID format: ${id}`)
       }
 
-      const result = (await sql`
-        UPDATE properties SET
-          name = COALESCE(${updates.name}, name),
-          address = COALESCE(${updates.address}, address),
-          state = COALESCE(${updates.state}, state),
-          purchase_price = COALESCE(${updates.purchasePrice}, purchase_price),
-          purchase_date = COALESCE(${updates.purchaseDate || null}, purchase_date),
-          current_value = COALESCE(${updates.currentValue}, current_value),
-          monthly_rent = COALESCE(${updates.monthlyRent}, monthly_rent),
-          monthly_expenses = COALESCE(${updates.monthlyExpenses}, monthly_expenses),
-          down_payment = COALESCE(${updates.downPayment}, down_payment),
-          loan_amount = COALESCE(${updates.loanAmount}, loan_amount),
-          interest_rate = COALESCE(${updates.interestRate}, interest_rate),
-          loan_term_years = COALESCE(${updates.loanTermYears}, loan_term_years),
-          property_type = COALESCE(${updates.propertyType}, property_type),
-          status = COALESCE(${updates.status}, status),
-          notes = COALESCE(${updates.notes}, notes),
-          debt = COALESCE(${updates.debt}, debt),
-          out_of_pocket_reno = COALESCE(${updates.outOfPocketReno}, out_of_pocket_reno),
-          total_initial_investment = COALESCE(${updates.totalInitialInvestment}, total_initial_investment),
-          current_fmv = COALESCE(${updates.currentFmv}, current_fmv),
-          current_debt = COALESCE(${updates.currentDebt}, current_debt),
-          potential_equity = COALESCE(${updates.potentialEquity}, potential_equity),
-          loan_terms = COALESCE(${updates.loanTerms}, loan_terms),
-          amortization = COALESCE(${updates.amortization}, amortization),
-          years_held = COALESCE(${updates.yearsHeld}, years_held),
-          current_payment = COALESCE(${updates.currentPayment}, current_payment),
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${id}::uuid
-        RETURNING
-          id::text as id,
-          name,
-          address,
-          state,
-          purchase_price as "purchasePrice",
-          purchase_date as "purchaseDate",
-          current_value as "currentValue",
-          monthly_rent as "monthlyRent",
-          monthly_expenses as "monthlyExpenses",
-          down_payment as "downPayment",
-          loan_amount as "loanAmount",
-          interest_rate as "interestRate",
-          loan_term_years as "loanTermYears",
-          property_type as "propertyType",
-          status,
-          notes,
-          debt,
-          out_of_pocket_reno as "outOfPocketReno",
-          total_initial_investment as "totalInitialInvestment",
-          current_fmv as "currentFmv",
-          current_debt as "currentDebt",
-          potential_equity as "potentialEquity",
-          loan_terms as "loanTerms",
-          amortization,
-          years_held as "yearsHeld",
-          current_payment as "currentPayment",
-          created_at as "createdAt",
-          updated_at as "updatedAt"
-      `) as any[]
+      let result;
+      if (userId) {
+        // Only update if the property belongs to the user
+        result = (await sql`
+          UPDATE properties SET
+            name = COALESCE(${updates.name}, name),
+            address = COALESCE(${updates.address}, address),
+            state = COALESCE(${updates.state}, state),
+            purchase_price = COALESCE(${updates.purchasePrice}, purchase_price),
+            purchase_date = COALESCE(${updates.purchaseDate || null}, purchase_date),
+            current_value = COALESCE(${updates.currentValue}, current_value),
+            monthly_rent = COALESCE(${updates.monthlyRent}, monthly_rent),
+            monthly_expenses = COALESCE(${updates.monthlyExpenses}, monthly_expenses),
+            down_payment = COALESCE(${updates.downPayment}, down_payment),
+            loan_amount = COALESCE(${updates.loanAmount}, loan_amount),
+            interest_rate = COALESCE(${updates.interestRate}, interest_rate),
+            loan_term_years = COALESCE(${updates.loanTermYears}, loan_term_years),
+            property_type = COALESCE(${updates.propertyType}, property_type),
+            status = COALESCE(${updates.status}, status),
+            notes = COALESCE(${updates.notes}, notes),
+            debt = COALESCE(${updates.debt}, debt),
+            out_of_pocket_reno = COALESCE(${updates.outOfPocketReno}, out_of_pocket_reno),
+            total_initial_investment = COALESCE(${updates.totalInitialInvestment}, total_initial_investment),
+            current_fmv = COALESCE(${updates.currentFmv}, current_fmv),
+            current_debt = COALESCE(${updates.currentDebt}, current_debt),
+            potential_equity = COALESCE(${updates.potentialEquity}, potential_equity),
+            loan_terms = COALESCE(${updates.loanTerms}, loan_terms),
+            amortization = COALESCE(${updates.amortization}, amortization),
+            years_held = COALESCE(${updates.yearsHeld}, years_held),
+            current_payment = COALESCE(${updates.currentPayment}, current_payment),
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${id}::uuid AND user_id = ${userId}::uuid
+          RETURNING
+            id::text as id,
+            name,
+            address,
+            state,
+            purchase_price as "purchasePrice",
+            purchase_date as "purchaseDate",
+            current_value as "currentValue",
+            monthly_rent as "monthlyRent",
+            monthly_expenses as "monthlyExpenses",
+            down_payment as "downPayment",
+            loan_amount as "loanAmount",
+            interest_rate as "interestRate",
+            loan_term_years as "loanTermYears",
+            property_type as "propertyType",
+            status,
+            notes,
+            debt,
+            out_of_pocket_reno as "outOfPocketReno",
+            total_initial_investment as "totalInitialInvestment",
+            current_fmv as "currentFmv",
+            current_debt as "currentDebt",
+            potential_equity as "potentialEquity",
+            loan_terms as "loanTerms",
+            amortization,
+            years_held as "yearsHeld",
+            current_payment as "currentPayment",
+            created_at as "createdAt",
+            updated_at as "updatedAt"
+        `) as any[]
+      } else {
+        result = (await sql`
+          UPDATE properties SET
+            name = COALESCE(${updates.name}, name),
+            address = COALESCE(${updates.address}, address),
+            state = COALESCE(${updates.state}, state),
+            purchase_price = COALESCE(${updates.purchasePrice}, purchase_price),
+            purchase_date = COALESCE(${updates.purchaseDate || null}, purchase_date),
+            current_value = COALESCE(${updates.currentValue}, current_value),
+            monthly_rent = COALESCE(${updates.monthlyRent}, monthly_rent),
+            monthly_expenses = COALESCE(${updates.monthlyExpenses}, monthly_expenses),
+            down_payment = COALESCE(${updates.downPayment}, down_payment),
+            loan_amount = COALESCE(${updates.loanAmount}, loan_amount),
+            interest_rate = COALESCE(${updates.interestRate}, interest_rate),
+            loan_term_years = COALESCE(${updates.loanTermYears}, loan_term_years),
+            property_type = COALESCE(${updates.propertyType}, property_type),
+            status = COALESCE(${updates.status}, status),
+            notes = COALESCE(${updates.notes}, notes),
+            debt = COALESCE(${updates.debt}, debt),
+            out_of_pocket_reno = COALESCE(${updates.outOfPocketReno}, out_of_pocket_reno),
+            total_initial_investment = COALESCE(${updates.totalInitialInvestment}, total_initial_investment),
+            current_fmv = COALESCE(${updates.currentFmv}, current_fmv),
+            current_debt = COALESCE(${updates.currentDebt}, current_debt),
+            potential_equity = COALESCE(${updates.potentialEquity}, potential_equity),
+            loan_terms = COALESCE(${updates.loanTerms}, loan_terms),
+            amortization = COALESCE(${updates.amortization}, amortization),
+            years_held = COALESCE(${updates.yearsHeld}, years_held),
+            current_payment = COALESCE(${updates.currentPayment}, current_payment),
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${id}::uuid
+          RETURNING
+            id::text as id,
+            name,
+            address,
+            state,
+            purchase_price as "purchasePrice",
+            purchase_date as "purchaseDate",
+            current_value as "currentValue",
+            monthly_rent as "monthlyRent",
+            monthly_expenses as "monthlyExpenses",
+            down_payment as "downPayment",
+            loan_amount as "loanAmount",
+            interest_rate as "interestRate",
+            loan_term_years as "loanTermYears",
+            property_type as "propertyType",
+            status,
+            notes,
+            debt,
+            out_of_pocket_reno as "outOfPocketReno",
+            total_initial_investment as "totalInitialInvestment",
+            current_fmv as "currentFmv",
+            current_debt as "currentDebt",
+            potential_equity as "potentialEquity",
+            loan_terms as "loanTerms",
+            amortization,
+            years_held as "yearsHeld",
+            current_payment as "currentPayment",
+            created_at as "createdAt",
+            updated_at as "updatedAt"
+        `) as any[]
+      }
 
       if (result && result.length > 0) {
         const updatedProperty = result[0]
@@ -299,7 +404,7 @@ export class PortfolioManagerDB {
     }
   }
 
-  static async deleteProperty(id: string): Promise<boolean> {
+  static async deleteProperty(id: string, userId?: string): Promise<boolean> {
     try {
       await ensureInitialized();
       console.log("PortfolioManagerDB: Deleting property with UUID:", id)
@@ -311,8 +416,13 @@ export class PortfolioManagerDB {
         throw new Error(`Invalid UUID format: ${id}`)
       }
 
-      // Delete the property (CASCADE will handle images)
-      const result = (await sql`DELETE FROM properties WHERE id = ${id}::uuid`) as any
+      let result;
+      if (userId) {
+        // Only delete if the property belongs to the user
+        result = (await sql`DELETE FROM properties WHERE id = ${id}::uuid AND user_id = ${userId}::uuid`) as any
+      } else {
+        result = (await sql`DELETE FROM properties WHERE id = ${id}::uuid`) as any
+      }
 
       console.log("PortfolioManagerDB: Property deleted, affected rows:", result.count)
       return result.count > 0
@@ -459,10 +569,10 @@ export class PortfolioManagerDB {
     }
   }
 
-  static async calculatePortfolioMetrics(): Promise<PortfolioMetrics> {
+  static async calculatePortfolioMetrics(userId?: string): Promise<PortfolioMetrics> {
     try {
       await ensureInitialized();
-      const portfolio = await this.getPortfolio()
+      const portfolio = await this.getPortfolio(userId)
       console.log(`PortfolioManagerDB: Calculating metrics for ${portfolio.length} properties`)
 
       if (portfolio.length === 0) {

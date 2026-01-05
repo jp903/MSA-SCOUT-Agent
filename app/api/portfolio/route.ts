@@ -1,16 +1,28 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { PortfolioManagerDB } from "@/lib/portfolio-manager-db"
+import { AuthService } from "@/lib/auth"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    console.log("Portfolio API: Starting to fetch portfolio data...")
+    // Extract session token from cookies
+    const sessionToken = request.cookies.get("session_token")?.value
+    if (!sessionToken) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
 
-    // Get portfolio properties
-    const portfolio = await PortfolioManagerDB.getPortfolio()
-    console.log(`Portfolio API: Found ${portfolio.length} properties`)
+    const user = await AuthService.verifySession(sessionToken)
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
 
-    // Calculate metrics
-    const metrics = await PortfolioManagerDB.calculatePortfolioMetrics()
+    console.log("Portfolio API: Starting to fetch portfolio data for user:", user.id)
+
+    // Get portfolio properties for this user
+    const portfolio = await PortfolioManagerDB.getPortfolio(user.id)
+    console.log(`Portfolio API: Found ${portfolio.length} properties for user ${user.id}`)
+
+    // Calculate metrics for this user's portfolio
+    const metrics = await PortfolioManagerDB.calculatePortfolioMetrics(user.id)
     console.log("Portfolio API: Calculated metrics:", metrics)
 
     // Double-check total value calculation
@@ -49,8 +61,19 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    // Extract session token from cookies
+    const sessionToken = request.cookies.get("session_token")?.value
+    if (!sessionToken) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const user = await AuthService.verifySession(sessionToken)
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     const propertyData = await request.json()
-    console.log("Portfolio API: Adding new property:", propertyData)
+    console.log("Portfolio API: Adding new property for user:", user.id, propertyData)
 
     // Validate required fields
     if (!propertyData.name || !propertyData.address) {
@@ -63,9 +86,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Ensure numeric fields are properly set
+    // Ensure numeric fields are properly set and add user ID
     const sanitizedData = {
       ...propertyData,
+      userId: user.id, // Add user ID to associate property with user
       purchasePrice: Number(propertyData.purchasePrice) || 0,
       currentValue: Number(propertyData.currentValue) || 0,
       monthlyRent: Number(propertyData.monthlyRent) || 0,

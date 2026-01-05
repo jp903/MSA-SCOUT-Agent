@@ -59,6 +59,7 @@ interface AppSidebarProps {
   onDeleteChat: (chatId: string) => void
   user: UserType | null
   onSignOut: () => void
+  onAuthRequired: () => void
   chatHistoryLoaded: boolean
 }
 
@@ -89,14 +90,14 @@ const navigationItems = [
     url: "calculator",
     icon: Calculator,
     description: "Investment Calculator",
-    requiresAuth: false,
+    requiresAuth: true,
   },
   {
     title: "Property ROE",
     url: "property-roi-calculator",
     icon: PieChart,
     description: "ROE Analysis Tool",
-    requiresAuth: false,
+    requiresAuth: true,
   },
   {
     title: "Market Insights",
@@ -124,7 +125,7 @@ const navigationItems = [
     url: "portfolio-tracker",
     icon: DollarSign,
     description: "Track Investments",
-    requiresAuth: false,
+    requiresAuth: true,
   },
 ]
 
@@ -171,7 +172,15 @@ export function AppSidebar({
               {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton
-                    onClick={() => onViewChange(item.url)}
+                    onClick={() => {
+                      if (item.requiresAuth && !user) {
+                        // If the tool requires authentication and user is not logged in,
+                        // trigger the auth modal in the parent component
+                        onAuthRequired();
+                      } else {
+                        onViewChange(item.url);
+                      }
+                    }}
                     isActive={activeView === item.url}
                     className="w-full"
                   >

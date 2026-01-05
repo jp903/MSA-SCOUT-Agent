@@ -384,7 +384,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
 
       {/* Messages Area */}
       <div className="flex-1 flex flex-col bg-white p-4 overflow-hidden">
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
           <div className="max-w-3xl mx-auto w-full">
             {messages.length === 0 ? (
               <div className="space-y-6 animate-fade-in">
@@ -577,7 +577,7 @@ export default function EnhancedChat({ onToolSelect, currentChat, onChatUpdate }
               ))}
 
               {isLoading && (
-                <div className="flex gap-4 justify-start">
+                <div key="loading-indicator" className="flex gap-4 justify-start">
                   <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                     <Bot className="h-4 w-4 text-white" />
                   </div>
