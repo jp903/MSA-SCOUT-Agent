@@ -155,7 +155,8 @@ import { ALLOWED_MSAS } from "@/lib/deal-finder-constants";
 export class PropertySearchAgent {
   private readonly RAPIDAPI_KEY = process.env.RAPIDAPI_KEY
   private readonly RENTCAST_API_KEY = process.env.RENTCAST_API_KEY
-  private readonly MASHVISOR_API_KEY = process.env.Mashvisor_API_KEY
+  // Support either uppercase MASHVISOR_API_KEY or legacy/case-variant `Mashvisor_API_KEY`
+  private readonly MASHVISOR_API_KEY = process.env.MASHVISOR_API_KEY || process.env.Mashvisor_API_KEY
 
   constructor() {
     console.log("🔧 PropertySearchAgent initialized - REAL DATA ONLY MODE")
@@ -390,85 +391,160 @@ export class PropertySearchAgent {
       const [city, state] = location.split(", ")
       console.log(`🏠 Mashvisor API - Searching city: ${city}, state: ${state}`)
 
-      // Generate random limit between 20-40
-      const randomLimit = Math.floor(Math.random() * (40 - 20 + 1)) + 20
-      console.log(`🔢 Using random limit: ${randomLimit} properties`)
+      // According to Mashvisor API documentation, the endpoint for property data is:
+      // https://api.mashvisor.com/v1.1/client/property?state=FL&address=...&city=Miami
+      // or https://api.mashvisor.com/v1.1/client/property?id=2214791&state=GA
+      // For area-based search, we'll try the property endpoint with location parameters
+      const apiUrl = `https://api.mashvisor.com/v1.1/client/property?state=${state}&city=${encodeURIComponent(city)}`
 
-      // Try the correct Mashvisor endpoints with proper filters
-      const endpoints = [
-        `https://api.mashvisor.com/v1.1/client/city/properties/${state}/${encodeURIComponent(city)}?min_price=${filters.minPrice}&max_price=${filters.maxPrice}&min_bedrooms=${filters.minBedrooms}&max_bedrooms=${filters.maxBedrooms}`,
-        `https://api.mashvisor.com/v1.1/client/city/properties/${state}/${encodeURIComponent(city)}?min_price=${filters.minPrice}&max_price=${filters.maxPrice}`,
-        `https://api.mashvisor.com/v1.1/client/city/properties/${state}/${encodeURIComponent(city)}`,
-      ]
+      console.log("🔗 Trying Mashvisor endpoint:", apiUrl)
 
-      for (const apiUrl of endpoints) {
+      // Prepare headers - prefer direct Mashvisor key, otherwise use RapidAPI headers
+      const mashvisorHeaders: Record<string, string> = {
+        Accept: "application/json",
+        "User-Agent": "PropertyInvestmentAgent/1.0",
+      }
+
+      if (this.MASHVISOR_API_KEY) {
+        mashvisorHeaders["x-api-key"] = this.MASHVISOR_API_KEY
+        console.log("🔑 Using direct Mashvisor API key for search")
+      } else if (this.RAPIDAPI_KEY) {
+        mashvisorHeaders["x-rapidapi-key"] = this.RAPIDAPI_KEY
+        mashvisorHeaders["x-rapidapi-host"] = "mashvisor.p.rapidapi.com"
+        console.log("🔑 Using RapidAPI key for Mashvisor search (x-rapidapi-key)")
+      } else {
+        console.warn("⚠️ No Mashvisor or RapidAPI key available for search")
+      }
+
+      // Helper to perform fetch and return parsed result or error text
+      const doFetch = async (url: string) => {
         try {
-          console.log("🔗 Trying Mashvisor endpoint:", apiUrl)
-
-          const response = await fetch(apiUrl, {
-            method: "GET",
-            headers: {
-              "x-api-key": this.MASHVISOR_API_KEY,
-              Accept: "application/json",
-              "User-Agent": "PropertyInvestmentAgent/1.0",
-            },
-          })
-
-          console.log("📡 Mashvisor Response Status:", response.status)
-
-          if (!response.ok) {
-            const errorText = await response.text()
-            console.error(`❌ Mashvisor API Error (${response.status}):`, errorText)
-            continue
+          const res = await fetch(url, { method: "GET", headers: mashvisorHeaders })
+          console.log("📡 Mashvisor Response Status for", url, res.status)
+          const text = await res.text()
+          try {
+            const json = JSON.parse(text)
+            return { ok: res.ok, status: res.status, data: json, raw: text }
+          } catch {
+            return { ok: res.ok, status: res.status, data: text, raw: text }
           }
-
-          const data = await response.json()
-          console.log("📊 Mashvisor API Response structure:", {
-            isArray: Array.isArray(data),
-            keys: Object.keys(data),
-            dataType: typeof data,
-            length: Array.isArray(data) ? data.length : "N/A",
-          })
-
-          // Handle the response format
-          let properties = []
-          if (Array.isArray(data)) {
-            properties = data
-            console.log("📊 Using direct array data")
-          } else if (data.properties && Array.isArray(data.properties)) {
-            properties = data.properties
-            console.log("📊 Using data.properties")
-          } else if (data.results && Array.isArray(data.results)) {
-            properties = data.results
-            console.log("📊 Using data.results")
-          } else if (data.listings && Array.isArray(data.listings)) {
-            properties = data.listings
-            console.log("📊 Using data.listings")
-          } else if (data.data && Array.isArray(data.data)) {
-            properties = data.data
-            console.log("📊 Using data.data")
-          } else {
-            console.warn("⚠️ Mashvisor API returned unexpected format:", data)
-            continue
-          }
-
-          console.log(`📊 Found ${properties.length} raw properties from Mashvisor`)
-
-          if (properties.length > 0) {
-            const transformedProperties = this.transformMashvisorData(properties, filters, location)
-            console.log(`✅ Mashvisor endpoint worked with ${transformedProperties.length} transformed properties`)
-            return transformedProperties
-          }
-        } catch (endpointError: any) {
-          console.error(`❌ Mashvisor endpoint ${apiUrl} failed:`, endpointError.message)
-          continue
+        } catch (fetchError: any) {
+          console.error("❌ Mashvisor fetch failed:", fetchError.message)
+          return { ok: false, status: 0, data: null, raw: fetchError.message }
         }
       }
 
-      throw new Error("All Mashvisor endpoints failed")
+      // Try the primary URL first
+      let result = await doFetch(apiUrl)
+
+      // If Mashvisor complains about missing id/address, retry with an address param
+      const missingIdentifierMessage = "Id, parcel_number, mls_id, or address is not given"
+      if (!result.ok && typeof result.raw === "string" && result.raw.includes(missingIdentifierMessage)) {
+        console.warn("⚠️ Mashvisor requires an identifier for /property endpoint. Retrying with address parameter...")
+        const addressFallbackUrl = `https://api.mashvisor.com/v1.1/client/property?state=${state}&address=${encodeURIComponent(
+          city + ", " + state,
+        )}`
+        console.log("🔗 Trying Mashvisor fallback endpoint with address:", addressFallbackUrl)
+        result = await doFetch(addressFallbackUrl)
+      }
+
+      // If still failing, try the properties collection endpoint as a last resort
+      if (!result.ok) {
+        const propertiesEndpoint = `https://api.mashvisor.com/v1.1/client/properties?state=${state}&city=${encodeURIComponent(
+          city,
+        )}`
+        console.log("🔗 Trying Mashvisor properties endpoint as last resort:", propertiesEndpoint)
+        result = await doFetch(propertiesEndpoint)
+      }
+
+      // If still failing, try market data endpoint
+      if (!result.ok) {
+        const marketEndpoint = `https://api.mashvisor.com/v1.1/client/market_data?state=${state}&city=${encodeURIComponent(
+          city,
+        )}`
+        console.log("🔗 Trying Mashvisor market data endpoint:", marketEndpoint)
+        result = await doFetch(marketEndpoint)
+      }
+
+      if (!result.ok) {
+        console.error(`❌ Mashvisor API Error (${result.status}):`, result.raw)
+        // surface helpful troubleshooting info
+        const helpful = result.raw && typeof result.raw === 'string' && result.raw.includes(missingIdentifierMessage)
+        ? 'Mashvisor /property endpoint requires an id or address; try supplying an address or use a different Mashvisor endpoint (properties list).' : undefined
+        throw new Error(`Mashvisor API Error: ${result.status} - ${result.raw}${helpful ? ' - ' + helpful : ''}`)
+      }
+
+      // Use parsed data
+      const data = result.data
+      console.log("📊 Mashvisor API Response structure:", {
+        isArray: Array.isArray(data),
+        keys: data && typeof data === "object" ? Object.keys(data) : [],
+        dataType: typeof data,
+        length: Array.isArray(data) ? data.length : "N/A",
+        hasContent: data && data.hasOwnProperty("content"),
+        hasProperties: data && data.hasOwnProperty("properties"),
+      })
+
+      // Handle the response format according to Mashvisor API documentation
+      let properties = []
+      if (data && data.content && Array.isArray(data.content.properties)) {
+        // Mashvisor API typically returns data in { content: { properties: [...] } } format
+        properties = data.content.properties
+        console.log("📊 Using data.content.properties")
+      } else if (data && data.content && Array.isArray(data.content)) {
+        // Alternative format for content array
+        properties = data.content
+        console.log("📊 Using data.content.array")
+      } else if (Array.isArray(data)) {
+        properties = data
+        console.log("📊 Using direct array data")
+      } else if (data.properties && Array.isArray(data.properties)) {
+        properties = data.properties
+        console.log("📊 Using data.properties")
+      } else if (data.results && Array.isArray(data.results)) {
+        properties = data.results
+        console.log("📊 Using data.results")
+      } else if (data.listings && Array.isArray(data.listings)) {
+        properties = data.listings
+        console.log("📊 Using data.listings")
+      } else if (data.data && Array.isArray(data.data)) {
+        properties = data.data
+        console.log("📊 Using data.data")
+      } else {
+        console.warn("⚠️ Mashvisor API returned unexpected format (possibly market data):", data)
+        // If Mashvisor returns market data instead of individual properties,
+        // return an empty array to trigger RentCast fallback
+        if (data && typeof data === 'object' && !Array.isArray(data) &&
+            (data.hasOwnProperty('market_data') || data.hasOwnProperty('area_data') || data.hasOwnProperty('metrics'))) {
+          console.log("📊 Mashvisor returned market data without individual properties, triggering RentCast fallback")
+          return []
+        } else if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+          // If it's a single property object, wrap it in an array
+          properties = [data]
+          console.log("📊 Wrapping single property object in array")
+        } else {
+          // If no usable data, return empty array to trigger fallback
+          console.log("📊 No usable data from Mashvisor, triggering RentCast fallback")
+          return []
+        }
+      }
+
+      console.log(`📊 Found ${properties.length} raw properties from Mashvisor`)
+
+      if (properties.length > 0) {
+        const transformedProperties = this.transformMashvisorData(properties, filters, location)
+        console.log(`✅ Mashvisor endpoint worked with ${transformedProperties.length} transformed properties`)
+        return transformedProperties
+      } else {
+        // Return empty array to trigger RentCast fallback
+        console.log("📊 No properties found from Mashvisor, triggering RentCast fallback")
+        return []
+      }
     } catch (error: any) {
       console.error("❌ Mashvisor API Error:", error.message)
-      throw error
+      // Return empty array to trigger RentCast fallback instead of throwing error
+      console.log("📊 Mashvisor error, triggering RentCast fallback")
+      return []
     }
   }
 
@@ -675,51 +751,53 @@ export class PropertySearchAgent {
         state: property.state || state,
         zipCode: property.zip_code || property.zip || property.postal_code || "00000",
         price: price,
-        bedrooms: property.bedrooms || property.beds || undefined,
-        bathrooms: property.bathrooms || property.baths || undefined,
+        bedrooms: property.bedrooms || property.beds || property.bedroom_count || undefined,
+        bathrooms: property.bathrooms || property.baths || property.bathroom_count || undefined,
         squareFootage: sqft,
-        lotSize: property.lot_size || property.lot_sqft || property.land_area || undefined,
-        yearBuilt: property.year_built || property.built || property.construction_year || 2000,
-        propertyType: property.property_type || "residential",
+        lotSize: property.lot_size || property.lot_sqft || property.land_area || property.lot_size_sqft || undefined,
+        yearBuilt: property.year_built || property.built || property.construction_year || property.year_constructed || 2000,
+        propertyType: property.property_type || property.type || "residential",
         description:
           property.description ||
           property.summary ||
+          property.property_description ||
           `Property for sale in ${property.city || city}, ${property.state || state}`,
-        features: property.features || property.amenities || ["Real API Data from Mashvisor"],
-        images: property.images || property.photos || ["/placeholder.svg?height=300&width=400&text=Mashvisor+Property"],
-        listingStatus: property.listing_status || property.status || "for_sale" as const,
+        features: property.features || property.amenities || property.property_features || property.property_amenities || ["Real API Data from Mashvisor"],
+        images: property.images || property.photos || property.property_images || ["/placeholder.svg?height=300&width=400&text=Mashvisor+Property"],
+        listingStatus: property.listing_status || property.status || property.sale_status || "for_sale" as const,
         listingSource: {
           website: "Mashvisor",
-          listingId: property.id || property.property_id || property.mls_id || `MV${Date.now() + index}`,
+          listingId: property.id || property.property_id || property.mls_id || property.listing_id || `MV${Date.now() + index}`,
           url:
             property.url ||
             property.detail_url ||
             property.listing_url ||
+            property.property_url ||
             `https://mashvisor.com/property/${property.id || Date.now() + index}`,
         },
         listingAgent: {
-          name: property.agent?.name || property.listing_agent?.name || "Mashvisor Agent",
-          phone: property.agent?.phone || property.listing_agent?.phone || "(555) 000-0000",
-          email: property.agent?.email || property.listing_agent?.email || "agent@mashvisor.com",
-          company: property.agent?.company || property.listing_agent?.company || "Mashvisor Realty",
+          name: property.agent?.name || property.listing_agent?.name || property.agent_name || "Mashvisor Agent",
+          phone: property.agent?.phone || property.listing_agent?.phone || property.agent_phone || "(555) 000-0000",
+          email: property.agent?.email || property.listing_agent?.email || property.agent_email || "agent@mashvisor.com",
+          company: property.agent?.company || property.listing_agent?.company || property.agent_company || "Mashvisor Realty",
         },
         marketData: {
-          daysOnMarket: property.days_on_market || property.dom || 30,
-          pricePerSqFt: property.price_per_sqft || Math.round(price / sqft),
-          comparables: property.comparables || [],
+          daysOnMarket: property.days_on_market || property.dom || property.days_on_market_count || 30,
+          pricePerSqFt: property.price_per_sqft || property.price_per_square_foot || Math.round(price / sqft),
+          comparables: property.comparables || property.comps || property.comparable_properties || [],
         },
         investmentMetrics: {
-          estimatedRent: property.rent_estimate || property.estimated_rent || Math.floor(price * 0.008),
-          capRate: property.cap_rate || property.cap_rate || 5.5,
-          cashOnCash: property.cash_on_cash || 8.2,
-          roi: property.roi || 12.5,
+          estimatedRent: property.rent_estimate || property.estimated_rent || property.predicted_rent || Math.floor(price * 0.008),
+          capRate: property.cap_rate || property.cap_rate_percent || property.cap_rate_percentage || 5.5,
+          cashOnCash: property.cash_on_cash || property.cash_on_cash_return || 8.2,
+          roi: property.roi || property.return_on_investment || 12.5,
         },
         neighborhood: {
-          walkScore: property.walk_score || 70,
-          crimeRate: property.crime_rate || "Medium",
-          schools: property.schools || [],
+          walkScore: property.walk_score || property.walkscore || 70,
+          crimeRate: property.crime_rate || property.safety_rating || "Medium",
+          schools: property.schools || property.nearby_schools || property.school_ratings || [],
         },
-        lastUpdated: property.last_updated || property.updated_at || new Date().toISOString(),
+        lastUpdated: property.last_updated || property.updated_at || property.last_modified || new Date().toISOString(),
       }
 
       return transformedProperty
@@ -838,13 +916,27 @@ export class PropertySearchAgent {
       if (this.MASHVISOR_API_KEY) {
         console.log("🏠 Testing Mashvisor API connection...")
         try {
-          const response = await fetch("https://api.mashvisor.com/v1.1/client/city/properties/TX/Austin", {
+          // Prepare headers - prefer a direct Mashvisor key, otherwise fall back to RapidAPI
+          const mashvisorHeaders: Record<string, string> = {
+            Accept: "application/json",
+            "User-Agent": "PropertyInvestmentAgent/1.0",
+          }
+
+          if (this.MASHVISOR_API_KEY) {
+            mashvisorHeaders["x-api-key"] = this.MASHVISOR_API_KEY
+            console.log("🔑 Using direct Mashvisor API key for status check")
+          } else if (this.RAPIDAPI_KEY) {
+            mashvisorHeaders["x-rapidapi-key"] = this.RAPIDAPI_KEY
+            mashvisorHeaders["x-rapidapi-host"] = "mashvisor.p.rapidapi.com"
+            console.log("🔑 Using RapidAPI key for Mashvisor status check (x-rapidapi-key)")
+          } else {
+            console.warn("⚠️ No Mashvisor or RapidAPI key available for status check")
+          }
+
+          // Try the market data endpoint for status check since property endpoint requires specific identifiers
+          const response = await fetch("https://api.mashvisor.com/v1.1/client/market_data?state=TX&city=Austin", {
             method: "GET",
-            headers: {
-              "x-api-key": this.MASHVISOR_API_KEY,
-              Accept: "application/json",
-              "User-Agent": "PropertyInvestmentAgent/1.0",
-            },
+            headers: mashvisorHeaders,
           })
 
           console.log("📡 Mashvisor Response Status:", response.status)

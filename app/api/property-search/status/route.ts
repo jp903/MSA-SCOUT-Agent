@@ -23,8 +23,8 @@ export async function GET() {
         },
         mashvisor: {
           status: apiStatus.mashvisor,
-          configured: !!process.env.Mashvisor_API_KEY,
-          endpoint: "https://api.mashvisor.com/v1.1/client/city/properties",
+          configured: !!(process.env.MASHVISOR_API_KEY || process.env.Mashvisor_API_KEY || process.env.RAPIDAPI_KEY),
+          endpoint: "https://api.mashvisor.com/v1.1/client/property",
         },
       },
     })
