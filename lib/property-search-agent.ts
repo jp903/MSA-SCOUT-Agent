@@ -8,6 +8,11 @@ export interface PropertySearchFilters {
   maxBedrooms: number
   minBathrooms?: number
   maxBathrooms?: number
+  minCapRate?: number
+  maxCapRate?: number
+  minRoi?: number
+  maxRoi?: number
+  minSquareFootage?: number
   sortBy: string
   sortOrder: string
   listingStatus?: string
@@ -217,9 +222,34 @@ export class PropertySearchAgent {
       try {
         const mashvisorProperties = await this.searchMashvisorAPI(filters, location)
         console.log(`🔍 Mashvisor returned ${mashvisorProperties.length} raw properties`)
-        allProperties.push(...mashvisorProperties)
-        apiStatus.mashvisor = "connected"
-        console.log(`✅ Mashvisor API returned ${mashvisorProperties.length} REAL properties`)
+
+        // Check if Mashvisor returned properties; if not, fall back to RentCast
+        if (mashvisorProperties.length > 0) {
+          allProperties.push(...mashvisorProperties)
+          apiStatus.mashvisor = "connected"
+          console.log(`✅ Mashvisor API returned ${mashvisorProperties.length} REAL properties`)
+        } else {
+          console.log("⚠️ Mashvisor returned no properties, falling back to RentCast...")
+          apiStatus.mashvisor = "connected" // Still connected, just no properties
+
+          // Fall back to RentCast when Mashvisor has no properties
+          if (this.RENTCAST_API_KEY) {
+            console.log("🏠 Starting RentCast API search (Fallback)...")
+            try {
+              const rentcastProperties = await this.searchRentCastAPI(filters, location)
+              console.log(`🔍 RentCast returned ${rentcastProperties.length} raw properties`)
+              allProperties.push(...rentcastProperties)
+              apiStatus.rentcast = "connected"
+              console.log(`✅ RentCast API returned ${rentcastProperties.length} REAL properties`)
+            } catch (rentcastError: any) {
+              console.error("❌ RentCast API failed:", rentcastError.message)
+              apiStatus.rentcast = "error"
+            }
+          } else {
+            console.log("⚠️ RentCast API key not configured")
+            apiStatus.rentcast = "error"
+          }
+        }
       } catch (error: any) {
         console.error("❌ Mashvisor API failed:", error.message)
         apiStatus.mashvisor = "error"
@@ -267,23 +297,159 @@ export class PropertySearchAgent {
 
     console.log(`🔍 Total properties before filtering: ${allProperties.length}`)
 
-    // NO DEMO DATA - If no real properties found, throw error
+    // If no real properties found, try with broader filters
     if (allProperties.length === 0) {
-      const errorMessage = "No properties found from real APIs. Check your API keys and subscriptions."
+      console.log("⚠️ No properties found with current filters, trying broader filters...")
+
+      // Try with broader filters - increase price range and bedroom range
+      const broaderFilters = {
+        ...filters,
+        minPrice: Math.max(50000, filters.minPrice * 0.8), // Reduce minimum by 20%
+        maxPrice: filters.maxPrice * 1.2, // Increase maximum by 20%
+        minBedrooms: Math.max(0, filters.minBedrooms - 1), // Reduce minimum bedrooms
+        maxBedrooms: filters.maxBedrooms + 1, // Increase maximum bedrooms
+        minCapRate: Math.max(0, (filters.minCapRate || 0) - 1), // Reduce minimum cap rate
+        maxCapRate: (filters.maxCapRate || 20) + 2, // Increase maximum cap rate
+        minRoi: Math.max(0, (filters.minRoi || 0) - 2), // Reduce minimum ROI
+        maxRoi: (filters.maxRoi || 50) + 5, // Increase maximum ROI
+        minSquareFootage: Math.max(0, (filters.minSquareFootage || 0) - 200), // Reduce minimum square footage
+      }
+
+      console.log("📏 Trying broader filters:", broaderFilters)
+
+      // Retry with broader filters
+      if (this.MASHVISOR_API_KEY) {
+        console.log("🏠 Retrying Mashvisor API with broader filters...")
+        try {
+          const mashvisorProperties = await this.searchMashvisorAPI(broaderFilters, location)
+          console.log(`🔍 Mashvisor returned ${mashvisorProperties.length} properties with broader filters`)
+          allProperties.push(...mashvisorProperties)
+        } catch (error: any) {
+          console.error("❌ Mashvisor retry failed:", error.message)
+        }
+      }
+
+      // If still no properties, try RentCast with broader filters
+      if (allProperties.length === 0 && this.RENTCAST_API_KEY) {
+        console.log("🏠 Retrying RentCast API with broader filters...")
+        try {
+          const rentcastProperties = await this.searchRentCastAPI(broaderFilters, location)
+          console.log(`🔍 RentCast returned ${rentcastProperties.length} properties with broader filters`)
+          allProperties.push(...rentcastProperties)
+        } catch (error: any) {
+          console.error("❌ RentCast retry failed:", error.message)
+        }
+      }
+
+      // If still no properties after broader filters, try with very broad filters
+      if (allProperties.length === 0) {
+        console.log("⚠️ Still no properties found, trying very broad filters...")
+        const veryBroadFilters = {
+          ...filters,
+          minPrice: 50000, // Minimum realistic price
+          maxPrice: 5000000, // Very high maximum
+          minBedrooms: 0,
+          maxBedrooms: 10,
+          minBathrooms: 0,
+          maxBathrooms: 10,
+          minCapRate: 0, // No minimum cap rate
+          maxCapRate: 50, // Very high maximum cap rate
+          minRoi: 0, // No minimum ROI
+          maxRoi: 100, // Very high maximum ROI
+          minSquareFootage: 0, // No minimum square footage
+        }
+
+        console.log("📏 Trying very broad filters:", veryBroadFilters)
+
+        if (this.MASHVISOR_API_KEY) {
+          try {
+            const mashvisorProperties = await this.searchMashvisorAPI(veryBroadFilters, location)
+            console.log(`🔍 Mashvisor returned ${mashvisorProperties.length} properties with very broad filters`)
+            allProperties.push(...mashvisorProperties)
+          } catch (error: any) {
+            console.error("❌ Mashvisor very broad retry failed:", error.message)
+          }
+        }
+
+        if (allProperties.length === 0 && this.RENTCAST_API_KEY) {
+          try {
+            const rentcastProperties = await this.searchRentCastAPI(veryBroadFilters, location)
+            console.log(`🔍 RentCast returned ${rentcastProperties.length} properties with very broad filters`)
+            allProperties.push(...rentcastProperties)
+          } catch (error: any) {
+            console.error("❌ RentCast very broad retry failed:", error.message)
+          }
+        }
+      }
+    }
+
+    // If still no properties found after broader filters, show a more helpful message
+    if (allProperties.length === 0) {
+      const errorMessage = "No properties found from real APIs with current filters. Try adjusting your filters or check your API keys and subscriptions.";
       console.error("❌", errorMessage)
       throw new Error(errorMessage)
     }
 
-    // Filter for "for_sale" properties only
-    const forSaleProperties = allProperties.filter((property) => {
-      console.log(`🔍 Checking property ${property.id}: status = ${property.listingStatus}`)
-      return property.listingStatus === "for_sale"
+    // Apply all filters to the properties
+    const filteredProperties = allProperties.filter((property) => {
+      // Listing status filter
+      if (property.listingStatus !== "for_sale") {
+        return false
+      }
+
+      // Price filter
+      if (property.price < filters.minPrice || property.price > filters.maxPrice) {
+        return false
+      }
+
+      // Bedrooms filter
+      if (property.bedrooms !== undefined &&
+          (property.bedrooms < filters.minBedrooms || property.bedrooms > filters.maxBedrooms)) {
+        return false
+      }
+
+      // Bathrooms filter
+      if (property.bathrooms !== undefined &&
+          (property.bathrooms < (filters.minBathrooms || 0) || property.bathrooms > (filters.maxBathrooms || 10))) {
+        return false
+      }
+
+      // Square footage filter
+      if (filters.minSquareFootage && property.squareFootage < filters.minSquareFootage) {
+        return false
+      }
+
+      // Cap rate filter
+      if (filters.minCapRate !== undefined &&
+          property.investmentMetrics.capRate !== undefined &&
+          property.investmentMetrics.capRate < filters.minCapRate) {
+        return false
+      }
+      if (filters.maxCapRate !== undefined &&
+          property.investmentMetrics.capRate !== undefined &&
+          property.investmentMetrics.capRate > filters.maxCapRate) {
+        return false
+      }
+
+      // ROI filter
+      if (filters.minRoi !== undefined &&
+          property.investmentMetrics.roi !== undefined &&
+          property.investmentMetrics.roi < filters.minRoi) {
+        return false
+      }
+      if (filters.maxRoi !== undefined &&
+          property.investmentMetrics.roi !== undefined &&
+          property.investmentMetrics.roi > filters.maxRoi) {
+        return false
+      }
+
+      return true
     })
 
-    console.log(`🔍 Properties after for_sale filter: ${forSaleProperties.length}`)
+    console.log(`🔍 Properties after applying all filters: ${filteredProperties.length}`)
 
     // Remove duplicates and sort
-    const uniqueProperties = this.removeDuplicateProperties(forSaleProperties)
+    const uniqueProperties = this.removeDuplicateProperties(filteredProperties)
     console.log(`🔍 Properties after duplicate removal: ${uniqueProperties.length}`)
 
     const sortedProperties = this.sortProperties(uniqueProperties, filters)

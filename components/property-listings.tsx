@@ -99,6 +99,11 @@ export default function PropertyListings() {
     maxBedrooms: 10,
     minBathrooms: 0,
     maxBathrooms: 10,
+    minCapRate: 0,
+    maxCapRate: 20,
+    minRoi: 0,
+    maxRoi: 50,
+    minSquareFootage: 0,
     sortBy: "price",
     sortOrder: "asc",
   })
@@ -190,6 +195,28 @@ export default function PropertyListings() {
           {showFilters ? "Hide" : "Show"} Filters
         </Button>
       </div>
+
+      {/* Mashvisor Data Information */}
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-0">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <div className="bg-blue-100 p-2 rounded-full">
+              <span className="text-lg">ℹ️</span>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900">About Investment Property Data</h3>
+              <p className="text-sm text-gray-700 mt-1">
+                Find investment-focused property data including rental estimates,
+                cap rates, cash-on-cash returns, and market analytics for your selected area.
+              </p>
+              <p className="text-sm text-gray-700 mt-1">
+                <span className="font-medium">Tip:</span> For best results, try broader price ranges, bedroom counts,
+                and investment metrics, or select different MSAs if properties are limited in your current area.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* MSA Model Explanation and Images */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -426,6 +453,108 @@ export default function PropertyListings() {
                 </div>
               </div>
 
+              {/* Investment Metrics Filters */}
+              <div className="space-y-2">
+                <Label>Investment Filters</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label htmlFor="minCapRate" className="text-xs">
+                      Min Cap Rate (%)
+                    </Label>
+                    <Input
+                      id="minCapRate"
+                      type="number"
+                      placeholder="Min cap rate"
+                      value={filters.minCapRate || ""}
+                      onChange={(e) => updateFilter("minCapRate", Number.parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="maxCapRate" className="text-xs">
+                      Max Cap Rate (%)
+                    </Label>
+                    <Input
+                      id="maxCapRate"
+                      type="number"
+                      placeholder="Max cap rate"
+                      value={filters.maxCapRate || ""}
+                      onChange={(e) => updateFilter("maxCapRate", Number.parseFloat(e.target.value) || 20)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <div>
+                    <Label htmlFor="minRoi" className="text-xs">
+                      Min ROI (%)
+                    </Label>
+                    <Input
+                      id="minRoi"
+                      type="number"
+                      placeholder="Min ROI"
+                      value={filters.minRoi || ""}
+                      onChange={(e) => updateFilter("minRoi", Number.parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="maxRoi" className="text-xs">
+                      Max ROI (%)
+                    </Label>
+                    <Input
+                      id="maxRoi"
+                      type="number"
+                      placeholder="Max ROI"
+                      value={filters.maxRoi || ""}
+                      onChange={(e) => updateFilter("maxRoi", Number.parseFloat(e.target.value) || 50)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Property Details Filters */}
+              <div className="space-y-2">
+                <Label>Property Details</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label htmlFor="minBathrooms" className="text-xs">
+                      Min Baths
+                    </Label>
+                    <Input
+                      id="minBathrooms"
+                      type="number"
+                      placeholder="Min baths"
+                      value={filters.minBathrooms || ""}
+                      onChange={(e) => updateFilter("minBathrooms", Number.parseInt(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="maxBathrooms" className="text-xs">
+                      Max Baths
+                    </Label>
+                    <Input
+                      id="maxBathrooms"
+                      type="number"
+                      placeholder="Max baths"
+                      value={filters.maxBathrooms || ""}
+                      onChange={(e) => updateFilter("maxBathrooms", Number.parseInt(e.target.value) || 10)}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-2">
+                  <Label htmlFor="minSqft" className="text-xs">
+                    Min Square Footage
+                  </Label>
+                  <Input
+                    id="minSqft"
+                    type="number"
+                    placeholder="Min sq ft"
+                    value={filters.minSquareFootage || ""}
+                    onChange={(e) => updateFilter("minSquareFootage", Number.parseInt(e.target.value) || 0)}
+                  />
+                </div>
+              </div>
+
               {/* Sort Options */}
               <div className="space-y-2">
                 <Label>Sort By</Label>
@@ -471,7 +600,20 @@ export default function PropertyListings() {
           {error && (
             <Alert variant="destructive">
               <MapPin className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>
+                {error.includes("No properties found") ? (
+                  <div>
+                    <p className="font-semibold">No properties found with current filters</p>
+                    <p className="mt-1">Try adjusting your filters or try broader search criteria.</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Property data availability varies by location and filter settings.
+                      Try adjusting your filters or try broader search criteria.
+                    </p>
+                  </div>
+                ) : (
+                  error
+                )}
+              </AlertDescription>
             </Alert>
           )}
 
@@ -810,9 +952,18 @@ export default function PropertyListings() {
               <CardContent className="p-8 text-center">
                 <Search className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                 <h3 className="text-lg font-semibold mb-2">Ready to Find Properties</h3>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground mb-4">
                   Select a state and MSA, then click "Search Properties" to find investment opportunities.
                 </p>
+                <div className="bg-blue-50 p-4 rounded-lg text-left max-w-md mx-auto">
+                  <h4 className="font-medium text-blue-800 mb-2">💡 Pro Tips for Best Results:</h4>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>• Start with broader price ranges (e.g., $50k-$2M)</li>
+                    <li>• Allow more bedroom options (e.g., 1-5 bedrooms)</li>
+                    <li>• Try different MSAs if initial search yields no results</li>
+                    <li>• Adjust investment metrics filters (cap rate, ROI) for more options</li>
+                  </ul>
+                </div>
               </CardContent>
             </Card>
           )}
