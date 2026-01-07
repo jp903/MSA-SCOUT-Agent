@@ -162,8 +162,7 @@ export async function POST(request: NextRequest) {
           count: 0,
           apiStatus: {
             rentcast: "error",
-            loopnet: "error",
-            zillow: "error",
+            mashvisor: "error",
           },
           timestamp: new Date().toISOString(),
           dataSource: "ERROR",
@@ -199,8 +198,7 @@ export async function POST(request: NextRequest) {
         count: 0,
         apiStatus: {
           rentcast: "error",
-          loopnet: "error",
-          zillow: "error",
+          mashvisor: "error",
         },
         timestamp: new Date().toISOString(),
         dataSource: "ERROR",
@@ -215,7 +213,7 @@ export async function GET() {
     message: "REAL API Property Search Service - NO DEMO DATA",
     version: "8.1.0",
     status: "active",
-    description: "Searches REAL properties from RentCast, LoopNet (RapidAPI), and Zillow (RapidAPI) APIs ONLY",
+    description: "Searches REAL properties from Mashvisor and RentCast APIs ONLY",
     endpoints: {
       "POST /api/property-search": "Search for REAL investment properties with filters",
       "GET /api/property-search/status": "Check REAL API connection status",
@@ -233,25 +231,18 @@ export async function GET() {
     totalAllowedMSAs: ALLOWED_MSAS.length,
     dataSources: [
       {
+        name: "Mashvisor API",
+        type: "Investment Property Analytics",
+        status: "active",
+        url: "https://api.mashvisor.com",
+        authentication: "X-API-Key header",
+      },
+      {
         name: "RentCast API",
         type: "Residential & Commercial Properties",
         status: "active",
         url: "https://api.rentcast.io",
         authentication: "X-Api-Key header",
-      },
-      {
-        name: "LoopNet API (RapidAPI)",
-        type: "Commercial Properties",
-        status: "active",
-        url: "https://loopnet-com.p.rapidapi.com",
-        authentication: "X-RapidAPI-Key and X-RapidAPI-Host headers",
-      },
-      {
-        name: "Zillow API (RapidAPI)",
-        type: "Residential Sales",
-        status: "active",
-        url: "https://zillow-com1.p.rapidapi.com",
-        authentication: "X-RapidAPI-Key and X-RapidAPI-Host headers",
       },
     ],
     note: "DEMO DATA REMOVED - Only real API data is returned. Ensure API keys are configured.",

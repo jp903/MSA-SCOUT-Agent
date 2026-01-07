@@ -21,15 +21,10 @@ export async function GET() {
           configured: !!process.env.RENTCAST_API_KEY,
           endpoint: "https://api.rentcast.io/v1/listings/sale",
         },
-        loopnet: {
-          status: apiStatus.loopnet,
-          configured: !!process.env.LOOPNET_API_KEY,
-          endpoint: "https://api.loopnet.com/v1/properties",
-        },
-        zillow: {
-          status: apiStatus.zillow,
-          configured: !!process.env.ZILLOW_API_KEY,
-          endpoint: "https://zillow-com1.p.rapidapi.com/v1/search",
+        mashvisor: {
+          status: apiStatus.mashvisor,
+          configured: !!process.env.Mashvisor_API_KEY,
+          endpoint: "https://api.mashvisor.com/v1.1/client/city/properties",
         },
       },
     })
@@ -43,8 +38,7 @@ export async function GET() {
         details: error.message,
         apiStatus: {
           rentcast: "error",
-          loopnet: "error",
-          zillow: "error",
+          mashvisor: "error",
         },
         timestamp: new Date().toISOString(),
       },

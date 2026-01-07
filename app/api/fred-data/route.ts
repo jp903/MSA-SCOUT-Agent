@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 
 const FRED_API_KEY = process.env.FRED_API_KEY
-const FRED_BASE_URL = "https://api.stlouisfed.org"
+const FRED_BASE_URL = "https://api.stlouisfed.org/fred"
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,16 +16,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Series parameter required" }, { status: 400 })
     }
 
+    console.log(`🔍 Fetching FRED data for series: ${series}`)
+    const url = `${FRED_BASE_URL}/series/observations?series_id=${series}&api_key=${FRED_API_KEY}&file_type=json&limit=1&sort_order=desc`
+    console.log(`📡 FRED API URL: ${url.replace(FRED_API_KEY!, "[API_KEY]")}`)
+
     // Fetch data from FRED API
-    const response = await fetch(
-      `${FRED_BASE_URL}/fred/series/observations?series_id=${series}&api_key=${FRED_API_KEY}&file_type=json&limit=1&sort_order=desc`,
-    )
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "PropertyInvestmentAgent/1.0",
+      },
+    })
+
+    console.log(`📊 FRED API Response Status: ${response.status} ${response.statusText}`)
 
     if (!response.ok) {
-      throw new Error(`FRED API error: ${response.statusText}`)
+      const errorText = await response.text()
+      console.error(`❌ FRED API Error Response: ${errorText}`)
+      throw new Error(`FRED API error: ${response.statusText} - ${errorText}`)
     }
 
     const data = await response.json()
+    console.log(`📋 FRED API Response Data:`, JSON.stringify(data, null, 2))
 
     if (!data.observations || data.observations.length === 0) {
       throw new Error("No data available from FRED")
