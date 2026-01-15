@@ -12,6 +12,8 @@ export interface PropertySearchFilters {
   maxCapRate?: number
   minRoi?: number
   maxRoi?: number
+  minCashOnCash?: number
+  maxCashOnCash?: number
   minSquareFootage?: number
   sortBy: string
   sortOrder: string
@@ -216,14 +218,14 @@ export class PropertySearchAgent {
     const location = `${this.extractCityFromMSA(filters.msa)}, ${this.getStateAbbreviation(filters.state)}`
     console.log(`📍 Searching in location: ${location}`)
 
-    // Search Mashvisor API first (Primary API)
+    // Search Mashvisor API first (Primary API) - Only use Mashvisor if it's configured
     if (this.MASHVISOR_API_KEY) {
       console.log("🏠 Starting Mashvisor API search (Primary)...")
       try {
         const mashvisorProperties = await this.searchMashvisorAPI(filters, location)
         console.log(`🔍 Mashvisor returned ${mashvisorProperties.length} raw properties`)
 
-        // Check if Mashvisor returned properties; if not, fall back to RentCast
+        // If Mashvisor returned properties, use them and skip RentCast
         if (mashvisorProperties.length > 0) {
           allProperties.push(...mashvisorProperties)
           apiStatus.mashvisor = "connected"
@@ -443,6 +445,18 @@ export class PropertySearchAgent {
         return false
       }
 
+      // Cash on Cash filter
+      if (filters.minCashOnCash !== undefined &&
+          property.investmentMetrics.cashOnCash !== undefined &&
+          property.investmentMetrics.cashOnCash < filters.minCashOnCash) {
+        return false
+      }
+      if (filters.maxCashOnCash !== undefined &&
+          property.investmentMetrics.cashOnCash !== undefined &&
+          property.investmentMetrics.cashOnCash > filters.maxCashOnCash) {
+        return false
+      }
+
       return true
     })
 
@@ -565,22 +579,14 @@ export class PropertySearchAgent {
 
       console.log("🔗 Trying Mashvisor endpoint:", apiUrl)
 
-      // Prepare headers - prefer direct Mashvisor key, otherwise use RapidAPI headers
+      // Prepare headers - use direct Mashvisor API key
       const mashvisorHeaders: Record<string, string> = {
+        "x-api-key": this.MASHVISOR_API_KEY,
         Accept: "application/json",
         "User-Agent": "PropertyInvestmentAgent/1.0",
       }
 
-      if (this.MASHVISOR_API_KEY) {
-        mashvisorHeaders["x-api-key"] = this.MASHVISOR_API_KEY
-        console.log("🔑 Using direct Mashvisor API key for search")
-      } else if (this.RAPIDAPI_KEY) {
-        mashvisorHeaders["x-rapidapi-key"] = this.RAPIDAPI_KEY
-        mashvisorHeaders["x-rapidapi-host"] = "mashvisor.p.rapidapi.com"
-        console.log("🔑 Using RapidAPI key for Mashvisor search (x-rapidapi-key)")
-      } else {
-        console.warn("⚠️ No Mashvisor or RapidAPI key available for search")
-      }
+      console.log("🔑 Using direct Mashvisor API key for search")
 
       // Helper to perform fetch and return parsed result or error text
       const doFetch = async (url: string) => {

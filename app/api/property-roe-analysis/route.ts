@@ -88,8 +88,9 @@ export async function POST(req: NextRequest) {
     const initialCashInvestment = totalInitialInvestmentValue;
 
     // Calculate ROE with safety check for division by zero
-    const unleveredRoe = propertyEquity !== 0 ? (noi / propertyEquity) * 100 : 0;
-    // Levered ROE should be based on initial cash investment, not current equity
+    // Unlevered ROE should be based on cash flow (NOI - debt service) divided by equity
+    const unleveredRoe = propertyEquity !== 0 ? ((noi - debtService) / propertyEquity) * 100 : 0;
+    // Cash on Cash (formerly called Levered ROE) should be based on initial cash investment
     const leveredRoe = initialCashInvestment !== 0 ? ((noi - debtService) / initialCashInvestment) * 100 : 0;
 
     // The true ROE depends on whether the property has debt:
@@ -123,8 +124,8 @@ export async function POST(req: NextRequest) {
       Calculated Financial Metrics:
       - Net Operating Income (NOI): $${noi.toFixed(2)}
       - Equity: $${propertyEquity.toFixed(2)}
-      - Unlevered ROE: ${unleveredRoe.toFixed(2)}%
-      - Levered (True Cash-Flow) ROE: ${leveredRoe.toFixed(2)}%
+      - Return on Current Equity: ${unleveredRoe.toFixed(2)}%
+      - Cash on Cash Return: ${leveredRoe.toFixed(2)}%
 
       Please structure your analysis with the following format:
 
@@ -135,8 +136,8 @@ export async function POST(req: NextRequest) {
       [Analysis of the property's financial performance, including ROE metrics and cash flow]
 
       ## 📈 ROE Analysis
-      - Unlevered ROE: ${unleveredRoe.toFixed(2)}%
-      - Levered ROE: ${leveredRoe.toFixed(2)}%
+      - Return on Current Equity: ${unleveredRoe.toFixed(2)}%
+      - Cash on Cash Return: ${leveredRoe.toFixed(2)}%
       [Explanation of what these numbers mean]
 
       ## 🎯 Investment Recommendation: [SELL / HOLD / IMPROVE]
@@ -258,8 +259,8 @@ export async function POST(req: NextRequest) {
       analysisResults,
       // Include calculated metrics for frontend display
       calculatedMetrics: {
-        unleveredROE: Number(unleveredRoe.toFixed(2)),
-        leveredROE: Number(leveredRoe.toFixed(2)),
+        returnOnCurrentEquity: Number(unleveredRoe.toFixed(2)),
+        cashOnCashReturn: Number(leveredRoe.toFixed(2)),
         actualROE: Number(actualRoe.toFixed(2)), // Use the correct ROE based on debt status
         netOperatingIncome: Number(noi.toFixed(2)),
         equityValue: Number(propertyEquity.toFixed(2)),
@@ -281,8 +282,8 @@ export async function POST(req: NextRequest) {
       // Data for potential graph generation
       graphData: {
         roeComparison: {
-          unlevered: Number(unleveredRoe.toFixed(2)),
-          levered: Number(leveredRoe.toFixed(2)),
+          returnOnCurrentEquity: Number(unleveredRoe.toFixed(2)),
+          cashOnCash: Number(leveredRoe.toFixed(2)),
           actual: Number(actualRoe.toFixed(2)), // Show which ROE is being used
         },
         incomeExpenses: {

@@ -103,6 +103,8 @@ export default function PropertyListings() {
     maxCapRate: 20,
     minRoi: 0,
     maxRoi: 50,
+    minCashOnCash: 0,
+    maxCashOnCash: 30,
     minSquareFootage: 0,
     sortBy: "price",
     sortOrder: "asc",
@@ -187,8 +189,8 @@ export default function PropertyListings() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Deal Finder</h1>
-          <p className="text-muted-foreground">Search for investment properties across multiple platforms</p>
+          <h1 className="text-3xl font-bold">Investment Property Finder</h1>
+          <p className="text-muted-foreground">Find investment properties with detailed financial metrics</p>
         </div>
         <Button variant="outline" onClick={() => setShowFilters(!showFilters)} className="md:hidden">
           <Filter className="h-4 w-4 mr-2" />
@@ -340,7 +342,7 @@ export default function PropertyListings() {
             <CardContent className="space-y-4">
               {/* MSA Selection - Limited to specific allowed MSAs */}
               <div className="space-y-2">
-                <Label htmlFor="msa">Metropolitan Statistical Area (MSA)</Label>
+                <Label htmlFor="msa">Investment Area (MSA)</Label>
                 <Select value={filters.msa} onValueChange={(value) => {
                   updateFilter("msa", value);
                   // Automatically update the state when MSA is selected
@@ -349,7 +351,7 @@ export default function PropertyListings() {
                   }
                 }}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select MSA" />
+                    <SelectValue placeholder="Select Investment Area" />
                   </SelectTrigger>
                   <SelectContent>
                     {ALLOWED_MSAS.map((msa) => (
@@ -464,7 +466,7 @@ export default function PropertyListings() {
                     <Input
                       id="minCapRate"
                       type="number"
-                      placeholder="Min cap rate"
+                      placeholder="0"
                       value={filters.minCapRate || ""}
                       onChange={(e) => updateFilter("minCapRate", Number.parseFloat(e.target.value) || 0)}
                     />
@@ -476,7 +478,7 @@ export default function PropertyListings() {
                     <Input
                       id="maxCapRate"
                       type="number"
-                      placeholder="Max cap rate"
+                      placeholder="20"
                       value={filters.maxCapRate || ""}
                       onChange={(e) => updateFilter("maxCapRate", Number.parseFloat(e.target.value) || 20)}
                     />
@@ -491,7 +493,7 @@ export default function PropertyListings() {
                     <Input
                       id="minRoi"
                       type="number"
-                      placeholder="Min ROI"
+                      placeholder="0"
                       value={filters.minRoi || ""}
                       onChange={(e) => updateFilter("minRoi", Number.parseFloat(e.target.value) || 0)}
                     />
@@ -503,9 +505,37 @@ export default function PropertyListings() {
                     <Input
                       id="maxRoi"
                       type="number"
-                      placeholder="Max ROI"
+                      placeholder="50"
                       value={filters.maxRoi || ""}
                       onChange={(e) => updateFilter("maxRoi", Number.parseFloat(e.target.value) || 50)}
+                    />
+                  </div>
+                </div>
+
+                {/* Additional Mashvisor-style filters */}
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <div>
+                    <Label htmlFor="minCashOnCash" className="text-xs">
+                      Min Cash on Cash (%)
+                    </Label>
+                    <Input
+                      id="minCashOnCash"
+                      type="number"
+                      placeholder="0"
+                      value={filters.minCashOnCash || ""}
+                      onChange={(e) => updateFilter("minCashOnCash", Number.parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="maxCashOnCash" className="text-xs">
+                      Max Cash on Cash (%)
+                    </Label>
+                    <Input
+                      id="maxCashOnCash"
+                      type="number"
+                      placeholder="30"
+                      value={filters.maxCashOnCash || ""}
+                      onChange={(e) => updateFilter("maxCashOnCash", Number.parseFloat(e.target.value) || 30)}
                     />
                   </div>
                 </div>
@@ -646,29 +676,37 @@ export default function PropertyListings() {
                 {properties.map((property) => (
                   <Dialog key={property.id}>
                     <DialogTrigger asChild>
-                      <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+                      <Card className="cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-gray-200 overflow-hidden">
                         <CardContent className="p-0">
                           <div className="relative">
                             <img
                               src={property.images[0] || "/placeholder.svg?height=200&width=300&text=Property+Image"}
                               alt={property.title}
-                              className="w-full h-48 object-cover rounded-t-lg"
+                              className="w-full h-48 object-cover"
                             />
-                            <Badge className="absolute top-2 right-2 bg-green-600">
-                              {property.listingSource.website}
-                            </Badge>
+                            <div className="absolute top-2 left-2">
+                              <Badge variant="secondary" className="bg-white/90 text-gray-800 backdrop-blur-sm">
+                                {property.propertyType}
+                              </Badge>
+                            </div>
+                            <div className="absolute top-2 right-2">
+                              <Badge className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                                {property.listingSource.website}
+                              </Badge>
+                            </div>
                           </div>
+
                           <div className="p-4 space-y-3">
                             <div>
                               <h3 className="font-semibold text-lg line-clamp-1">{property.title}</h3>
-                              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                              <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                                 <MapPin className="h-3 w-3" />
                                 {property.address}, {property.city}, {property.state}
                               </p>
                             </div>
 
                             <div className="flex items-center justify-between">
-                              <span className="text-2xl font-bold text-green-600">{formatPrice(property.price)}</span>
+                              <span className="text-xl font-bold text-green-600">{formatPrice(property.price)}</span>
                               <div className="flex items-center gap-3 text-sm text-muted-foreground">
                                 {property.bedrooms && (
                                   <span className="flex items-center gap-1">
@@ -685,23 +723,39 @@ export default function PropertyListings() {
                               </div>
                             </div>
 
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="flex items-center gap-1">
-                                <Home className="h-3 w-3" />
-                                {formatNumber(property.squareFootage)} sq ft
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                Built {property.yearBuilt}
-                              </span>
+                            {/* Enhanced Investment Metrics - Prominently Featured */}
+                            <div className="grid grid-cols-4 gap-2 pt-2">
+                              {property.investmentMetrics.capRate && (
+                                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-2 text-center border border-green-100">
+                                  <div className="text-xs text-green-600 font-medium">Cap Rate</div>
+                                  <div className="font-bold text-green-700 text-lg">{property.investmentMetrics.capRate}%</div>
+                                </div>
+                              )}
+                              {property.investmentMetrics.roi && (
+                                <div className="bg-gradient-to-br from-blue-50 to-sky-50 rounded-lg p-2 text-center border border-blue-100">
+                                  <div className="text-xs text-blue-600 font-medium">ROI</div>
+                                  <div className="font-bold text-blue-700 text-lg">{property.investmentMetrics.roi}%</div>
+                                </div>
+                              )}
+                              {property.investmentMetrics.cashOnCash && (
+                                <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-lg p-2 text-center border border-purple-100">
+                                  <div className="text-xs text-purple-600 font-medium">Cash on Cash</div>
+                                  <div className="font-bold text-purple-700 text-lg">{property.investmentMetrics.cashOnCash}%</div>
+                                </div>
+                              )}
+                              {property.investmentMetrics.estimatedRent && (
+                                <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-lg p-2 text-center border border-amber-100">
+                                  <div className="text-xs text-amber-600 font-medium">Rent Est.</div>
+                                  <div className="font-bold text-amber-700 text-lg">{formatPrice(property.investmentMetrics.estimatedRent)}</div>
+                                </div>
+                              )}
                             </div>
 
-                            {property.investmentMetrics.capRate && (
-                              <div className="flex items-center justify-between text-sm">
-                                <span>Cap Rate: {property.investmentMetrics.capRate}%</span>
-                                <span>ROI: {property.investmentMetrics.roi}%</span>
-                              </div>
-                            )}
+                            {/* Additional Property Info */}
+                            <div className="flex justify-between text-xs text-muted-foreground pt-1">
+                              <span>{formatNumber(property.squareFootage)} sqft</span>
+                              <span>Yr. {property.yearBuilt}</span>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -723,167 +777,277 @@ export default function PropertyListings() {
 
                         <ScrollArea className="h-[60vh] mt-4">
                           <TabsContent value="overview" className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                              <div className="lg:col-span-2">
                                 <img
                                   src={
-                                    property.images[0] || "/placeholder.svg?height=300&width=400&text=Property+Image"
+                                    property.images[0] || "/placeholder.svg?height=400&width=600&text=Property+Image"
                                   }
                                   alt={property.title}
-                                  className="w-full h-64 object-cover rounded-lg"
+                                  className="w-full h-80 object-cover rounded-lg"
                                 />
                               </div>
+
                               <div className="space-y-4">
                                 <div>
-                                  <h3 className="text-xl font-semibold mb-2">{formatPrice(property.price)}</h3>
-                                  <p className="text-muted-foreground flex items-center gap-1">
-                                    <MapPin className="h-4 w-4" />
+                                  <h3 className="text-2xl font-bold text-green-600 mb-2">{formatPrice(property.price)}</h3>
+                                  <p className="text-lg text-muted-foreground flex items-center gap-1">
+                                    <MapPin className="h-5 w-5" />
                                     {property.address}, {property.city}, {property.state} {property.zipCode}
                                   </p>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                   {property.bedrooms && (
-                                    <div className="flex items-center gap-2">
-                                      <Bed className="h-4 w-4" />
-                                      <span>{property.bedrooms} Bedrooms</span>
+                                    <div className="bg-gray-50 p-3 rounded-lg text-center">
+                                      <Bed className="h-5 w-5 mx-auto text-gray-600" />
+                                      <div className="font-semibold">{property.bedrooms}</div>
+                                      <div className="text-xs text-gray-600">Bedrooms</div>
                                     </div>
                                   )}
                                   {property.bathrooms && (
-                                    <div className="flex items-center gap-2">
-                                      <Bath className="h-4 w-4" />
-                                      <span>{property.bathrooms} Bathrooms</span>
+                                    <div className="bg-gray-50 p-3 rounded-lg text-center">
+                                      <Bath className="h-5 w-5 mx-auto text-gray-600" />
+                                      <div className="font-semibold">{property.bathrooms}</div>
+                                      <div className="text-xs text-gray-600">Bathrooms</div>
                                     </div>
                                   )}
-                                  <div className="flex items-center gap-2">
-                                    <Home className="h-4 w-4" />
-                                    <span>{formatNumber(property.squareFootage)} sq ft</span>
+                                  <div className="bg-gray-50 p-3 rounded-lg text-center">
+                                    <Home className="h-5 w-5 mx-auto text-gray-600" />
+                                    <div className="font-semibold">{formatNumber(property.squareFootage)}</div>
+                                    <div className="text-xs text-gray-600">Sq Ft</div>
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <Calendar className="h-4 w-4" />
-                                    <span>Built {property.yearBuilt}</span>
+                                  <div className="bg-gray-50 p-3 rounded-lg text-center">
+                                    <Calendar className="h-5 w-5 mx-auto text-gray-600" />
+                                    <div className="font-semibold">{property.yearBuilt}</div>
+                                    <div className="text-xs text-gray-600">Built</div>
                                   </div>
                                 </div>
 
-                                <div>
-                                  <h4 className="font-semibold mb-2">Description</h4>
-                                  <p className="text-sm text-muted-foreground">{property.description}</p>
+                                <div className="bg-blue-50 p-4 rounded-lg">
+                                  <h4 className="font-semibold text-blue-800 mb-2">Quick Investment Summary</h4>
+                                  <div className="grid grid-cols-2 gap-2 text-sm">
+                                    {property.investmentMetrics.estimatedRent && (
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-600">Rent Est.:</span>
+                                        <span className="font-medium">{formatPrice(property.investmentMetrics.estimatedRent)}/mo</span>
+                                      </div>
+                                    )}
+                                    {property.investmentMetrics.capRate && (
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-600">Cap Rate:</span>
+                                        <span className="font-medium">{property.investmentMetrics.capRate}%</span>
+                                      </div>
+                                    )}
+                                    {property.investmentMetrics.roi && (
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-600">ROI:</span>
+                                        <span className="font-medium">{property.investmentMetrics.roi}%</span>
+                                      </div>
+                                    )}
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Price/SqFt:</span>
+                                      <span className="font-medium">{formatPrice(property.marketData.pricePerSqFt)}</span>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
+                            </div>
+
+                            <div>
+                              <h4 className="font-semibold text-lg mb-3">Property Description</h4>
+                              <p className="text-gray-700">{property.description}</p>
                             </div>
                           </TabsContent>
 
                           <TabsContent value="details" className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div>
-                                <h4 className="font-semibold mb-3">Property Details</h4>
-                                <div className="space-y-2 text-sm">
-                                  <div className="flex justify-between">
-                                    <span>Property Type:</span>
-                                    <span className="font-medium">{property.propertyType}</span>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                              <div className="lg:col-span-2">
+                                <h4 className="font-semibold text-lg mb-4">Property Specifications</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                  <div className="bg-gray-50 p-4 rounded-lg">
+                                    <div className="text-sm text-gray-600">Property Type</div>
+                                    <div className="font-semibold text-lg">{property.propertyType}</div>
                                   </div>
-                                  <div className="flex justify-between">
-                                    <span>Square Footage:</span>
-                                    <span className="font-medium">{formatNumber(property.squareFootage)} sq ft</span>
+                                  <div className="bg-gray-50 p-4 rounded-lg">
+                                    <div className="text-sm text-gray-600">Square Footage</div>
+                                    <div className="font-semibold text-lg">{formatNumber(property.squareFootage)} sq ft</div>
                                   </div>
-                                  {property.lotSize && (
-                                    <div className="flex justify-between">
-                                      <span>Lot Size:</span>
-                                      <span className="font-medium">{formatNumber(property.lotSize)} sq ft</span>
-                                    </div>
-                                  )}
-                                  <div className="flex justify-between">
-                                    <span>Year Built:</span>
-                                    <span className="font-medium">{property.yearBuilt}</span>
+                                  <div className="bg-gray-50 p-4 rounded-lg">
+                                    <div className="text-sm text-gray-600">Lot Size</div>
+                                    <div className="font-semibold text-lg">{property.lotSize ? formatNumber(property.lotSize) + ' sq ft' : 'N/A'}</div>
                                   </div>
-                                  <div className="flex justify-between">
-                                    <span>Days on Market:</span>
-                                    <span className="font-medium">{property.marketData.daysOnMarket}</span>
+                                  <div className="bg-gray-50 p-4 rounded-lg">
+                                    <div className="text-sm text-gray-600">Year Built</div>
+                                    <div className="font-semibold text-lg">{property.yearBuilt}</div>
                                   </div>
-                                  <div className="flex justify-between">
-                                    <span>Price per Sq Ft:</span>
-                                    <span className="font-medium">{formatPrice(property.marketData.pricePerSqFt)}</span>
+                                  <div className="bg-gray-50 p-4 rounded-lg">
+                                    <div className="text-sm text-gray-600">Days on Market</div>
+                                    <div className="font-semibold text-lg">{property.marketData.daysOnMarket}</div>
                                   </div>
-                                </div>
-                              </div>
-
-                              <div>
-                                <h4 className="font-semibold mb-3">Neighborhood</h4>
-                                <div className="space-y-2 text-sm">
-                                  <div className="flex justify-between">
-                                    <span>Walk Score:</span>
-                                    <span className="font-medium">{property.neighborhood.walkScore}/100</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Crime Rate:</span>
-                                    <span className="font-medium">{property.neighborhood.crimeRate}</span>
+                                  <div className="bg-gray-50 p-4 rounded-lg">
+                                    <div className="text-sm text-gray-600">Price per Sq Ft</div>
+                                    <div className="font-semibold text-lg">{formatPrice(property.marketData.pricePerSqFt)}</div>
                                   </div>
                                 </div>
 
                                 {property.features.length > 0 && (
-                                  <div className="mt-4">
-                                    <h5 className="font-medium mb-2">Features</h5>
-                                    <div className="flex flex-wrap gap-1">
-                                      {property.features.slice(0, 5).map((feature, index) => (
-                                        <Badge key={index} variant="secondary" className="text-xs">
+                                  <div className="mt-6">
+                                    <h5 className="font-semibold text-lg mb-3">Property Features</h5>
+                                    <div className="flex flex-wrap gap-2">
+                                      {property.features.slice(0, 10).map((feature, index) => (
+                                        <Badge key={index} variant="secondary" className="px-3 py-1">
                                           {feature}
                                         </Badge>
                                       ))}
+                                      {property.features.length > 10 && (
+                                        <Badge variant="outline" className="px-3 py-1">
+                                          +{property.features.length - 10} more
+                                        </Badge>
+                                      )}
                                     </div>
                                   </div>
                                 )}
+                              </div>
+
+                              <div>
+                                <h4 className="font-semibold text-lg mb-4">Neighborhood & Area</h4>
+                                <div className="space-y-4">
+                                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
+                                    <div className="text-sm text-blue-700 font-medium">Walk Score</div>
+                                    <div className="text-3xl font-bold text-blue-800 mt-1">{property.neighborhood.walkScore}</div>
+                                    <div className="text-xs text-blue-600 mt-1">Out of 100</div>
+                                  </div>
+
+                                  <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
+                                    <div className="text-sm text-green-700 font-medium">Crime Rate</div>
+                                    <div className="text-lg font-bold text-green-800 mt-1">{property.neighborhood.crimeRate}</div>
+                                    <div className="text-xs text-green-600 mt-1">Safety level</div>
+                                  </div>
+
+                                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg border border-purple-200">
+                                    <div className="text-sm text-purple-700 font-medium">Schools</div>
+                                    <div className="text-lg font-bold text-purple-800 mt-1">{property.neighborhood.schools.length}</div>
+                                    <div className="text-xs text-purple-600 mt-1">Nearby schools</div>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           </TabsContent>
 
                           <TabsContent value="investment" className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div>
-                                <h4 className="font-semibold mb-3">Investment Metrics</h4>
-                                <div className="space-y-2 text-sm">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                              <div className="lg:col-span-2">
+                                <h4 className="font-semibold mb-4">Investment Metrics</h4>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                   {property.investmentMetrics.estimatedRent && (
-                                    <div className="flex justify-between">
-                                      <span>Estimated Rent:</span>
-                                      <span className="font-medium">
-                                        {formatPrice(property.investmentMetrics.estimatedRent)}/month
-                                      </span>
+                                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
+                                      <div className="text-sm text-blue-700 font-medium">Est. Rent</div>
+                                      <div className="text-xl font-bold text-blue-800 mt-1">
+                                        {formatPrice(property.investmentMetrics.estimatedRent)}/mo
+                                      </div>
                                     </div>
                                   )}
                                   {property.investmentMetrics.capRate && (
-                                    <div className="flex justify-between">
-                                      <span>Cap Rate:</span>
-                                      <span className="font-medium">{property.investmentMetrics.capRate}%</span>
+                                    <div className="bg-gradient-to-br from-green-50 to-emerald-100 p-4 rounded-xl border border-green-200">
+                                      <div className="text-sm text-green-700 font-medium">Cap Rate</div>
+                                      <div className="text-xl font-bold text-green-800 mt-1">
+                                        {property.investmentMetrics.capRate}%
+                                      </div>
                                     </div>
                                   )}
                                   {property.investmentMetrics.cashOnCash && (
-                                    <div className="flex justify-between">
-                                      <span>Cash on Cash:</span>
-                                      <span className="font-medium">{property.investmentMetrics.cashOnCash}%</span>
+                                    <div className="bg-gradient-to-br from-purple-50 to-violet-100 p-4 rounded-xl border border-purple-200">
+                                      <div className="text-sm text-purple-700 font-medium">Cash on Cash</div>
+                                      <div className="text-xl font-bold text-purple-800 mt-1">
+                                        {property.investmentMetrics.cashOnCash}%
+                                      </div>
                                     </div>
                                   )}
                                   {property.investmentMetrics.roi && (
-                                    <div className="flex justify-between">
-                                      <span>ROI:</span>
-                                      <span className="font-medium">{property.investmentMetrics.roi}%</span>
+                                    <div className="bg-gradient-to-br from-amber-50 to-yellow-100 p-4 rounded-xl border border-amber-200">
+                                      <div className="text-sm text-amber-700 font-medium">ROI</div>
+                                      <div className="text-xl font-bold text-amber-800 mt-1">
+                                        {property.investmentMetrics.roi}%
+                                      </div>
                                     </div>
                                   )}
+                                </div>
+
+                                {/* Additional Investment Analysis */}
+                                <div className="mt-6">
+                                  <h5 className="font-semibold text-lg mb-3">Investment Analysis</h5>
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="bg-gradient-to-br from-cyan-50 to-sky-50 p-4 rounded-xl border border-cyan-200">
+                                      <div className="text-sm text-cyan-700 font-medium">Cash Flow</div>
+                                      {property.investmentMetrics.estimatedRent && property.marketData.pricePerSqFt && (
+                                        <div className="text-xl font-bold text-cyan-800 mt-2">
+                                          {formatPrice(property.investmentMetrics.estimatedRent - (property.marketData.pricePerSqFt * property.squareFootage * 0.008))}
+                                        </div>
+                                      )}
+                                      <div className="text-xs text-cyan-600 mt-1">Monthly</div>
+                                    </div>
+
+                                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-4 rounded-xl border border-emerald-200">
+                                      <div className="text-sm text-emerald-700 font-medium">Annual Rent</div>
+                                      {property.investmentMetrics.estimatedRent && (
+                                        <div className="text-xl font-bold text-emerald-800 mt-2">
+                                          {formatPrice(property.investmentMetrics.estimatedRent * 12)}
+                                        </div>
+                                      )}
+                                      <div className="text-xs text-emerald-600 mt-1">Gross</div>
+                                    </div>
+
+                                    <div className="bg-gradient-to-br from-rose-50 to-pink-50 p-4 rounded-xl border border-rose-200">
+                                      <div className="text-sm text-rose-700 font-medium">P/R Ratio</div>
+                                      {property.investmentMetrics.estimatedRent && property.price && (
+                                        <div className="text-xl font-bold text-rose-800 mt-2">
+                                          {(property.price / (property.investmentMetrics.estimatedRent * 12)).toFixed(1)}x
+                                        </div>
+                                      )}
+                                      <div className="text-xs text-rose-600 mt-1">Lower is better</div>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
 
                               <div>
-                                <h4 className="font-semibold mb-3">Market Analysis</h4>
-                                <div className="space-y-2 text-sm">
-                                  <div className="flex justify-between">
-                                    <span>Price per Sq Ft:</span>
+                                <h4 className="font-semibold mb-4">Market Data</h4>
+                                <div className="space-y-3 bg-gray-50 p-4 rounded-xl">
+                                  <div className="flex justify-between border-b pb-2">
+                                    <span className="text-gray-600">Price per Sq Ft:</span>
                                     <span className="font-medium">{formatPrice(property.marketData.pricePerSqFt)}</span>
                                   </div>
-                                  <div className="flex justify-between">
-                                    <span>Days on Market:</span>
+                                  <div className="flex justify-between border-b pb-2">
+                                    <span className="text-gray-600">Days on Market:</span>
                                     <span className="font-medium">{property.marketData.daysOnMarket} days</span>
                                   </div>
-                                  <div className="flex justify-between">
-                                    <span>Property Type:</span>
+                                  <div className="flex justify-between border-b pb-2">
+                                    <span className="text-gray-600">Property Type:</span>
                                     <span className="font-medium capitalize">{property.propertyType}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">Lot Size:</span>
+                                    <span className="font-medium">{property.lotSize ? formatNumber(property.lotSize) + ' sq ft' : 'N/A'}</span>
+                                  </div>
+                                </div>
+
+                                {/* Neighborhood Insights */}
+                                <div className="mt-6">
+                                  <h5 className="font-semibold text-lg mb-3">Neighborhood</h5>
+                                  <div className="grid grid-cols-3 gap-3">
+                                    <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-3 rounded-lg text-center border border-indigo-200">
+                                      <div className="text-sm text-indigo-600">Walk Score</div>
+                                      <div className="font-bold text-indigo-800">{property.neighborhood.walkScore}</div>
+                                    </div>
+                                    <div className="bg-gradient-to-br from-fuchsia-50 to-purple-50 p-3 rounded-lg text-center border border-fuchsia-200">
+                                      <div className="text-sm text-fuchsia-600">Crime</div>
+                                      <div className="font-bold text-fuchsia-800">{property.neighborhood.crimeRate}</div>
+                                    </div>
+                                    <div className="bg-gradient-to-br from-lime-50 to-green-50 p-3 rounded-lg text-center border border-lime-200">
+                                      <div className="text-sm text-lime-600">Schools</div>
+                                      <div className="font-bold text-lime-800">{property.neighborhood.schools.length}</div>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -891,48 +1055,67 @@ export default function PropertyListings() {
                           </TabsContent>
 
                           <TabsContent value="contact" className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div>
-                                <h4 className="font-semibold mb-3">Listing Agent</h4>
-                                <div className="space-y-3">
-                                  <div className="flex items-center gap-2">
-                                    <Building className="h-4 w-4" />
-                                    <span className="font-medium">{property.listingAgent.name}</span>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                              <div className="lg:col-span-2">
+                                <h4 className="font-semibold text-lg mb-4">Listing Agent Information</h4>
+                                <div className="bg-white border rounded-lg p-6 shadow-sm">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                      <div className="text-sm text-gray-600">Agent Name</div>
+                                      <div className="font-semibold text-lg">{property.listingAgent.name}</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-sm text-gray-600">Company</div>
+                                      <div className="font-semibold">{property.listingAgent.company}</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-sm text-gray-600">Phone</div>
+                                      <div className="font-semibold">{property.listingAgent.phone}</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-sm text-gray-600">Email</div>
+                                      <div className="font-semibold text-blue-600">{property.listingAgent.email}</div>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <Phone className="h-4 w-4" />
-                                    <span>{property.listingAgent.phone}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Mail className="h-4 w-4" />
-                                    <span>{property.listingAgent.email}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Building className="h-4 w-4" />
-                                    <span>{property.listingAgent.company}</span>
+
+                                  <div className="mt-6">
+                                    <Button asChild className="w-full">
+                                      <a href={`mailto:${property.listingAgent.email}`}>
+                                        <Mail className="h-4 w-4 mr-2" />
+                                        Contact Agent
+                                      </a>
+                                    </Button>
                                   </div>
                                 </div>
                               </div>
 
                               <div>
-                                <h4 className="font-semibold mb-3">Listing Information</h4>
-                                <div className="space-y-3">
-                                  <div className="flex justify-between">
-                                    <span>Listing ID:</span>
-                                    <span className="font-medium">{property.listingSource.listingId}</span>
+                                <h4 className="font-semibold text-lg mb-4">Listing Details</h4>
+                                <div className="space-y-4">
+                                  <div className="bg-gray-50 p-4 rounded-lg">
+                                    <div className="text-sm text-gray-600">Listing ID</div>
+                                    <div className="font-semibold">{property.listingSource.listingId}</div>
                                   </div>
-                                  <div className="flex justify-between">
-                                    <span>Source:</span>
-                                    <span className="font-medium">{property.listingSource.website}</span>
+
+                                  <div className="bg-gray-50 p-4 rounded-lg">
+                                    <div className="text-sm text-gray-600">Source</div>
+                                    <div className="font-semibold">{property.listingSource.website}</div>
                                   </div>
-                                  <div className="flex justify-between">
-                                    <span>Last Updated:</span>
-                                    <span className="font-medium">
+
+                                  <div className="bg-gray-50 p-4 rounded-lg">
+                                    <div className="text-sm text-gray-600">Last Updated</div>
+                                    <div className="font-semibold">
                                       {new Date(property.lastUpdated).toLocaleDateString()}
-                                    </span>
+                                    </div>
                                   </div>
-                                  <Button asChild className="w-full mt-4">
-                                    <a href={property.listingSource.url} target="_blank" rel="noopener noreferrer">
+
+                                  <Button asChild className="w-full">
+                                    <a
+                                      href={property.listingSource.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="w-full"
+                                    >
                                       View on {property.listingSource.website}
                                     </a>
                                   </Button>

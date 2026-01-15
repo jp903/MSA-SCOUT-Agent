@@ -298,16 +298,18 @@ export default function PropertyAnalysisPage() {
       const totalInitialInvestment = propertyData.downPayment + (propertyData.outOfPocketReno || 0)
       const potentialEquity = (propertyData.currentFmv || propertyData.currentValue) - (propertyData.currentDebt || propertyData.debt || 0)
 
-      // Calculate Unlevered ROE (based on property equity, without leverage)
-      const unleveredRoe = potentialEquity && potentialEquity !== 0 ? (annualCashFlow / potentialEquity) * 100 : 0
+      // Calculate Return on Current Equity (Cash Flow / Equity) - Cash flow is NOI minus debt service
+      const annualNoi = annualRentalIncome - annualExpenses;
+      const annualDebtService = monthlyMortgage * 12; // Assuming monthlyMortgage is the debt service payment
+      const annualCashFlowAfterDebt = annualNoi - annualDebtService;
+      const returnOnCurrentEquity = potentialEquity && potentialEquity !== 0 ? (annualCashFlowAfterDebt / potentialEquity) * 100 : 0
 
-      // Calculate Levered ROE (true cash-on-cash return based on actual investment)
-      const leveredRoe = totalInitialInvestment && totalInitialInvestment !== 0 ? (annualCashFlow / totalInitialInvestment) * 100 : 0
+      // Calculate Cash on Cash Return (based on initial investment)
+      const cashOnCashReturn = totalInitialInvestment && totalInitialInvestment !== 0 ? (annualCashFlowAfterDebt / totalInitialInvestment) * 100 : 0
 
       // Calculate returns
       const capRate = propertyData.currentValue && propertyData.currentValue !== 0 ?
         ((propertyData.monthlyRent * 12 - propertyData.monthlyExpenses * 12) / propertyData.currentValue) * 100 : 0
-      const cashOnCashReturn = totalInitialInvestment && totalInitialInvestment !== 0 ? (annualCashFlow / totalInitialInvestment) * 100 : 0
       const totalROI = totalInitialInvestment && totalInitialInvestment !== 0 ?
         ((propertyData.currentValue - propertyData.purchasePrice + annualCashFlow) / totalInitialInvestment) * 100 : 0
       const breakEvenRatio = propertyData.monthlyRent && propertyData.monthlyRent !== 0 ?
@@ -336,7 +338,7 @@ export default function PropertyAnalysisPage() {
         monthlyCashFlow,
         annualCashFlow,
         capRate,
-        cashOnCashReturn,
+        cashOnCashReturn: cashOnCashReturn, // Using the newly calculated cash on cash return
         totalROI,
         breakEvenRatio,
         recommendation,
@@ -1032,16 +1034,12 @@ export default function PropertyAnalysisPage() {
                               <span className="font-medium">{formatPercentage(analysisResults.capRate)}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-600 dark:text-gray-300">Cash-on-Cash Return:</span>
-                              <span className="font-medium">{formatPercentage(analysisResults.cashOnCashReturn)}</span>
+                              <span className="text-gray-600 dark:text-gray-300">Return on Current Equity:</span>
+                              <span className="font-medium">{formatPercentage(returnOnCurrentEquity)}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-600 dark:text-gray-300">Unlevered ROE:</span>
-                              <span className="font-medium">{formatPercentage(propertyData.potentialEquity && propertyData.potentialEquity !== 0 ? (analysisResults.annualCashFlow / propertyData.potentialEquity) * 100 : 0)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600 dark:text-gray-300">Levered ROE:</span>
-                              <span className="font-medium">{formatPercentage(propertyData.totalInitialInvestment && propertyData.totalInitialInvestment !== 0 ? (analysisResults.annualCashFlow / propertyData.totalInitialInvestment) * 100 : 0)}</span>
+                              <span className="text-gray-600 dark:text-gray-300">Cash on Cash Return:</span>
+                              <span className="font-medium">{formatPercentage(cashOnCashReturn)}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-300">Break-Even Ratio:</span>

@@ -139,6 +139,7 @@ export function AppSidebar({
   onDeleteChat,
   user,
   onSignOut,
+  onAuthRequired,
   chatHistoryLoaded,
 }: AppSidebarProps) {
   const { theme, setTheme } = useTheme();
@@ -277,12 +278,12 @@ export function AppSidebar({
                   <div className="flex items-center gap-3 w-full">
                     <Avatar className="w-8 h-8">
                       <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white text-sm">
-                        {getUserInitials(user.firstName, user.lastName)}
+                        {getUserInitials(user.first_name, user.last_name)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 text-left">
                       <p className="text-sm font-medium">
-                        {user.firstName} {user.lastName}
+                        {user.first_name} {user.last_name}
                       </p>
                       <p className="text-xs text-gray-500 truncate">{user.email}</p>
                     </div>
@@ -292,7 +293,7 @@ export function AppSidebar({
               <DropdownMenuContent align="end" className="w-56">
                 <div className="px-2 py-1.5">
                   <p className="text-sm font-medium">
-                        {user.firstName} {user.lastName}
+                        {user.first_name} {user.last_name}
                   </p>
                   <p className="text-xs text-gray-500">{user.email}</p>
                   {user.company && <p className="text-xs text-gray-500">{user.company}</p>}

@@ -85,6 +85,8 @@ export async function POST(request: NextRequest) {
       maxCapRate: Number(body.maxCapRate) || 20,
       minRoi: Number(body.minRoi) || 0,
       maxRoi: Number(body.maxRoi) || 50,
+      minCashOnCash: Number(body.minCashOnCash) || 0,
+      maxCashOnCash: Number(body.maxCashOnCash) || 30,
       minSquareFootage: Number(body.minSquareFootage) || 0,
       sortBy: body.sortBy || "price",
       sortOrder: body.sortOrder || "asc",
