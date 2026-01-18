@@ -145,7 +145,13 @@ export function MarketInsights() {
             housingUnits: data.housingUnits || 0,
             dataQuality: "live" as const,
           };
+        } else {
+          // API responded but with no success (e.g., no data for state)
+          console.warn(`Census API no data for ${state}:`, data.message || 'No data available');
         }
+      } else {
+        // HTTP error occurred
+        console.warn(`Census API HTTP error for ${state}:`, response.status);
       }
     } catch (error) {
       console.warn(`Census API unavailable for ${state}:`, error);
@@ -184,14 +190,20 @@ export function MarketInsights() {
 
       if (response.ok) {
         const data = await response.json();
-        if (data.success) {
+        if (data.success && data.value !== null) {
           const unemploymentRate = data.value || 0;
           return {
             unemploymentRate,
             employmentRate: 100 - unemploymentRate,
             dataQuality: "live" as const,
           };
+        } else {
+          // API responded but with no success (e.g., no data for state)
+          console.warn(`BLS API no data for ${state}:`, data.message || 'No data available');
         }
+      } else {
+        // HTTP error occurred
+        console.warn(`BLS API HTTP error for ${state}:`, response.status);
       }
     } catch (error) {
       console.warn(`BLS API unavailable for ${state}:`, error);
@@ -230,24 +242,30 @@ export function MarketInsights() {
         fetch("/api/fred-data?series=CPIAUCSL"),
       ])
 
-      const mortgageData = mortgageResponse.status === 'fulfilled' ? await mortgageResponse.value.json() : { success: false };
-      const inventoryData = inventoryResponse.status === 'fulfilled' ? await inventoryResponse.value.json() : { success: false };
-      const gdpData = gdpResponse.status === 'fulfilled' ? await gdpResponse.value.json() : { success: false };
-      const inflationData = inflationResponse.status === 'fulfilled' ? await inflationResponse.value.json() : { success: false };
+      const mortgageResult = mortgageResponse.status === 'fulfilled' ? await mortgageResponse.value.json() : { success: false };
+      const inventoryResult = inventoryResponse.status === 'fulfilled' ? await inventoryResponse.value.json() : { success: false };
+      const gdpResult = gdpResponse.status === 'fulfilled' ? await gdpResponse.value.json() : { success: false };
+      const inflationResult = inflationResponse.status === 'fulfilled' ? await inflationResponse.value.json() : { success: false };
+
+      // Extract values, defaulting to fallback values if API call failed or returned no data
+      const mortgageData = mortgageResult.success && mortgageResult.value !== null ? mortgageResult : { value: 6.63 };
+      const inventoryData = inventoryResult.success && inventoryResult.value !== null ? inventoryResult : { value: 4.7 };
+      const gdpData = gdpResult.success && gdpResult.value !== null ? gdpResult : { value: 2.4 };
+      const inflationData = inflationResult.success && inflationResult.value !== null ? inflationResult : { value: 3.2 };
 
       setFredData({
-        mortgageRate: mortgageData.success ? mortgageData.value : 6.63,
-        inventoryLevel: inventoryData.success ? inventoryData.value : 4.7,
-        gdpGrowth: gdpData.success ? gdpData.value : 2.4,
-        inflationRate: inflationData.success ? inflationData.value : 3.2,
+        mortgageRate: mortgageData.value,
+        inventoryLevel: inventoryData.value,
+        gdpGrowth: gdpData.value,
+        inflationRate: inflationData.value,
         lastUpdated: new Date(),
       });
-      
-      setDataSourceStatus((prev) => ({ 
-        ...prev, 
-        fred: mortgageData.success && inventoryData.success && gdpData.success && inflationData.success 
-          ? "connected" 
-          : "estimated" 
+
+      setDataSourceStatus((prev) => ({
+        ...prev,
+        fred: mortgageResult.success && inventoryResult.success && gdpResult.success && inflationResult.success
+          ? "connected"
+          : "estimated"
       }))
     } catch (error) {
       console.error("Error fetching FRED data:", error)

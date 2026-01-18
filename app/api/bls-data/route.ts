@@ -37,7 +37,15 @@ export async function GET(request: NextRequest) {
     const data = await response.json();
 
     if (data.status !== "REQUEST_SUCCEEDED" || !data.Results?.series?.[0]?.data?.[0]) {
-      throw new Error("No data available from BLS");
+      console.warn(`No BLS data available for state code: ${stateCode}`, data);
+      return NextResponse.json({
+        seriesId,
+        value: null,
+        period: null,
+        year: null,
+        success: false,
+        message: "No data available from BLS for this state"
+      }, { status: 404 });
     }
 
     const latestData = data.Results.series[0].data[0];
@@ -49,12 +57,27 @@ export async function GET(request: NextRequest) {
       year: latestData.year,
       success: true,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching BLS data:", error);
+
+    // Check if it's a specific error from BLS API
+    if (error.message && error.message.includes("404")) {
+      return NextResponse.json({
+        seriesId,
+        value: null,
+        period: null,
+        year: null,
+        success: false,
+        message: "Invalid state code or series does not exist"
+      }, { status: 404 });
+    }
+
     return NextResponse.json(
       {
         error: "Failed to fetch BLS data",
         details: error instanceof Error ? error.message : String(error),
+        seriesId,
+        success: false
       },
       { status: 500 },
     );

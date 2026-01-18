@@ -41,7 +41,14 @@ export async function GET(request: NextRequest) {
     console.log(`📋 FRED API Response Data:`, JSON.stringify(data, null, 2))
 
     if (!data.observations || data.observations.length === 0) {
-      throw new Error("No data available from FRED")
+      console.warn(`No observations found for FRED series: ${series}`)
+      return NextResponse.json({
+        series_id: series,
+        value: null,
+        date: null,
+        success: false,
+        message: "No data available for this series"
+      })
     }
 
     const latestObservation = data.observations[0]
@@ -52,12 +59,26 @@ export async function GET(request: NextRequest) {
       date: latestObservation.date,
       success: true,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching FRED data:", error)
+
+    // Check if it's a 400/404 error indicating invalid series
+    if (error.message && (error.message.includes("400") || error.message.includes("404"))) {
+      return NextResponse.json({
+        series_id: series,
+        value: null,
+        date: null,
+        success: false,
+        message: "Invalid series ID or series does not exist"
+      }, { status: 404 })
+    }
+
     return NextResponse.json(
       {
         error: "Failed to fetch FRED data",
         details: error instanceof Error ? error.message : String(error),
+        series_id: series,
+        success: false
       },
       { status: 500 },
     )

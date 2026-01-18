@@ -418,7 +418,7 @@ export default function HomePage() {
           const [censusResponse, blsResponse, fredResponse] = await Promise.allSettled([
             fetch(`/api/census-data?stateCode=${targetState.stateCode}`),
             fetch(`/api/bls-data?stateCode=${targetState.stateCode}`),
-            fetch(`/api/fred-data?series=HPIP${targetState.stateCode}`) // Hypothetical house price index series
+            fetch(`/api/fred-data?series=HPI`) // National House Price Index as fallback
           ]);
 
           let populationGrowth = 0;
@@ -450,7 +450,7 @@ export default function HomePage() {
           // Process FRED data if available
           if (fredResponse.status === 'fulfilled' && fredResponse.value.ok) {
             const fredData = await fredResponse.value.json();
-            if (fredData.success) {
+            if (fredData.success && fredData.value !== null) {
               housePriceIndexGrowth = fredData.value;
             }
           }
