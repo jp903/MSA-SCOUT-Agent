@@ -4,13 +4,15 @@ const FRED_API_KEY = process.env.FRED_API_KEY
 const FRED_BASE_URL = "https://api.stlouisfed.org/fred"
 
 export async function GET(request: NextRequest) {
+  let series: string | null = null;
+
   try {
     if (!FRED_API_KEY) {
       return NextResponse.json({ error: "FRED_API_KEY environment variable is not configured" }, { status: 500 })
     }
 
     const { searchParams } = new URL(request.url)
-    const series = searchParams.get("series")
+    series = searchParams.get("series")
 
     if (!series) {
       return NextResponse.json({ error: "Series parameter required" }, { status: 400 })
@@ -34,6 +36,18 @@ export async function GET(request: NextRequest) {
     if (!response.ok) {
       const errorText = await response.text()
       console.error(`❌ FRED API Error Response: ${errorText}`)
+
+      // Handle specific error codes from FRED API
+      if (response.status === 400 || response.status === 404) {
+        return NextResponse.json({
+          series_id: series,
+          value: null,
+          date: null,
+          success: false,
+          message: "Invalid series ID or series does not exist"
+        }, { status: 404 })
+      }
+
       throw new Error(`FRED API error: ${response.statusText} - ${errorText}`)
     }
 
@@ -62,22 +76,11 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error("Error fetching FRED data:", error)
 
-    // Check if it's a 400/404 error indicating invalid series
-    if (error.message && (error.message.includes("400") || error.message.includes("404"))) {
-      return NextResponse.json({
-        series_id: series,
-        value: null,
-        date: null,
-        success: false,
-        message: "Invalid series ID or series does not exist"
-      }, { status: 404 })
-    }
-
     return NextResponse.json(
       {
         error: "Failed to fetch FRED data",
         details: error instanceof Error ? error.message : String(error),
-        series_id: series,
+        series_id: series || null,
         success: false
       },
       { status: 500 },
