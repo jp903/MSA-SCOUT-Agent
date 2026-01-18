@@ -876,7 +876,7 @@ export default function HomePage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-gray-600 dark:text-gray-300">AI Tools</p>
-                          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">7</p>
+                          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">8</p>
                           <p className="text-xs text-purple-600 dark:text-purple-400">Available</p>
                         </div>
                         <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center shadow-md">
